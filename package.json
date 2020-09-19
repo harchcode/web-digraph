@@ -1,0 +1,36 @@
+{
+  "name": "web-digraph",
+  "version": "1.0.0",
+  "description": "A web component to create directed graph editor.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "repository": {
+    "url": "https://github.com/harchcode/web-digraph"
+  },
+  "keywords": [],
+  "license": "MIT",
+  "scripts": {
+    "dev:example": "parcel src/example/index.html --port 1234 --hmr-port 1235",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "rm -rf dist && tsc src/index.ts --outDir dist --declaration",
+    "format": "prettier --write \"src/**/*.ts\" \"src/**/*.js\"",
+    "lint": "eslint './{src,test}/**/*.{js,ts}'"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^4.1.1",
+    "@typescript-eslint/parser": "^4.1.1",
+    "@webcomponents/custom-elements": "^1.4.2",
+    "eslint": "^7.9.0",
+    "eslint-config-prettier": "^6.11.0",
+    "eslint-plugin-prettier": "^3.1.4",
+    "husky": "^4.3.0",
+    "parcel-bundler": "^1.12.4",
+    "prettier": "^2.1.2",
+    "typescript": "^4.0.3"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "npm run lint"
+    }
+  }
+}
