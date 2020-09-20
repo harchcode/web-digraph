@@ -13,18 +13,46 @@ export class GEGraphRenderer {
   canvas: HTMLCanvasElement;
   ctx: CanvasRenderingContext2D;
 
+  private isDrawing = false;
+  private translateX = 0;
+  private translateY = 0;
+  private scale = 1;
+
   constructor(graph: GEGraph, canvas: HTMLCanvasElement) {
     this.graph = graph;
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d");
   }
 
-  draw(): void {
+  setTransform(translateX: number, translateY: number, scale: number): void {
+    this.translateX = translateX;
+    this.translateY = translateY;
+    this.scale = scale;
+  }
+
+  resizeCanvas(width: number, height: number): void {
+    this.canvas.width = width;
+    this.canvas.height = height;
+
+    this.requestDraw();
+  }
+
+  requestDraw(): void {
+    if (!this.isDrawing) {
+      requestAnimationFrame(this.draw);
+    }
+
+    this.isDrawing = true;
+  }
+
+  draw = (): void => {
+    this.isDrawing = false;
+
     this.ctx.fillStyle = "#EDF2F7";
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
     this.drawGraph();
-  }
+  };
 
   drawGraph(): void {
     this.graph.edges.forEach(edge => {
@@ -42,10 +70,6 @@ export class GEGraphRenderer {
     ctx.fillStyle = "white";
     ctx.strokeStyle = "black";
     ctx.lineWidth = 2;
-    // ctx.shadowColor = "#718096";
-    // ctx.shadowBlur = 4;
-    // ctx.shadowOffsetX = 0;
-    // ctx.shadowOffsetY = 2;
 
     ctx.beginPath();
     ctx.arc(node.x, node.y, NODE_RADIUS, 0, Math.PI * 2);

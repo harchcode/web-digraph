@@ -1,10 +1,12 @@
 import { GEGraph } from "./graph";
 import { GEGraphRenderer } from "./graph-renderer";
+import { GEEventHandler } from "./event-handler";
 
-class GraphView extends HTMLElement {
+export class GraphView extends HTMLElement {
   canvas: HTMLCanvasElement;
   graph: GEGraph;
   renderer: GEGraphRenderer;
+  eventHandler: GEEventHandler;
 
   constructor() {
     super();
@@ -13,12 +15,14 @@ class GraphView extends HTMLElement {
 
     this.canvas = document.createElement("canvas");
     this.graph = new GEGraph();
-    this.renderer = new GEGraphRenderer(this.graph, this.canvas);
 
     shadow.appendChild(this.canvas);
+
+    this.renderer = new GEGraphRenderer(this.graph, this.canvas);
+    this.eventHandler = new GEEventHandler(this.graph, this.renderer);
   }
 
-  connectedCallback() {
+  connectedCallback(): void {
     this.graph.randomize();
 
     const parent = this.shadowRoot.host.parentElement;
@@ -27,8 +31,16 @@ class GraphView extends HTMLElement {
     this.canvas.width = parent.clientWidth;
     this.canvas.height = parent.clientHeight;
 
+    this.eventHandler.init();
+
     this.renderer.draw();
   }
-}
 
-customElements.define("graph-view", GraphView);
+  disconnectedCallback(): void {
+    this.eventHandler.destroy();
+  }
+
+  resize(width: number, height: number): void {
+    this.renderer.resizeCanvas(width, height);
+  }
+}
