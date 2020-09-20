@@ -10,6 +10,21 @@ export class GEGraph {
     this.reset();
   }
 
+  randomize(nodeCount = 1000, cols = 40): void {
+    this.reset;
+
+    for (let i = 0; i < nodeCount; i++) {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+
+      this.addNode(col * 320, row * 480);
+
+      if (i > 0) {
+        this.addEdge(this.nodes.get(i).id, this.nodes.get(i + 1).id);
+      }
+    }
+  }
+
   reset(): void {
     this.nodes = new Map<number, GENode>();
     this.edges = new Map<number, GEEdge>();
