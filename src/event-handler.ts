@@ -1,13 +1,14 @@
 import { GEGraph } from "./graph";
-import { GEGraphRenderer } from "./graph-renderer";
+import { GEGraphRenderer, NODE_RADIUS } from "./graph-renderer";
+import { getScreenToViewPosition } from "./utils";
 
 export class GEEventHandler {
   graph: GEGraph;
   renderer: GEGraphRenderer;
 
+  isTicking = false;
+
   isDragging = false;
-  selectedNodeId = 0;
-  selectedEdgeId = 0;
   isShiftDown = false;
   isCreatingEdge = false;
 
@@ -35,15 +36,31 @@ export class GEEventHandler {
   }
 
   handleMouseDown = (evt: MouseEvent): void => {
-    // TODO
+    this.isDragging = true;
+
+    this.renderer.selectedNodeId = this.renderer.hoveredNodeId;
+    this.renderer.selectedEdgeId = this.renderer.hoveredEdgeId;
+
+    this.renderer.requestDraw();
   };
 
   handleMouseUp = (evt: MouseEvent): void => {
-    // TODO
+    this.isDragging = false;
   };
 
   handleMouseMove = (evt: MouseEvent): void => {
-    // TODO
+    this.renderer.setPointerPos(evt.clientX, evt.clientY);
+
+    if (this.isDragging && this.renderer.selectedNodeId <= 0) {
+      this.renderer.moveView(evt.movementX, evt.movementY);
+    } else if (this.isDragging && this.renderer.selectedNodeId > 0) {
+      const node = this.graph.nodes.get(this.renderer.selectedNodeId);
+
+      node.x += evt.movementX / this.renderer.scale;
+      node.y += evt.movementY / this.renderer.scale;
+    }
+
+    this.renderer.requestDraw();
   };
 
   handleKeyDown = (evt: KeyboardEvent): void => {
@@ -55,6 +72,33 @@ export class GEEventHandler {
   };
 
   handleCanvasWheel = (evt: WheelEvent): void => {
-    // TODO
+    evt.preventDefault();
+
+    const [viewX, viewY] = getScreenToViewPosition(
+      this.renderer.canvas,
+      evt.clientX,
+      evt.clientY,
+      this.renderer.translateX,
+      this.renderer.translateY,
+      this.renderer.scale
+    );
+
+    // calc the new scale, but limitting the value to the max of 3, and min of 0.05
+    const MIN_SCALE = 0.2;
+    const MAX_SCALE = 3.0;
+
+    const newScale = Math.min(
+      MAX_SCALE,
+      Math.max(MIN_SCALE, this.renderer.scale - evt.deltaY * 0.001)
+    );
+
+    const deltaScale = newScale - this.renderer.scale;
+    const offsetX = -(viewX * deltaScale);
+    const offsetY = -(viewY * deltaScale);
+
+    this.renderer.moveView(offsetX, offsetY);
+    this.renderer.zoomView(deltaScale);
+
+    this.renderer.requestDraw();
   };
 }

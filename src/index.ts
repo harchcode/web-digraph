@@ -23,7 +23,7 @@ export class GraphView extends HTMLElement {
   }
 
   connectedCallback(): void {
-    this.graph.randomize();
+    this.graph.randomize(100, 20);
 
     const parent = this.shadowRoot.host.parentElement;
 
