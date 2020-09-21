@@ -186,15 +186,22 @@ export class GEGraphRenderer {
     const target = this.graph.nodes.get(edge.targetNodeId);
     const dx = target.x - source.x;
     const dy = target.y - source.y;
+
     const rad = Math.atan2(dy, dx);
+    const sinr = Math.sin(rad);
+    const cosr = Math.cos(rad);
 
     // calculate the start and end points of the line
-    const startX = source.x + Math.cos(rad) * NODE_RADIUS;
-    const startY = source.y + Math.sin(rad) * NODE_RADIUS;
-    const endX = target.x - Math.cos(rad) * (NODE_RADIUS + 3);
-    const endY = target.y - Math.sin(rad) * (NODE_RADIUS + 3);
-    const lineEndX = target.x - Math.cos(rad) * (NODE_RADIUS + EDGE_LINE_OFF);
-    const lineEndY = target.y - Math.sin(rad) * (NODE_RADIUS + EDGE_LINE_OFF);
+    const startX = Math.round(source.x + cosr * NODE_RADIUS);
+    const startY = Math.round(source.y + sinr * NODE_RADIUS);
+    const endX = Math.round(target.x - cosr * (NODE_RADIUS + 3));
+    const endY = Math.round(target.y - sinr * (NODE_RADIUS + 3));
+    const lineEndX = Math.round(
+      target.x - cosr * (NODE_RADIUS + EDGE_LINE_OFF)
+    );
+    const lineEndY = Math.round(
+      target.y - sinr * (NODE_RADIUS + EDGE_LINE_OFF)
+    );
 
     const { ctx, pointerScreenX, pointerScreenY } = this;
 
@@ -205,12 +212,12 @@ export class GEGraphRenderer {
     ctx.lineTo(lineEndX, lineEndY);
     ctx.moveTo(endX, endY);
     ctx.lineTo(
-      endX - EDGE_ARROW_LEN * Math.cos(rad - EDGE_ARROW_RAD),
-      endY - EDGE_ARROW_LEN * Math.sin(rad - EDGE_ARROW_RAD)
+      Math.round(endX - EDGE_ARROW_LEN * Math.cos(rad - EDGE_ARROW_RAD)),
+      Math.round(endY - EDGE_ARROW_LEN * Math.sin(rad - EDGE_ARROW_RAD))
     );
     ctx.lineTo(
-      endX - EDGE_ARROW_LEN * Math.cos(rad + EDGE_ARROW_RAD),
-      endY - EDGE_ARROW_LEN * Math.sin(rad + EDGE_ARROW_RAD)
+      Math.round(endX - EDGE_ARROW_LEN * Math.cos(rad + EDGE_ARROW_RAD)),
+      Math.round(endY - EDGE_ARROW_LEN * Math.sin(rad + EDGE_ARROW_RAD))
     );
     ctx.lineTo(endX, endY);
     ctx.closePath();
@@ -237,8 +244,8 @@ export class GEGraphRenderer {
     ctx.stroke();
     ctx.fill();
 
-    const midX = (startX + endX) * 0.5;
-    const midY = (startY + endY) * 0.5;
+    const midX = Math.round((startX + endX) * 0.5);
+    const midY = Math.round((startY + endY) * 0.5);
 
     ctx.fillStyle = EDGE_RECT_FILL_COLOR;
     ctx.beginPath();
@@ -251,7 +258,6 @@ export class GEGraphRenderer {
     ctx.fill();
     ctx.stroke();
 
-    ctx.lineWidth = 1;
     ctx.fillStyle = EDGE_TEXT_COLOR;
     ctx.font = EDGE_TEXT_FONT;
     ctx.textAlign = EDGE_TEXT_ALIGN;
