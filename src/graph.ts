@@ -116,7 +116,7 @@ export class GEGraph {
   }
 
   deleteEdge(edgeId: number): void {
-    const edge = this.edges[edgeId];
+    const edge = this.edges.get(edgeId);
 
     this.nodes.get(edge.sourceNodeId).sourceOfEdgeIds.delete(edgeId);
     this.nodes.get(edge.targetNodeId).targetOfEdgeIds.delete(edgeId);

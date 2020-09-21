@@ -46,6 +46,26 @@ export class GEEventHandler {
 
   handleMouseUp = (evt: MouseEvent): void => {
     this.isDragging = false;
+
+    if (
+      this.isShiftDown &&
+      !this.isCreatingEdge &&
+      this.renderer.hoveredNodeId <= 0 &&
+      this.renderer.hoveredEdgeId <= 0
+    ) {
+      const [viewX, viewY] = getScreenToViewPosition(
+        this.renderer.canvas,
+        evt.clientX,
+        evt.clientY,
+        this.renderer.translateX,
+        this.renderer.translateY,
+        this.renderer.scale
+      );
+
+      this.graph.addNode(viewX, viewY);
+
+      this.renderer.requestDraw();
+    }
   };
 
   handleMouseMove = (evt: MouseEvent): void => {
@@ -64,11 +84,34 @@ export class GEEventHandler {
   };
 
   handleKeyDown = (evt: KeyboardEvent): void => {
-    // TODO
+    if (evt.key === "Shift" || evt.keyCode === 16) {
+      this.isShiftDown = true;
+    }
+
+    if (
+      evt.key === "Backspace" ||
+      evt.keyCode === 8 ||
+      evt.key === "Delete" ||
+      evt.keyCode === 46
+    ) {
+      if (this.renderer.selectedNodeId > 0) {
+        this.graph.deleteNode(this.renderer.selectedNodeId);
+        this.renderer.selectedNodeId = 0;
+        this.renderer.requestDraw();
+      }
+
+      if (this.renderer.selectedEdgeId > 0) {
+        this.graph.deleteEdge(this.renderer.selectedEdgeId);
+        this.renderer.selectedEdgeId = 0;
+        this.renderer.requestDraw();
+      }
+    }
   };
 
   handleKeyUp = (evt: KeyboardEvent): void => {
-    // TODO
+    if (evt.key === "Shift" || evt.keyCode === 16) {
+      this.isShiftDown = false;
+    }
   };
 
   handleCanvasWheel = (evt: WheelEvent): void => {

@@ -45,7 +45,7 @@ export class GEGraphRenderer {
   constructor(graph: GEGraph, canvas: HTMLCanvasElement) {
     this.graph = graph;
     this.canvas = canvas;
-    this.ctx = canvas.getContext("2d");
+    this.ctx = canvas.getContext("2d", { alpha: false });
   }
 
   setPointerPos(screenX: number, screenY: number): void {
