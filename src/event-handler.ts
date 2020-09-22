@@ -1,5 +1,5 @@
 import { GEGraph } from "./graph";
-import { GEGraphRenderer, NODE_RADIUS } from "./graph-renderer";
+import { GEGraphRenderer } from "./graph-renderer";
 import { getScreenToViewPosition } from "./utils";
 
 export class GEEventHandler {
@@ -10,7 +10,6 @@ export class GEEventHandler {
 
   isDragging = false;
   isShiftDown = false;
-  isCreatingEdge = false;
 
   constructor(graph: GEGraph, renderer: GEGraphRenderer) {
     this.graph = graph;
@@ -35,21 +34,37 @@ export class GEEventHandler {
     this.renderer.canvas.removeEventListener("wheel", this.handleCanvasWheel);
   }
 
-  handleMouseDown = (evt: MouseEvent): void => {
+  handleMouseDown = (): void => {
     this.isDragging = true;
 
     this.renderer.selectedNodeId = this.renderer.hoveredNodeId;
     this.renderer.selectedEdgeId = this.renderer.hoveredEdgeId;
 
+    if (this.isShiftDown && this.renderer.selectedNodeId > 0) {
+      const node = this.graph.nodes.get(this.renderer.selectedNodeId);
+
+      this.renderer.isCreatingEdge = true;
+      this.renderer.drageLineSourceNodeId = this.renderer.selectedNodeId;
+      this.renderer.dragLineTargetX = node.x;
+      this.renderer.dragLineTargetY = node.y;
+    }
+
     this.renderer.requestDraw();
   };
 
   handleMouseUp = (evt: MouseEvent): void => {
-    this.isDragging = false;
-
     if (
+      this.renderer.isCreatingEdge &&
+      this.renderer.hoveredNodeId > 0 &&
+      this.renderer.hoveredNodeId !== this.renderer.drageLineSourceNodeId
+    ) {
+      this.graph.addEdge(
+        this.renderer.drageLineSourceNodeId,
+        this.renderer.hoveredNodeId
+      );
+    } else if (
       this.isShiftDown &&
-      !this.isCreatingEdge &&
+      !this.renderer.isCreatingEdge &&
       this.renderer.hoveredNodeId <= 0 &&
       this.renderer.hoveredEdgeId <= 0
     ) {
@@ -63,9 +78,12 @@ export class GEEventHandler {
       );
 
       this.graph.addNode(viewX, viewY);
-
-      this.renderer.requestDraw();
     }
+
+    this.renderer.requestDraw();
+
+    this.isDragging = false;
+    this.renderer.isCreatingEdge = false;
   };
 
   handleMouseMove = (evt: MouseEvent): void => {
@@ -73,7 +91,11 @@ export class GEEventHandler {
 
     if (this.isDragging && this.renderer.selectedNodeId <= 0) {
       this.renderer.moveView(evt.movementX, evt.movementY);
-    } else if (this.isDragging && this.renderer.selectedNodeId > 0) {
+    } else if (
+      this.isDragging &&
+      !this.renderer.isCreatingEdge &&
+      this.renderer.selectedNodeId > 0
+    ) {
       const node = this.graph.nodes.get(this.renderer.selectedNodeId);
 
       node.x += evt.movementX / this.renderer.scale;

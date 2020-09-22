@@ -9,6 +9,9 @@ const EDGE_LINE_OFF = EDGE_ARROW_LEN * Math.cos(EDGE_ARROW_RAD);
 const EDGE_RECT_WIDTH = 48;
 const EDGE_RECT_HEIGHT = 24;
 const BG_COLOR = "#EDF2F7";
+const BG_CIRCLE_COLOR = "#CBD5E0";
+const BG_CIRCLE_RADIUS = 8;
+const BG_CIRCLE_GAP = 128;
 const NODE_FILL_COLOR = "white";
 const NODE_HOVER_COLOR = "#B2F5EA";
 const NODE_SELECTED_COLOR = "#FED7E2";
@@ -41,6 +44,11 @@ export class GEGraphRenderer {
   selectedEdgeId = 0;
   hoveredNodeId = 0;
   hoveredEdgeId = 0;
+
+  isCreatingEdge = false;
+  drageLineSourceNodeId = 0;
+  dragLineTargetX = 0;
+  dragLineTargetY = 0;
 
   constructor(graph: GEGraph, canvas: HTMLCanvasElement) {
     this.graph = graph;
@@ -97,8 +105,7 @@ export class GEGraphRenderer {
     this.hoveredNodeId = 0;
     this.hoveredEdgeId = 0;
 
-    this.ctx.fillStyle = BG_COLOR;
-    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    this.drawBackground();
 
     this.ctx.transform(
       this.scale,
@@ -114,8 +121,38 @@ export class GEGraphRenderer {
     this.ctx.resetTransform();
   };
 
+  drawBackground(): void {
+    const { canvas, ctx, translateX, translateY, scale } = this;
+
+    ctx.fillStyle = BG_COLOR;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const r = BG_CIRCLE_RADIUS * scale;
+    const gap = BG_CIRCLE_GAP * scale;
+
+    const offsetX = (translateX % gap) - r;
+    const offsetY = (translateY % gap) - r;
+    const startX = offsetX;
+    const startY = offsetY;
+    const endX = canvas.width;
+    const endY = canvas.height;
+
+    for (let i = startX; i < endX + r; i += gap) {
+      for (let j = startY; j < endY + r; j += gap) {
+        ctx.beginPath();
+        ctx.arc(i, j, r, 0, Math.PI * 2);
+
+        ctx.fillStyle = BG_CIRCLE_COLOR;
+        ctx.fill();
+      }
+    }
+  }
+
   drawGraph(): void {
     this.graph.edges.forEach(this.drawEdge);
+
+    this.drawDragLine();
+
     this.graph.nodes.forEach(this.drawNode);
   }
 
@@ -142,10 +179,12 @@ export class GEGraphRenderer {
     const targetY = target.y * scale + translateY;
 
     return (
-      (sourceX < 0 && targetX < 0) ||
-      (sourceY < 0 && targetY < 0) ||
-      (sourceX > canvas.width && targetX > canvas.width) ||
-      (sourceY > canvas.height && targetY > canvas.height)
+      (sourceX < -EDGE_RECT_WIDTH && targetX < -EDGE_RECT_WIDTH) ||
+      (sourceY < -EDGE_RECT_HEIGHT && targetY < -EDGE_RECT_HEIGHT) ||
+      (sourceX > canvas.width + EDGE_RECT_WIDTH &&
+        targetX > canvas.width + EDGE_RECT_WIDTH) ||
+      (sourceY > canvas.height + EDGE_RECT_HEIGHT &&
+        targetY > canvas.height + EDGE_RECT_HEIGHT)
     );
   }
 
@@ -160,10 +199,7 @@ export class GEGraphRenderer {
     ctx.beginPath();
     ctx.arc(node.x, node.y, NODE_RADIUS, 0, Math.PI * 2);
 
-    if (
-      this.hoveredNodeId <= 0 &&
-      ctx.isPointInPath(pointerScreenX, pointerScreenY)
-    ) {
+    if (ctx.isPointInPath(pointerScreenX, pointerScreenY)) {
       this.hoveredNodeId = node.id;
     }
 
@@ -178,6 +214,60 @@ export class GEGraphRenderer {
     ctx.fill();
     ctx.stroke();
   };
+
+  drawDragLine(): void {
+    if (!this.isCreatingEdge) return;
+
+    const { canvas, ctx, pointerScreenX, pointerScreenY } = this;
+
+    const [targetX, targetY] = getScreenToViewPosition(
+      canvas,
+      pointerScreenX,
+      pointerScreenY,
+      this.translateX,
+      this.translateY,
+      this.scale
+    );
+
+    const source = this.graph.nodes.get(this.drageLineSourceNodeId);
+    const dx = targetX - source.x;
+    const dy = targetY - source.y;
+
+    const rad = Math.atan2(dy, dx);
+    const sinr = Math.sin(rad);
+    const cosr = Math.cos(rad);
+
+    // calculate the start and end points of the line
+    const startX = source.x;
+    const startY = source.y;
+    const endX = Math.round(targetX - cosr * 3);
+    const endY = Math.round(targetY - sinr * 3);
+    const lineEndX = Math.round(targetX - cosr * EDGE_LINE_OFF);
+    const lineEndY = Math.round(targetY - sinr * EDGE_LINE_OFF);
+
+    ctx.lineWidth = 2;
+
+    ctx.beginPath();
+    ctx.moveTo(startX, startY);
+    ctx.lineTo(lineEndX, lineEndY);
+    ctx.moveTo(endX, endY);
+    ctx.lineTo(
+      Math.round(endX - EDGE_ARROW_LEN * Math.cos(rad - EDGE_ARROW_RAD)),
+      Math.round(endY - EDGE_ARROW_LEN * Math.sin(rad - EDGE_ARROW_RAD))
+    );
+    ctx.lineTo(
+      Math.round(endX - EDGE_ARROW_LEN * Math.cos(rad + EDGE_ARROW_RAD)),
+      Math.round(endY - EDGE_ARROW_LEN * Math.sin(rad + EDGE_ARROW_RAD))
+    );
+    ctx.lineTo(endX, endY);
+    ctx.closePath();
+
+    ctx.strokeStyle = EDGE_LINE_COLOR;
+    ctx.fillStyle = EDGE_LINE_COLOR;
+
+    ctx.stroke();
+    ctx.fill();
+  }
 
   drawEdge = (edge: GEEdge): void => {
     if (this.isEdgeOutOfView(edge)) return;
@@ -223,9 +313,8 @@ export class GEGraphRenderer {
     ctx.closePath();
 
     if (
-      this.hoveredEdgeId <= 0 &&
-      (ctx.isPointInPath(pointerScreenX, pointerScreenY) ||
-        ctx.isPointInStroke(pointerScreenX, pointerScreenY))
+      ctx.isPointInPath(pointerScreenX, pointerScreenY) ||
+      ctx.isPointInStroke(pointerScreenX, pointerScreenY)
     ) {
       this.hoveredEdgeId = edge.id;
     }
