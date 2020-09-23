@@ -1,6 +1,6 @@
 import { GEGraph } from "./graph";
 import { GENode, GEEdge } from "./types";
-import { getScreenToViewPosition } from "./utils";
+import { GEView } from "./view";
 
 export const NODE_RADIUS = 80;
 const EDGE_ARROW_LEN = 16;
@@ -28,92 +28,39 @@ const EDGE_TEXT = "35";
 
 export class GEGraphRenderer {
   graph: GEGraph;
+  view: GEView;
   canvas: HTMLCanvasElement;
   ctx: CanvasRenderingContext2D;
 
-  isDrawing = false;
-  translateX = 0;
-  translateY = 0;
-  scale = 1;
-
-  pointerScreenX = 0;
-  pointerScreenY = 0;
-  pointerViewX = 0;
-  pointerViewY = 0;
-  selectedNodeId = 0;
-  selectedEdgeId = 0;
-  hoveredNodeId = 0;
-  hoveredEdgeId = 0;
-
-  isCreatingEdge = false;
-  drageLineSourceNodeId = 0;
-  dragLineTargetX = 0;
-  dragLineTargetY = 0;
-
-  constructor(graph: GEGraph, canvas: HTMLCanvasElement) {
+  constructor(graph: GEGraph, view: GEView, canvas: HTMLCanvasElement) {
     this.graph = graph;
+    this.view = view;
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d", { alpha: false });
   }
 
-  setPointerPos(screenX: number, screenY: number): void {
-    this.pointerScreenX = screenX;
-    this.pointerScreenY = screenY;
-
-    [this.pointerViewX, this.pointerViewY] = getScreenToViewPosition(
-      this.canvas,
-      screenX,
-      screenY,
-      this.translateX,
-      this.translateY,
-      this.scale
-    );
-  }
-
-  setTransform(translateX: number, translateY: number, scale: number): void {
-    this.translateX = translateX;
-    this.translateY = translateY;
-    this.scale = scale;
-  }
-
-  moveView(dx: number, dy: number): void {
-    this.translateX += dx;
-    this.translateY += dy;
-  }
-
-  zoomView(deltaScale: number): void {
-    this.scale += deltaScale;
-  }
-
-  resizeCanvas(width: number, height: number): void {
-    this.canvas.width = width;
-    this.canvas.height = height;
-
-    this.requestDraw();
-  }
-
   requestDraw(): void {
-    if (!this.isDrawing) {
+    if (!this.view.isDrawing) {
       requestAnimationFrame(this.draw);
     }
 
-    this.isDrawing = true;
+    this.view.isDrawing = true;
   }
 
   draw = (): void => {
-    this.isDrawing = false;
-    this.hoveredNodeId = 0;
-    this.hoveredEdgeId = 0;
+    this.view.isDrawing = false;
+    this.view.hoveredNodeId = 0;
+    this.view.hoveredEdgeId = 0;
 
     this.drawBackground();
 
     this.ctx.transform(
-      this.scale,
+      this.view.scale,
       0,
       0,
-      this.scale,
-      this.translateX,
-      this.translateY
+      this.view.scale,
+      this.view.translateX,
+      this.view.translateY
     );
 
     this.drawGraph();
@@ -122,7 +69,8 @@ export class GEGraphRenderer {
   };
 
   drawBackground(): void {
-    const { canvas, ctx, translateX, translateY, scale } = this;
+    const { canvas, ctx } = this;
+    const { translateX, translateY, scale } = this.view;
 
     ctx.fillStyle = BG_COLOR;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -132,13 +80,9 @@ export class GEGraphRenderer {
 
     const offsetX = (translateX % gap) - r;
     const offsetY = (translateY % gap) - r;
-    const startX = offsetX;
-    const startY = offsetY;
-    const endX = canvas.width;
-    const endY = canvas.height;
 
-    for (let i = startX; i < endX + r; i += gap) {
-      for (let j = startY; j < endY + r; j += gap) {
+    for (let i = offsetX; i < canvas.width + r; i += gap) {
+      for (let j = offsetY; j < canvas.height + r; j += gap) {
         ctx.beginPath();
         ctx.arc(i, j, r, 0, Math.PI * 2);
 
@@ -157,7 +101,8 @@ export class GEGraphRenderer {
   }
 
   isNodeOutOfView(node: GENode): boolean {
-    const { canvas, translateX, translateY, scale } = this;
+    const { canvas } = this;
+    const { translateX, translateY, scale } = this.view;
 
     return (
       (node.x + NODE_RADIUS) * scale + translateX < 0 ||
@@ -168,7 +113,8 @@ export class GEGraphRenderer {
   }
 
   isEdgeOutOfView(edge: GEEdge): boolean {
-    const { canvas, translateX, translateY, scale } = this;
+    const { canvas } = this;
+    const { translateX, translateY, scale } = this.view;
 
     const source = this.graph.nodes.get(edge.sourceNodeId);
     const target = this.graph.nodes.get(edge.targetNodeId);
@@ -191,7 +137,8 @@ export class GEGraphRenderer {
   drawNode = (node: GENode): void => {
     if (this.isNodeOutOfView(node)) return;
 
-    const { ctx, pointerScreenX, pointerScreenY } = this;
+    const { ctx } = this;
+    const { pointerCanvasX, pointerCanvasY } = this.view;
 
     ctx.strokeStyle = NODE_STROKE_COLOR;
     ctx.lineWidth = 2;
@@ -199,13 +146,13 @@ export class GEGraphRenderer {
     ctx.beginPath();
     ctx.arc(node.x, node.y, NODE_RADIUS, 0, Math.PI * 2);
 
-    if (ctx.isPointInPath(pointerScreenX, pointerScreenY)) {
-      this.hoveredNodeId = node.id;
+    if (ctx.isPointInPath(pointerCanvasX, pointerCanvasY)) {
+      this.view.hoveredNodeId = node.id;
     }
 
-    if (node.id === this.selectedNodeId) {
+    if (node.id === this.view.selectedNodeId) {
       ctx.fillStyle = NODE_SELECTED_COLOR;
-    } else if (node.id === this.hoveredNodeId) {
+    } else if (node.id === this.view.hoveredNodeId) {
       ctx.fillStyle = NODE_HOVER_COLOR;
     } else {
       ctx.fillStyle = NODE_FILL_COLOR;
@@ -216,20 +163,15 @@ export class GEGraphRenderer {
   };
 
   drawDragLine(): void {
-    if (!this.isCreatingEdge) return;
+    if (!this.view.isCreatingEdge) return;
 
-    const { canvas, ctx, pointerScreenX, pointerScreenY } = this;
+    const { ctx } = this;
+    const { pointerViewX, pointerViewY } = this.view;
 
-    const [targetX, targetY] = getScreenToViewPosition(
-      canvas,
-      pointerScreenX,
-      pointerScreenY,
-      this.translateX,
-      this.translateY,
-      this.scale
-    );
+    const targetX = pointerViewX;
+    const targetY = pointerViewY;
 
-    const source = this.graph.nodes.get(this.drageLineSourceNodeId);
+    const source = this.graph.nodes.get(this.view.drageLineSourceNodeId);
     const dx = targetX - source.x;
     const dy = targetY - source.y;
 
@@ -240,10 +182,10 @@ export class GEGraphRenderer {
     // calculate the start and end points of the line
     const startX = source.x;
     const startY = source.y;
-    const endX = Math.round(targetX - cosr * 3);
-    const endY = Math.round(targetY - sinr * 3);
-    const lineEndX = Math.round(targetX - cosr * EDGE_LINE_OFF);
-    const lineEndY = Math.round(targetY - sinr * EDGE_LINE_OFF);
+    const endX = targetX - cosr * 3;
+    const endY = targetY - sinr * 3;
+    const lineEndX = targetX - cosr * EDGE_LINE_OFF;
+    const lineEndY = targetY - sinr * EDGE_LINE_OFF;
 
     ctx.lineWidth = 2;
 
@@ -252,12 +194,12 @@ export class GEGraphRenderer {
     ctx.lineTo(lineEndX, lineEndY);
     ctx.moveTo(endX, endY);
     ctx.lineTo(
-      Math.round(endX - EDGE_ARROW_LEN * Math.cos(rad - EDGE_ARROW_RAD)),
-      Math.round(endY - EDGE_ARROW_LEN * Math.sin(rad - EDGE_ARROW_RAD))
+      endX - EDGE_ARROW_LEN * Math.cos(rad - EDGE_ARROW_RAD),
+      endY - EDGE_ARROW_LEN * Math.sin(rad - EDGE_ARROW_RAD)
     );
     ctx.lineTo(
-      Math.round(endX - EDGE_ARROW_LEN * Math.cos(rad + EDGE_ARROW_RAD)),
-      Math.round(endY - EDGE_ARROW_LEN * Math.sin(rad + EDGE_ARROW_RAD))
+      endX - EDGE_ARROW_LEN * Math.cos(rad + EDGE_ARROW_RAD),
+      endY - EDGE_ARROW_LEN * Math.sin(rad + EDGE_ARROW_RAD)
     );
     ctx.lineTo(endX, endY);
     ctx.closePath();
@@ -282,18 +224,15 @@ export class GEGraphRenderer {
     const cosr = Math.cos(rad);
 
     // calculate the start and end points of the line
-    const startX = Math.round(source.x + cosr * NODE_RADIUS);
-    const startY = Math.round(source.y + sinr * NODE_RADIUS);
-    const endX = Math.round(target.x - cosr * (NODE_RADIUS + 3));
-    const endY = Math.round(target.y - sinr * (NODE_RADIUS + 3));
-    const lineEndX = Math.round(
-      target.x - cosr * (NODE_RADIUS + EDGE_LINE_OFF)
-    );
-    const lineEndY = Math.round(
-      target.y - sinr * (NODE_RADIUS + EDGE_LINE_OFF)
-    );
+    const startX = source.x + cosr * NODE_RADIUS;
+    const startY = source.y + sinr * NODE_RADIUS;
+    const endX = target.x - cosr * (NODE_RADIUS + 3);
+    const endY = target.y - sinr * (NODE_RADIUS + 3);
+    const lineEndX = target.x - cosr * (NODE_RADIUS + EDGE_LINE_OFF);
+    const lineEndY = target.y - sinr * (NODE_RADIUS + EDGE_LINE_OFF);
 
-    const { ctx, pointerScreenX, pointerScreenY } = this;
+    const { ctx } = this;
+    const { pointerCanvasX, pointerCanvasY } = this.view;
 
     ctx.lineWidth = 2;
 
@@ -302,27 +241,27 @@ export class GEGraphRenderer {
     ctx.lineTo(lineEndX, lineEndY);
     ctx.moveTo(endX, endY);
     ctx.lineTo(
-      Math.round(endX - EDGE_ARROW_LEN * Math.cos(rad - EDGE_ARROW_RAD)),
-      Math.round(endY - EDGE_ARROW_LEN * Math.sin(rad - EDGE_ARROW_RAD))
+      endX - EDGE_ARROW_LEN * Math.cos(rad - EDGE_ARROW_RAD),
+      endY - EDGE_ARROW_LEN * Math.sin(rad - EDGE_ARROW_RAD)
     );
     ctx.lineTo(
-      Math.round(endX - EDGE_ARROW_LEN * Math.cos(rad + EDGE_ARROW_RAD)),
-      Math.round(endY - EDGE_ARROW_LEN * Math.sin(rad + EDGE_ARROW_RAD))
+      endX - EDGE_ARROW_LEN * Math.cos(rad + EDGE_ARROW_RAD),
+      endY - EDGE_ARROW_LEN * Math.sin(rad + EDGE_ARROW_RAD)
     );
     ctx.lineTo(endX, endY);
     ctx.closePath();
 
     if (
-      ctx.isPointInPath(pointerScreenX, pointerScreenY) ||
-      ctx.isPointInStroke(pointerScreenX, pointerScreenY)
+      ctx.isPointInPath(pointerCanvasX, pointerCanvasY) ||
+      ctx.isPointInStroke(pointerCanvasX, pointerCanvasY)
     ) {
-      this.hoveredEdgeId = edge.id;
+      this.view.hoveredEdgeId = edge.id;
     }
 
-    if (edge.id === this.selectedEdgeId) {
+    if (edge.id === this.view.selectedEdgeId) {
       ctx.strokeStyle = EDGE_LINE_SELECTED_COLOR;
       ctx.fillStyle = EDGE_LINE_SELECTED_COLOR;
-    } else if (edge.id === this.hoveredEdgeId) {
+    } else if (edge.id === this.view.hoveredEdgeId) {
       ctx.strokeStyle = EDGE_LINE_HOVER_COLOR;
       ctx.fillStyle = EDGE_LINE_HOVER_COLOR;
     } else {
@@ -333,8 +272,8 @@ export class GEGraphRenderer {
     ctx.stroke();
     ctx.fill();
 
-    const midX = Math.round((startX + endX) * 0.5);
-    const midY = Math.round((startY + endY) * 0.5);
+    const midX = (startX + endX) * 0.5;
+    const midY = (startY + endY) * 0.5;
 
     ctx.fillStyle = EDGE_RECT_FILL_COLOR;
     ctx.beginPath();

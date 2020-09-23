@@ -1,18 +1,15 @@
 import { GEGraph } from "./graph";
 import { GEGraphRenderer } from "./graph-renderer";
-import { getScreenToViewPosition } from "./utils";
+import { GEView } from "./view";
 
 export class GEEventHandler {
   graph: GEGraph;
+  view: GEView;
   renderer: GEGraphRenderer;
 
-  isTicking = false;
-
-  isDragging = false;
-  isShiftDown = false;
-
-  constructor(graph: GEGraph, renderer: GEGraphRenderer) {
+  constructor(graph: GEGraph, view: GEView, renderer: GEGraphRenderer) {
     this.graph = graph;
+    this.view = view;
     this.renderer = renderer;
   }
 
@@ -34,72 +31,67 @@ export class GEEventHandler {
     this.renderer.canvas.removeEventListener("wheel", this.handleCanvasWheel);
   }
 
-  handleMouseDown = (): void => {
-    this.isDragging = true;
+  handleMouseDown = (evt: MouseEvent): void => {
+    this.view.setPointerScreenPosition(evt.clientX, evt.clientY);
 
-    this.renderer.selectedNodeId = this.renderer.hoveredNodeId;
-    this.renderer.selectedEdgeId = this.renderer.hoveredEdgeId;
+    this.view.isDragging = true;
 
-    if (this.isShiftDown && this.renderer.selectedNodeId > 0) {
-      const node = this.graph.nodes.get(this.renderer.selectedNodeId);
+    this.view.selectedNodeId = this.view.hoveredNodeId;
+    this.view.selectedEdgeId = this.view.hoveredEdgeId;
 
-      this.renderer.isCreatingEdge = true;
-      this.renderer.drageLineSourceNodeId = this.renderer.selectedNodeId;
-      this.renderer.dragLineTargetX = node.x;
-      this.renderer.dragLineTargetY = node.y;
+    if (this.view.isShiftDown && this.view.selectedNodeId > 0) {
+      const node = this.graph.nodes.get(this.view.selectedNodeId);
+
+      this.view.isCreatingEdge = true;
+      this.view.drageLineSourceNodeId = this.view.selectedNodeId;
+      this.view.dragLineTargetX = node.x;
+      this.view.dragLineTargetY = node.y;
     }
 
     this.renderer.requestDraw();
   };
 
   handleMouseUp = (evt: MouseEvent): void => {
+    this.view.setPointerScreenPosition(evt.clientX, evt.clientY);
+
     if (
-      this.renderer.isCreatingEdge &&
-      this.renderer.hoveredNodeId > 0 &&
-      this.renderer.hoveredNodeId !== this.renderer.drageLineSourceNodeId
+      this.view.isCreatingEdge &&
+      this.view.hoveredNodeId > 0 &&
+      this.view.hoveredNodeId !== this.view.drageLineSourceNodeId
     ) {
       this.graph.addEdge(
-        this.renderer.drageLineSourceNodeId,
-        this.renderer.hoveredNodeId
+        this.view.drageLineSourceNodeId,
+        this.view.hoveredNodeId
       );
     } else if (
-      this.isShiftDown &&
-      !this.renderer.isCreatingEdge &&
-      this.renderer.hoveredNodeId <= 0 &&
-      this.renderer.hoveredEdgeId <= 0
+      this.view.isShiftDown &&
+      !this.view.isCreatingEdge &&
+      this.view.hoveredNodeId <= 0 &&
+      this.view.hoveredEdgeId <= 0
     ) {
-      const [viewX, viewY] = getScreenToViewPosition(
-        this.renderer.canvas,
-        evt.clientX,
-        evt.clientY,
-        this.renderer.translateX,
-        this.renderer.translateY,
-        this.renderer.scale
-      );
-
-      this.graph.addNode(viewX, viewY);
+      this.graph.addNode(this.view.pointerViewX, this.view.pointerViewY);
     }
 
     this.renderer.requestDraw();
 
-    this.isDragging = false;
-    this.renderer.isCreatingEdge = false;
+    this.view.isDragging = false;
+    this.view.isCreatingEdge = false;
   };
 
   handleMouseMove = (evt: MouseEvent): void => {
-    this.renderer.setPointerPos(evt.clientX, evt.clientY);
+    this.view.setPointerScreenPosition(evt.clientX, evt.clientY);
 
-    if (this.isDragging && this.renderer.selectedNodeId <= 0) {
-      this.renderer.moveView(evt.movementX, evt.movementY);
+    if (this.view.isDragging && this.view.selectedNodeId <= 0) {
+      this.view.moveView(evt.movementX, evt.movementY);
     } else if (
-      this.isDragging &&
-      !this.renderer.isCreatingEdge &&
-      this.renderer.selectedNodeId > 0
+      this.view.isDragging &&
+      !this.view.isCreatingEdge &&
+      this.view.selectedNodeId > 0
     ) {
-      const node = this.graph.nodes.get(this.renderer.selectedNodeId);
+      const node = this.graph.nodes.get(this.view.selectedNodeId);
 
-      node.x += evt.movementX / this.renderer.scale;
-      node.y += evt.movementY / this.renderer.scale;
+      node.x += evt.movementX / this.view.scale;
+      node.y += evt.movementY / this.view.scale;
     }
 
     this.renderer.requestDraw();
@@ -107,7 +99,7 @@ export class GEEventHandler {
 
   handleKeyDown = (evt: KeyboardEvent): void => {
     if (evt.key === "Shift" || evt.keyCode === 16) {
-      this.isShiftDown = true;
+      this.view.isShiftDown = true;
     }
 
     if (
@@ -116,15 +108,15 @@ export class GEEventHandler {
       evt.key === "Delete" ||
       evt.keyCode === 46
     ) {
-      if (this.renderer.selectedNodeId > 0) {
-        this.graph.deleteNode(this.renderer.selectedNodeId);
-        this.renderer.selectedNodeId = 0;
+      if (this.view.selectedNodeId > 0) {
+        this.graph.deleteNode(this.view.selectedNodeId);
+        this.view.selectedNodeId = 0;
         this.renderer.requestDraw();
       }
 
-      if (this.renderer.selectedEdgeId > 0) {
-        this.graph.deleteEdge(this.renderer.selectedEdgeId);
-        this.renderer.selectedEdgeId = 0;
+      if (this.view.selectedEdgeId > 0) {
+        this.graph.deleteEdge(this.view.selectedEdgeId);
+        this.view.selectedEdgeId = 0;
         this.renderer.requestDraw();
       }
     }
@@ -132,21 +124,12 @@ export class GEEventHandler {
 
   handleKeyUp = (evt: KeyboardEvent): void => {
     if (evt.key === "Shift" || evt.keyCode === 16) {
-      this.isShiftDown = false;
+      this.view.isShiftDown = false;
     }
   };
 
   handleCanvasWheel = (evt: WheelEvent): void => {
     evt.preventDefault();
-
-    const [viewX, viewY] = getScreenToViewPosition(
-      this.renderer.canvas,
-      evt.clientX,
-      evt.clientY,
-      this.renderer.translateX,
-      this.renderer.translateY,
-      this.renderer.scale
-    );
 
     // calc the new scale, but limitting the value to the max of 3, and min of 0.05
     const MIN_SCALE = 0.2;
@@ -154,15 +137,15 @@ export class GEEventHandler {
 
     const newScale = Math.min(
       MAX_SCALE,
-      Math.max(MIN_SCALE, this.renderer.scale - evt.deltaY * 0.001)
+      Math.max(MIN_SCALE, this.view.scale - evt.deltaY * 0.001)
     );
 
-    const deltaScale = newScale - this.renderer.scale;
-    const offsetX = -(viewX * deltaScale);
-    const offsetY = -(viewY * deltaScale);
+    const deltaScale = newScale - this.view.scale;
+    const offsetX = -(this.view.pointerViewX * deltaScale);
+    const offsetY = -(this.view.pointerViewY * deltaScale);
 
-    this.renderer.moveView(offsetX, offsetY);
-    this.renderer.zoomView(deltaScale);
+    this.view.moveView(offsetX, offsetY);
+    this.view.zoomView(deltaScale);
 
     this.renderer.requestDraw();
   };
