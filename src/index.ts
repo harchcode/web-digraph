@@ -30,7 +30,7 @@ export class GraphView extends HTMLElement {
   }
 
   connectedCallback(): void {
-    this.graph.randomize(10000);
+    this.graph.randomize(100);
 
     const parent = this.shadowRoot.host.parentElement;
 
@@ -52,7 +52,5 @@ export class GraphView extends HTMLElement {
     this.canvas.height = height;
 
     this.view.setClientRect(this.canvas);
-
-    this.renderer.requestDraw();
   }
 }

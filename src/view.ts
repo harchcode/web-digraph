@@ -45,19 +45,4 @@ export class GEView {
     this.pointerViewX = (this.pointerCanvasX - this.translateX) / this.scale;
     this.pointerViewY = (this.pointerCanvasY - this.translateY) / this.scale;
   }
-
-  setTransform(translateX: number, translateY: number, scale: number): void {
-    this.translateX = translateX;
-    this.translateY = translateY;
-    this.scale = scale;
-  }
-
-  moveView(dx: number, dy: number): void {
-    this.translateX += dx;
-    this.translateY += dy;
-  }
-
-  zoomView(deltaScale: number): void {
-    this.scale += deltaScale;
-  }
 }

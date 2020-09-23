@@ -39,14 +39,6 @@ export class GEGraphRenderer {
     this.ctx = canvas.getContext("2d", { alpha: false });
   }
 
-  requestDraw(): void {
-    if (!this.view.isDrawing) {
-      requestAnimationFrame(this.draw);
-    }
-
-    this.view.isDrawing = true;
-  }
-
   draw = (): void => {
     this.view.isDrawing = false;
     this.view.hoveredNodeId = 0;
