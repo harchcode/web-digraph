@@ -1,7 +1,6 @@
 import { GEGraph } from "./graph";
 import { GEGraphRenderer } from "./graph-renderer";
 import { GEView } from "./view";
-import { Ticker } from "./ticker";
 
 const MIN_SCALE = 0.2;
 const MAX_SCALE = 3.0;
@@ -9,16 +8,11 @@ export class GEEventHandler {
   graph: GEGraph;
   view: GEView;
   renderer: GEGraphRenderer;
-  ticker: Ticker;
-
-  private nodeOffsetX = 0;
-  private nodeOffsetY = 0;
 
   constructor(graph: GEGraph, view: GEView, renderer: GEGraphRenderer) {
     this.graph = graph;
     this.view = view;
     this.renderer = renderer;
-    this.ticker = new Ticker(this.update, this.renderer.draw);
   }
 
   init(): void {
@@ -28,7 +22,6 @@ export class GEEventHandler {
     window.addEventListener("keydown", this.handleKeyDown);
     window.addEventListener("keyup", this.handleKeyUp);
     this.renderer.canvas.addEventListener("wheel", this.handleCanvasWheel);
-    this.ticker.start();
   }
 
   destroy(): void {
@@ -38,35 +31,7 @@ export class GEEventHandler {
     window.removeEventListener("keydown", this.handleKeyDown);
     window.removeEventListener("keyup", this.handleKeyUp);
     this.renderer.canvas.removeEventListener("wheel", this.handleCanvasWheel);
-    this.ticker.stop();
   }
-
-  update = (dt: number): void => {
-    if (
-      this.view.isDragging &&
-      !this.view.isCreatingEdge &&
-      this.view.selectedNodeId > 0
-    ) {
-      const node = this.graph.nodes.get(this.view.selectedNodeId);
-
-      const dx = this.view.pointerViewX - this.nodeOffsetX - node.x;
-      const dy = this.view.pointerViewY - this.nodeOffsetY - node.y;
-
-      const mag = Math.sqrt(dx * dx + dy * dy);
-      const nx = dx / mag;
-      const ny = dy / mag;
-
-      const mx = nx * (10000 / this.view.scale) * dt;
-      if (mx > 0 && mx < dx) node.x += mx;
-      else if (mx < 0 && mx > dx) node.x += mx;
-      else node.x += dx;
-
-      const my = ny * (10000 / this.view.scale) * dt;
-      if (my > 0 && my < dy) node.y += my;
-      else if (my < 0 && my > dy) node.y += my;
-      else node.y += dy;
-    }
-  };
 
   handleMouseDown = (evt: MouseEvent): void => {
     this.view.setPointerScreenPosition(evt.clientX, evt.clientY);
@@ -76,13 +41,6 @@ export class GEEventHandler {
     this.view.selectedNodeId = this.view.hoveredNodeId;
     this.view.selectedEdgeId = this.view.hoveredEdgeId;
 
-    if (!this.view.isShiftDown && this.view.selectedNodeId > 0) {
-      const node = this.graph.nodes.get(this.view.selectedNodeId);
-
-      this.nodeOffsetX = this.view.pointerViewX - node.x;
-      this.nodeOffsetY = this.view.pointerViewY - node.y;
-    }
-
     if (this.view.isShiftDown && this.view.selectedNodeId > 0) {
       const node = this.graph.nodes.get(this.view.selectedNodeId);
 
@@ -91,6 +49,8 @@ export class GEEventHandler {
       this.view.dragLineTargetX = node.x;
       this.view.dragLineTargetY = node.y;
     }
+
+    this.renderer.requestDraw();
   };
 
   handleMouseUp = (evt: MouseEvent): void => {
@@ -116,15 +76,28 @@ export class GEEventHandler {
 
     this.view.isDragging = false;
     this.view.isCreatingEdge = false;
+
+    this.renderer.requestDraw();
   };
 
   handleMouseMove = (evt: MouseEvent): void => {
     this.view.setPointerScreenPosition(evt.clientX, evt.clientY);
 
-    if (this.view.isDragging && this.view.selectedNodeId <= 0) {
+    if (
+      this.view.isDragging &&
+      !this.view.isCreatingEdge &&
+      this.view.selectedNodeId > 0
+    ) {
+      const node = this.graph.nodes.get(this.view.selectedNodeId);
+
+      node.x += evt.movementX / this.view.scale;
+      node.y += evt.movementY / this.view.scale;
+    } else if (this.view.isDragging && this.view.selectedNodeId <= 0) {
       this.view.translateX += evt.movementX;
       this.view.translateY += evt.movementY;
     }
+
+    this.renderer.requestDraw();
   };
 
   handleKeyDown = (evt: KeyboardEvent): void => {
@@ -147,6 +120,8 @@ export class GEEventHandler {
         this.graph.deleteEdge(this.view.selectedEdgeId);
         this.view.selectedEdgeId = 0;
       }
+
+      this.renderer.requestDraw();
     }
   };
 
@@ -172,5 +147,7 @@ export class GEEventHandler {
     this.view.translateX += offsetX;
     this.view.translateY += offsetY;
     this.view.scale += deltaScale;
+
+    this.renderer.requestDraw();
   };
 }
