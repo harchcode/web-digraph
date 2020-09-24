@@ -10,6 +10,12 @@ export class GEGraph {
     this.reset();
   }
 
+  getRandomIntInclusive(minF: number, maxF: number): number {
+    const min = Math.ceil(minF);
+    const max = Math.floor(maxF);
+    return Math.floor(Math.random() * (max - min + 1) + min); //The maximum is inclusive and the minimum is inclusive
+  }
+
   randomize(nodeCount = 1000, cols = 40): void {
     this.reset;
 
@@ -17,10 +23,19 @@ export class GEGraph {
       const col = i % cols;
       const row = Math.floor(i / cols);
 
-      this.addNode(col * 320, row * 480);
+      this.addNode(
+        col * 320,
+        row * 480,
+        this.getRandomIntInclusive(50, 120),
+        `Node ${i + 1}`
+      );
 
       if (i > 0) {
-        this.addEdge(this.nodes.get(i).id, this.nodes.get(i + 1).id);
+        this.addEdge(
+          this.nodes.get(i).id,
+          this.nodes.get(i + 1).id,
+          this.getRandomIntInclusive(1, 1000).toString()
+        );
       }
     }
   }
@@ -46,13 +61,15 @@ export class GEGraph {
     });
   }
 
-  addNode(x: number, y: number): GENode {
+  addNode(x: number, y: number, r: number, text = ""): GENode {
     const nextNodeId = this.lastNodeId + 1;
 
     const newNode: GENode = {
       id: nextNodeId,
       x,
       y,
+      r,
+      text,
       sourceOfEdgeIds: new Set(),
       targetOfEdgeIds: new Set()
     };
@@ -64,7 +81,7 @@ export class GEGraph {
     return newNode;
   }
 
-  addEdge(sourceNodeId: number, targetNodeId: number): GEEdge {
+  addEdge(sourceNodeId: number, targetNodeId: number, text = ""): GEEdge {
     if (sourceNodeId === targetNodeId) return null;
 
     // find if there is already an edge connecting the two nodes
@@ -84,9 +101,9 @@ export class GEGraph {
     // create a new edge
     const nextEdgeId = this.lastEdgeId + 1;
 
-    const newEdge = {
+    const newEdge: GEEdge = {
       id: nextEdgeId,
-      priority: 100,
+      text: text,
       sourceNodeId,
       targetNodeId
     };

@@ -4,6 +4,10 @@ import { GEView } from "./view";
 
 const MIN_SCALE = 0.2;
 const MAX_SCALE = 3.0;
+const CURSOR_GRAB = "grab";
+const CURSOR_POINTER = "pointer";
+const CURSOR_CROSSHAIR = "crosshair";
+
 export class GEEventHandler {
   graph: GEGraph;
   view: GEView;
@@ -71,13 +75,23 @@ export class GEEventHandler {
       this.view.hoveredNodeId <= 0 &&
       this.view.hoveredEdgeId <= 0
     ) {
-      this.graph.addNode(this.view.pointerViewX, this.view.pointerViewY);
+      this.graph.addNode(this.view.pointerViewX, this.view.pointerViewY, 80);
     }
 
     this.view.isDragging = false;
     this.view.isCreatingEdge = false;
 
     this.renderer.requestDraw();
+  };
+
+  updateCursorStyle = (): void => {
+    if (this.view.hoveredNodeId > 0 || this.view.hoveredEdgeId > 0) {
+      this.renderer.canvas.style.cursor = CURSOR_POINTER;
+    } else if (!this.view.isShiftDown) {
+      this.renderer.canvas.style.cursor = CURSOR_GRAB;
+    } else {
+      this.renderer.canvas.style.cursor = CURSOR_CROSSHAIR;
+    }
   };
 
   handleMouseMove = (evt: MouseEvent): void => {
@@ -92,17 +106,23 @@ export class GEEventHandler {
 
       node.x += evt.movementX / this.view.scale;
       node.y += evt.movementY / this.view.scale;
-    } else if (this.view.isDragging && this.view.selectedNodeId <= 0) {
+    } else if (
+      !this.view.isShiftDown &&
+      this.view.isDragging &&
+      this.view.selectedNodeId <= 0
+    ) {
       this.view.translateX += evt.movementX;
       this.view.translateY += evt.movementY;
     }
 
     this.renderer.requestDraw();
+    this.updateCursorStyle();
   };
 
   handleKeyDown = (evt: KeyboardEvent): void => {
     if (evt.key === "Shift" || evt.keyCode === 16) {
       this.view.isShiftDown = true;
+      this.updateCursorStyle();
     }
 
     if (
@@ -122,12 +142,14 @@ export class GEEventHandler {
       }
 
       this.renderer.requestDraw();
+      this.updateCursorStyle();
     }
   };
 
   handleKeyUp = (evt: KeyboardEvent): void => {
     if (evt.key === "Shift" || evt.keyCode === 16) {
       this.view.isShiftDown = false;
+      this.updateCursorStyle();
     }
   };
 

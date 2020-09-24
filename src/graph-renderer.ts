@@ -8,19 +8,22 @@ const EDGE_ARROW_RAD = Math.PI / 6;
 const EDGE_LINE_OFF = EDGE_ARROW_LEN * Math.cos(EDGE_ARROW_RAD);
 const EDGE_RECT_WIDTH = 48;
 const EDGE_RECT_HEIGHT = 24;
-const BG_COLOR = "#EDF2F7";
-const BG_CIRCLE_COLOR = "#CBD5E0";
-const BG_CIRCLE_RADIUS = 8;
-const BG_CIRCLE_GAP = 128;
-const NODE_FILL_COLOR = "white";
-const NODE_HOVER_COLOR = "#B2F5EA";
-const NODE_SELECTED_COLOR = "#FED7E2";
+const BG_COLOR = "#F7FAFC";
+const BG_CIRCLE_COLOR = "#E2E8F0";
+const BG_CIRCLE_RADIUS = 4;
+const BG_CIRCLE_GAP = 64;
+const NODE_COLOR = "white";
+const NODE_SELECT_COLOR = "#3182CE";
 const NODE_STROKE_COLOR = "black";
+const NODE_TEXT_COLOR = "#1A202C";
+const NODE_SELECTED_TEXT_COLOR = "white";
+const NODE_TEXT_FONT = "16px sans-serif";
 const EDGE_LINE_COLOR = "black";
-const EDGE_LINE_HOVER_COLOR = "#81E6D9";
-const EDGE_LINE_SELECTED_COLOR = "#FBB6CE";
+const EDGE_LINE_HOVER_COLOR = "#63B3ED";
+const EDGE_LINE_SELECTED_COLOR = "#3182CE";
 const EDGE_RECT_FILL_COLOR = "white";
 const EDGE_TEXT_COLOR = "#1A202C";
+const EDGE_SELECTED_TEXT_COLOR = "white";
 const EDGE_TEXT_FONT = "16px sans-serif";
 const EDGE_TEXT_ALIGN = "center";
 const EDGE_TEXT_BASELINE = "middle";
@@ -144,22 +147,37 @@ export class GEGraphRenderer {
     ctx.lineWidth = 2;
 
     ctx.beginPath();
-    ctx.arc(node.x, node.y, NODE_RADIUS, 0, Math.PI * 2);
+    ctx.arc(node.x, node.y, node.r, 0, Math.PI * 2);
 
     if (ctx.isPointInPath(pointerCanvasX, pointerCanvasY)) {
       this.view.hoveredNodeId = node.id;
     }
 
     if (node.id === this.view.selectedNodeId) {
-      ctx.fillStyle = NODE_SELECTED_COLOR;
+      ctx.strokeStyle = NODE_SELECT_COLOR;
+      ctx.fillStyle = NODE_SELECT_COLOR;
     } else if (node.id === this.view.hoveredNodeId) {
-      ctx.fillStyle = NODE_HOVER_COLOR;
+      ctx.strokeStyle = NODE_SELECT_COLOR;
+      ctx.fillStyle = NODE_COLOR;
     } else {
-      ctx.fillStyle = NODE_FILL_COLOR;
+      ctx.strokeStyle = NODE_STROKE_COLOR;
+      ctx.fillStyle = NODE_COLOR;
     }
 
     ctx.fill();
     ctx.stroke();
+
+    if (node.id === this.view.selectedNodeId) {
+      ctx.fillStyle = NODE_SELECTED_TEXT_COLOR;
+    } else {
+      ctx.fillStyle = NODE_TEXT_COLOR;
+    }
+
+    ctx.font = NODE_TEXT_FONT;
+    ctx.textAlign = EDGE_TEXT_ALIGN;
+    ctx.textBaseline = EDGE_TEXT_BASELINE;
+
+    ctx.fillText(node.text, node.x, node.y);
   };
 
   drawDragLine(): void {
@@ -224,17 +242,36 @@ export class GEGraphRenderer {
     const cosr = Math.cos(rad);
 
     // calculate the start and end points of the line
-    const startX = source.x + cosr * NODE_RADIUS;
-    const startY = source.y + sinr * NODE_RADIUS;
-    const endX = target.x - cosr * (NODE_RADIUS + 3);
-    const endY = target.y - sinr * (NODE_RADIUS + 3);
-    const lineEndX = target.x - cosr * (NODE_RADIUS + EDGE_LINE_OFF);
-    const lineEndY = target.y - sinr * (NODE_RADIUS + EDGE_LINE_OFF);
+    const startX = source.x + cosr * source.r;
+    const startY = source.y + sinr * source.r;
+    const endX = target.x - cosr * (target.r + 3);
+    const endY = target.y - sinr * (target.r + 3);
+    const lineEndX = target.x - cosr * (target.r + EDGE_LINE_OFF);
+    const lineEndY = target.y - sinr * (target.r + EDGE_LINE_OFF);
 
     const { ctx } = this;
     const { pointerCanvasX, pointerCanvasY } = this.view;
 
     ctx.lineWidth = 2;
+
+    const midX = (startX + endX) * 0.5;
+    const midY = (startY + endY) * 0.5;
+
+    // this is just to check if the rect is hovered
+    ctx.beginPath();
+    this.roundedRect(
+      midX - EDGE_RECT_WIDTH * 0.5,
+      midY - EDGE_RECT_HEIGHT * 0.5,
+      EDGE_RECT_WIDTH,
+      EDGE_RECT_HEIGHT
+    );
+
+    if (
+      ctx.isPointInPath(pointerCanvasX, pointerCanvasY) ||
+      ctx.isPointInStroke(pointerCanvasX, pointerCanvasY)
+    ) {
+      this.view.hoveredEdgeId = edge.id;
+    }
 
     ctx.beginPath();
     ctx.moveTo(startX, startY);
@@ -272,10 +309,6 @@ export class GEGraphRenderer {
     ctx.stroke();
     ctx.fill();
 
-    const midX = (startX + endX) * 0.5;
-    const midY = (startY + endY) * 0.5;
-
-    ctx.fillStyle = EDGE_RECT_FILL_COLOR;
     ctx.beginPath();
     this.roundedRect(
       midX - EDGE_RECT_WIDTH * 0.5,
@@ -283,14 +316,25 @@ export class GEGraphRenderer {
       EDGE_RECT_WIDTH,
       EDGE_RECT_HEIGHT
     );
+
+    if (edge.id === this.view.selectedEdgeId) {
+      ctx.fillStyle = EDGE_LINE_SELECTED_COLOR;
+    } else {
+      ctx.fillStyle = EDGE_RECT_FILL_COLOR;
+    }
+
     ctx.fill();
     ctx.stroke();
 
-    ctx.fillStyle = EDGE_TEXT_COLOR;
+    if (edge.id === this.view.selectedEdgeId) {
+      ctx.fillStyle = EDGE_SELECTED_TEXT_COLOR;
+    } else {
+      ctx.fillStyle = EDGE_TEXT_COLOR;
+    }
     ctx.font = EDGE_TEXT_FONT;
     ctx.textAlign = EDGE_TEXT_ALIGN;
     ctx.textBaseline = EDGE_TEXT_BASELINE;
-    ctx.fillText(EDGE_TEXT, midX, midY);
+    ctx.fillText(edge.text, midX, midY);
   };
 
   roundedRect(
