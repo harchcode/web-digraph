@@ -2,43 +2,16 @@ import { GEGraph } from "./graph";
 import { GENode, GEEdge } from "./types";
 import { GEView } from "./view";
 
-export const NODE_RADIUS = 80;
-const EDGE_ARROW_LEN = 16;
-const EDGE_ARROW_RAD = Math.PI / 6;
-const EDGE_LINE_OFF = EDGE_ARROW_LEN * Math.cos(EDGE_ARROW_RAD);
-const EDGE_RECT_WIDTH = 48;
-const EDGE_RECT_HEIGHT = 24;
-const BG_COLOR = "#F7FAFC";
-const BG_CIRCLE_COLOR = "#E2E8F0";
-const BG_CIRCLE_RADIUS = 4;
-const BG_CIRCLE_GAP = 64;
-const NODE_COLOR = "white";
-const NODE_SELECT_COLOR = "#3182CE";
-const NODE_STROKE_COLOR = "black";
-const NODE_TEXT_COLOR = "#1A202C";
-const NODE_SELECTED_TEXT_COLOR = "white";
-const NODE_TEXT_FONT = "16px sans-serif";
-const EDGE_LINE_COLOR = "black";
-const EDGE_LINE_HOVER_COLOR = "#63B3ED";
-const EDGE_LINE_SELECTED_COLOR = "#3182CE";
-const EDGE_RECT_FILL_COLOR = "white";
-const EDGE_TEXT_COLOR = "#1A202C";
-const EDGE_SELECTED_TEXT_COLOR = "white";
-const EDGE_TEXT_FONT = "16px sans-serif";
-const EDGE_TEXT_ALIGN = "center";
-const EDGE_TEXT_BASELINE = "middle";
+const TEXT_ALIGN = "center";
+const TEXT_BASELINE = "middle";
 
 export class GEGraphRenderer {
-  graph: GEGraph;
   view: GEView;
-  canvas: HTMLCanvasElement;
   ctx: CanvasRenderingContext2D;
 
-  constructor(graph: GEGraph, view: GEView, canvas: HTMLCanvasElement) {
-    this.graph = graph;
+  constructor(view: GEView) {
     this.view = view;
-    this.canvas = canvas;
-    this.ctx = canvas.getContext("2d", { alpha: false });
+    this.ctx = view.canvas.getContext("2d", { alpha: false });
   }
 
   requestDraw(): void {
@@ -71,14 +44,14 @@ export class GEGraphRenderer {
   };
 
   drawBackground(): void {
-    const { canvas, ctx } = this;
-    const { translateX, translateY, scale } = this.view;
+    const { ctx } = this;
+    const { canvas, translateX, translateY, scale, options } = this.view;
 
-    ctx.fillStyle = BG_COLOR;
+    ctx.fillStyle = options.backgroundColor;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    const r = BG_CIRCLE_RADIUS * scale;
-    const gap = BG_CIRCLE_GAP * scale;
+    const r = options.backgroundDotRadius * scale;
+    const gap = options.backgroundDotGap * scale;
 
     const offsetX = (translateX % gap) - r;
     const offsetY = (translateY % gap) - r;
@@ -88,38 +61,36 @@ export class GEGraphRenderer {
         ctx.beginPath();
         ctx.arc(i, j, r, 0, Math.PI * 2);
 
-        ctx.fillStyle = BG_CIRCLE_COLOR;
+        ctx.fillStyle = options.backgroundDotColor;
         ctx.fill();
       }
     }
   }
 
   drawGraph(): void {
-    this.graph.edges.forEach(this.drawEdge);
+    this.view.graph.edges.forEach(this.drawEdge);
 
     this.drawDragLine();
 
-    this.graph.nodes.forEach(this.drawNode);
+    this.view.graph.nodes.forEach(this.drawNode);
   }
 
   isNodeOutOfView(node: GENode): boolean {
-    const { canvas } = this;
-    const { translateX, translateY, scale } = this.view;
+    const { canvas, translateX, translateY, scale } = this.view;
 
     return (
-      (node.x + NODE_RADIUS) * scale + translateX < 0 ||
-      (node.y + NODE_RADIUS) * scale + translateY < 0 ||
-      (node.x - NODE_RADIUS) * scale + translateX > canvas.width ||
-      (node.y - NODE_RADIUS) * scale + translateY > canvas.height
+      (node.x + node.r) * scale + translateX < 0 ||
+      (node.y + node.r) * scale + translateY < 0 ||
+      (node.x - node.r) * scale + translateX > canvas.width ||
+      (node.y - node.r) * scale + translateY > canvas.height
     );
   }
 
   isEdgeOutOfView(edge: GEEdge): boolean {
-    const { canvas } = this;
-    const { translateX, translateY, scale } = this.view;
+    const { canvas, translateX, translateY, scale, graph, options } = this.view;
 
-    const source = this.graph.nodes.get(edge.sourceNodeId);
-    const target = this.graph.nodes.get(edge.targetNodeId);
+    const source = graph.nodes.get(edge.sourceNodeId);
+    const target = graph.nodes.get(edge.targetNodeId);
 
     const sourceX = source.x * scale + translateX;
     const sourceY = source.y * scale + translateY;
@@ -127,12 +98,13 @@ export class GEGraphRenderer {
     const targetY = target.y * scale + translateY;
 
     return (
-      (sourceX < -EDGE_RECT_WIDTH && targetX < -EDGE_RECT_WIDTH) ||
-      (sourceY < -EDGE_RECT_HEIGHT && targetY < -EDGE_RECT_HEIGHT) ||
-      (sourceX > canvas.width + EDGE_RECT_WIDTH &&
-        targetX > canvas.width + EDGE_RECT_WIDTH) ||
-      (sourceY > canvas.height + EDGE_RECT_HEIGHT &&
-        targetY > canvas.height + EDGE_RECT_HEIGHT)
+      (sourceX < -options.edgeRectWidth && targetX < -options.edgeRectWidth) ||
+      (sourceY < -options.edgeRectHeight &&
+        targetY < -options.edgeRectHeight) ||
+      (sourceX > canvas.width + options.edgeRectWidth &&
+        targetX > canvas.width + options.edgeRectWidth) ||
+      (sourceY > canvas.height + options.edgeRectHeight &&
+        targetY > canvas.height + options.edgeRectHeight)
     );
   }
 
@@ -140,9 +112,9 @@ export class GEGraphRenderer {
     if (this.isNodeOutOfView(node)) return;
 
     const { ctx } = this;
-    const { pointerCanvasX, pointerCanvasY } = this.view;
+    const { pointerCanvasX, pointerCanvasY, options } = this.view;
 
-    ctx.strokeStyle = NODE_STROKE_COLOR;
+    ctx.strokeStyle = options.nodeStrokeColor;
     ctx.lineWidth = 2;
 
     ctx.beginPath();
@@ -153,28 +125,28 @@ export class GEGraphRenderer {
     }
 
     if (node.id === this.view.selectedNodeId) {
-      ctx.strokeStyle = NODE_SELECT_COLOR;
-      ctx.fillStyle = NODE_SELECT_COLOR;
+      ctx.strokeStyle = options.nodeSelectedColor;
+      ctx.fillStyle = options.nodeSelectedColor;
     } else if (node.id === this.view.hoveredNodeId) {
-      ctx.strokeStyle = NODE_SELECT_COLOR;
-      ctx.fillStyle = NODE_COLOR;
+      ctx.strokeStyle = options.nodeSelectedColor;
+      ctx.fillStyle = options.nodeColor;
     } else {
-      ctx.strokeStyle = NODE_STROKE_COLOR;
-      ctx.fillStyle = NODE_COLOR;
+      ctx.strokeStyle = options.nodeStrokeColor;
+      ctx.fillStyle = options.nodeColor;
     }
 
     ctx.fill();
     ctx.stroke();
 
     if (node.id === this.view.selectedNodeId) {
-      ctx.fillStyle = NODE_SELECTED_TEXT_COLOR;
+      ctx.fillStyle = options.nodeSelectedTextColor;
     } else {
-      ctx.fillStyle = NODE_TEXT_COLOR;
+      ctx.fillStyle = options.nodeTextColor;
     }
 
-    ctx.font = NODE_TEXT_FONT;
-    ctx.textAlign = EDGE_TEXT_ALIGN;
-    ctx.textBaseline = EDGE_TEXT_BASELINE;
+    ctx.font = options.nodeTextStyle;
+    ctx.textAlign = TEXT_ALIGN;
+    ctx.textBaseline = TEXT_BASELINE;
 
     ctx.fillText(node.text, node.x, node.y);
   };
@@ -183,12 +155,12 @@ export class GEGraphRenderer {
     if (!this.view.isCreatingEdge) return;
 
     const { ctx } = this;
-    const { pointerViewX, pointerViewY } = this.view;
+    const { pointerViewX, pointerViewY, graph, options } = this.view;
 
     const targetX = pointerViewX;
     const targetY = pointerViewY;
 
-    const source = this.graph.nodes.get(this.view.drageLineSourceNodeId);
+    const source = graph.nodes.get(this.view.drageLineSourceNodeId);
     const dx = targetX - source.x;
     const dy = targetY - source.y;
 
@@ -201,8 +173,10 @@ export class GEGraphRenderer {
     const startY = source.y;
     const endX = targetX - cosr * 3;
     const endY = targetY - sinr * 3;
-    const lineEndX = targetX - cosr * EDGE_LINE_OFF;
-    const lineEndY = targetY - sinr * EDGE_LINE_OFF;
+    const edgeLineOffset =
+      options.edgeArrowLength * Math.cos(options.edgeArrowRadian);
+    const lineEndX = targetX - cosr * edgeLineOffset;
+    const lineEndY = targetY - sinr * edgeLineOffset;
 
     ctx.lineWidth = 2;
 
@@ -211,18 +185,18 @@ export class GEGraphRenderer {
     ctx.lineTo(lineEndX, lineEndY);
     ctx.moveTo(endX, endY);
     ctx.lineTo(
-      endX - EDGE_ARROW_LEN * Math.cos(rad - EDGE_ARROW_RAD),
-      endY - EDGE_ARROW_LEN * Math.sin(rad - EDGE_ARROW_RAD)
+      endX - options.edgeArrowLength * Math.cos(rad - options.edgeArrowRadian),
+      endY - options.edgeArrowLength * Math.sin(rad - options.edgeArrowRadian)
     );
     ctx.lineTo(
-      endX - EDGE_ARROW_LEN * Math.cos(rad + EDGE_ARROW_RAD),
-      endY - EDGE_ARROW_LEN * Math.sin(rad + EDGE_ARROW_RAD)
+      endX - options.edgeArrowLength * Math.cos(rad + options.edgeArrowRadian),
+      endY - options.edgeArrowLength * Math.sin(rad + options.edgeArrowRadian)
     );
     ctx.lineTo(endX, endY);
     ctx.closePath();
 
-    ctx.strokeStyle = EDGE_LINE_COLOR;
-    ctx.fillStyle = EDGE_LINE_COLOR;
+    ctx.strokeStyle = options.edgeLineColor;
+    ctx.fillStyle = options.edgeLineColor;
 
     ctx.stroke();
     ctx.fill();
@@ -231,8 +205,11 @@ export class GEGraphRenderer {
   drawEdge = (edge: GEEdge): void => {
     if (this.isEdgeOutOfView(edge)) return;
 
-    const source = this.graph.nodes.get(edge.sourceNodeId);
-    const target = this.graph.nodes.get(edge.targetNodeId);
+    const { ctx } = this;
+    const { pointerCanvasX, pointerCanvasY, graph, options } = this.view;
+
+    const source = graph.nodes.get(edge.sourceNodeId);
+    const target = graph.nodes.get(edge.targetNodeId);
     const dx = target.x - source.x;
     const dy = target.y - source.y;
 
@@ -245,11 +222,10 @@ export class GEGraphRenderer {
     const startY = source.y + sinr * source.r;
     const endX = target.x - cosr * (target.r + 3);
     const endY = target.y - sinr * (target.r + 3);
-    const lineEndX = target.x - cosr * (target.r + EDGE_LINE_OFF);
-    const lineEndY = target.y - sinr * (target.r + EDGE_LINE_OFF);
-
-    const { ctx } = this;
-    const { pointerCanvasX, pointerCanvasY } = this.view;
+    const edgeLineOffset =
+      options.edgeArrowLength * Math.cos(options.edgeArrowRadian);
+    const lineEndX = target.x - cosr * (target.r + edgeLineOffset);
+    const lineEndY = target.y - sinr * (target.r + edgeLineOffset);
 
     ctx.lineWidth = 2;
 
@@ -259,10 +235,10 @@ export class GEGraphRenderer {
     // this is just to check if the rect is hovered
     ctx.beginPath();
     this.roundedRect(
-      midX - EDGE_RECT_WIDTH * 0.5,
-      midY - EDGE_RECT_HEIGHT * 0.5,
-      EDGE_RECT_WIDTH,
-      EDGE_RECT_HEIGHT
+      midX - options.edgeRectWidth * 0.5,
+      midY - options.edgeRectHeight * 0.5,
+      options.edgeRectWidth,
+      options.edgeRectHeight
     );
 
     if (
@@ -277,12 +253,12 @@ export class GEGraphRenderer {
     ctx.lineTo(lineEndX, lineEndY);
     ctx.moveTo(endX, endY);
     ctx.lineTo(
-      endX - EDGE_ARROW_LEN * Math.cos(rad - EDGE_ARROW_RAD),
-      endY - EDGE_ARROW_LEN * Math.sin(rad - EDGE_ARROW_RAD)
+      endX - options.edgeArrowLength * Math.cos(rad - options.edgeArrowRadian),
+      endY - options.edgeArrowLength * Math.sin(rad - options.edgeArrowRadian)
     );
     ctx.lineTo(
-      endX - EDGE_ARROW_LEN * Math.cos(rad + EDGE_ARROW_RAD),
-      endY - EDGE_ARROW_LEN * Math.sin(rad + EDGE_ARROW_RAD)
+      endX - options.edgeArrowLength * Math.cos(rad + options.edgeArrowRadian),
+      endY - options.edgeArrowLength * Math.sin(rad + options.edgeArrowRadian)
     );
     ctx.lineTo(endX, endY);
     ctx.closePath();
@@ -295,14 +271,14 @@ export class GEGraphRenderer {
     }
 
     if (edge.id === this.view.selectedEdgeId) {
-      ctx.strokeStyle = EDGE_LINE_SELECTED_COLOR;
-      ctx.fillStyle = EDGE_LINE_SELECTED_COLOR;
+      ctx.strokeStyle = options.edgeLineSelectedColor;
+      ctx.fillStyle = options.edgeLineSelectedColor;
     } else if (edge.id === this.view.hoveredEdgeId) {
-      ctx.strokeStyle = EDGE_LINE_HOVER_COLOR;
-      ctx.fillStyle = EDGE_LINE_HOVER_COLOR;
+      ctx.strokeStyle = options.edgeLineHoverColor;
+      ctx.fillStyle = options.edgeLineHoverColor;
     } else {
-      ctx.strokeStyle = EDGE_LINE_COLOR;
-      ctx.fillStyle = EDGE_LINE_COLOR;
+      ctx.strokeStyle = options.edgeLineColor;
+      ctx.fillStyle = options.edgeLineColor;
     }
 
     ctx.stroke();
@@ -310,29 +286,29 @@ export class GEGraphRenderer {
 
     ctx.beginPath();
     this.roundedRect(
-      midX - EDGE_RECT_WIDTH * 0.5,
-      midY - EDGE_RECT_HEIGHT * 0.5,
-      EDGE_RECT_WIDTH,
-      EDGE_RECT_HEIGHT
+      midX - options.edgeRectWidth * 0.5,
+      midY - options.edgeRectHeight * 0.5,
+      options.edgeRectWidth,
+      options.edgeRectHeight
     );
 
     if (edge.id === this.view.selectedEdgeId) {
-      ctx.fillStyle = EDGE_LINE_SELECTED_COLOR;
+      ctx.fillStyle = options.edgeLineSelectedColor;
     } else {
-      ctx.fillStyle = EDGE_RECT_FILL_COLOR;
+      ctx.fillStyle = options.edgeRectFillColor;
     }
 
     ctx.fill();
     ctx.stroke();
 
     if (edge.id === this.view.selectedEdgeId) {
-      ctx.fillStyle = EDGE_SELECTED_TEXT_COLOR;
+      ctx.fillStyle = options.edgeSelectedTextColor;
     } else {
-      ctx.fillStyle = EDGE_TEXT_COLOR;
+      ctx.fillStyle = options.edgeTextColor;
     }
-    ctx.font = EDGE_TEXT_FONT;
-    ctx.textAlign = EDGE_TEXT_ALIGN;
-    ctx.textBaseline = EDGE_TEXT_BASELINE;
+    ctx.font = options.edgeTextStyle;
+    ctx.textAlign = TEXT_ALIGN;
+    ctx.textBaseline = TEXT_BASELINE;
     ctx.fillText(edge.text, midX, midY);
   };
 

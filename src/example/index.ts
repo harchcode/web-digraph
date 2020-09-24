@@ -1,9 +1,9 @@
-// import "@webcomponents/custom-elements/src/native-shim";
-import { GraphView } from "../index";
+import { GEView } from "../index";
 
-customElements.define("graph-view", GraphView);
+const graphDiv = document.getElementById("graph");
+const graphView = new GEView();
 
-const graphView = document.getElementsByTagName("graph-view")[0] as GraphView;
+graphView.init(graphDiv);
 
 window.addEventListener("resize", () => {
   graphView.resize(window.innerWidth, window.innerHeight);

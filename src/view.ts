@@ -1,4 +1,16 @@
+import { GEViewOptions, GENode, GEEdge } from "./types";
+import { GEGraph } from "./graph";
+import { GEGraphRenderer } from "./graph-renderer";
+import { GEEventHandler } from "./event-handler";
+
 export class GEView {
+  canvas: HTMLCanvasElement;
+  graph: GEGraph;
+  renderer: GEGraphRenderer;
+  eventHandler: GEEventHandler;
+
+  options: GEViewOptions;
+
   isDragging = false;
   isShiftDown = false;
   isDrawing = false;
@@ -29,20 +41,92 @@ export class GEView {
   dragLineTargetX = 0;
   dragLineTargetY = 0;
 
-  constructor(canvas: HTMLCanvasElement) {
-    this.boundingClientRect = canvas.getBoundingClientRect();
+  constructor() {
+    this.canvas = document.createElement("canvas");
+    this.graph = new GEGraph();
+
+    this.renderer = new GEGraphRenderer(this);
+    this.eventHandler = new GEEventHandler(this);
+
+    this.options = {
+      nodeRadius: 80,
+      edgeArrowLength: 16,
+      edgeArrowRadian: Math.PI / 6,
+      edgeRectWidth: 48,
+      edgeRectHeight: 24,
+      backgroundColor: "#F7FAFC",
+      backgroundDotColor: "#E2E8F0",
+      backgroundDotRadius: 4,
+      backgroundDotGap: 64,
+      nodeColor: "white",
+      nodeSelectedColor: "#3182CE",
+      nodeStrokeColor: "#4A5568",
+      nodeTextColor: "#1A202C",
+      nodeSelectedTextColor: "white",
+      nodeTextStyle: "16px sans-serif",
+      edgeLineColor: "#4A5568",
+      edgeLineHoverColor: "#63B3ED",
+      edgeLineSelectedColor: "#3182CE",
+      edgeRectFillColor: "white",
+      edgeTextColor: "#1A202C",
+      edgeSelectedTextColor: "white",
+      edgeTextStyle: "16px sans-serif",
+      minScale: 0.2,
+      maxScale: 3.0,
+      cursorGrab: "grab",
+      cursorPointer: "pointer",
+      cursorCrosshair: "crosshair"
+    };
   }
 
-  setClientRect(canvas: HTMLCanvasElement): void {
-    this.boundingClientRect = canvas.getBoundingClientRect();
+  init(container: HTMLElement): void {
+    this.graph.randomize(10000);
+
+    container.appendChild(this.canvas);
+
+    this.canvas.textContent = "Canvas is not supported in your browser.";
+    this.canvas.width = container.clientWidth;
+    this.canvas.height = container.clientHeight;
+    this.boundingClientRect = this.canvas.getBoundingClientRect();
+
+    this.eventHandler.init();
+
+    this.renderer.requestDraw();
   }
 
-  setPointerScreenPosition(screenX: number, screenY: number): void {
+  destroy(): void {
+    this.eventHandler.destroy();
+  }
+
+  requestDraw(): void {
+    this.renderer.requestDraw();
+  }
+
+  resize(width: number, height: number): void {
+    this.canvas.width = width;
+    this.canvas.height = height;
+
+    this.boundingClientRect = this.canvas.getBoundingClientRect();
+
+    this.renderer.requestDraw();
+  }
+
+  setPointerPosition(screenX: number, screenY: number): void {
     this.pointerScreenX = screenX;
     this.pointerScreenY = screenY;
     this.pointerCanvasX = Math.floor(screenX - this.boundingClientRect.left);
     this.pointerCanvasY = Math.floor(screenY - this.boundingClientRect.top);
     this.pointerViewX = (this.pointerCanvasX - this.translateX) / this.scale;
     this.pointerViewY = (this.pointerCanvasY - this.translateY) / this.scale;
+  }
+
+  clearData(): void {
+    this.graph.reset();
+    this.requestDraw();
+  }
+
+  setData(nodes: GENode[], edges: GEEdge[]): void {
+    this.graph.setData(nodes, edges);
+    this.requestDraw();
   }
 }
