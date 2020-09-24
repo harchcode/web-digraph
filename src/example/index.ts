@@ -1,7 +1,7 @@
-import { GEView } from "../index";
+import { GraphEditor } from "../index";
 
 const graphDiv = document.getElementById("graph");
-const graphView = new GEView();
+const graphView = new GraphEditor();
 
 graphView.init(graphDiv);
 

@@ -1,13 +1,9 @@
-import { GEViewOptions, GENode, GEEdge } from "./types";
+import { GEViewOptions } from "./types";
 import { GEGraph } from "./graph";
-import { GEGraphRenderer } from "./graph-renderer";
-import { GEEventHandler } from "./event-handler";
 
 export class GEView {
   canvas: HTMLCanvasElement;
   graph: GEGraph;
-  renderer: GEGraphRenderer;
-  eventHandler: GEEventHandler;
 
   options: GEViewOptions;
 
@@ -44,9 +40,6 @@ export class GEView {
   constructor() {
     this.canvas = document.createElement("canvas");
     this.graph = new GEGraph();
-
-    this.renderer = new GEGraphRenderer(this);
-    this.eventHandler = new GEEventHandler(this);
 
     this.options = {
       nodeRadius: 80,
@@ -88,27 +81,6 @@ export class GEView {
     this.canvas.width = container.clientWidth;
     this.canvas.height = container.clientHeight;
     this.boundingClientRect = this.canvas.getBoundingClientRect();
-
-    this.eventHandler.init();
-
-    this.renderer.requestDraw();
-  }
-
-  destroy(): void {
-    this.eventHandler.destroy();
-  }
-
-  requestDraw(): void {
-    this.renderer.requestDraw();
-  }
-
-  resize(width: number, height: number): void {
-    this.canvas.width = width;
-    this.canvas.height = height;
-
-    this.boundingClientRect = this.canvas.getBoundingClientRect();
-
-    this.renderer.requestDraw();
   }
 
   setPointerPosition(screenX: number, screenY: number): void {
@@ -118,15 +90,5 @@ export class GEView {
     this.pointerCanvasY = Math.floor(screenY - this.boundingClientRect.top);
     this.pointerViewX = (this.pointerCanvasX - this.translateX) / this.scale;
     this.pointerViewY = (this.pointerCanvasY - this.translateY) / this.scale;
-  }
-
-  clearData(): void {
-    this.graph.reset();
-    this.requestDraw();
-  }
-
-  setData(nodes: GENode[], edges: GEEdge[]): void {
-    this.graph.setData(nodes, edges);
-    this.requestDraw();
   }
 }

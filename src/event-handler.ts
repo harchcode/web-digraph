@@ -1,10 +1,13 @@
 import { GEView } from "./view";
+import { GEGraphRenderer } from "./graph-renderer";
 
 export class GEEventHandler {
   view: GEView;
+  renderer: GEGraphRenderer;
 
-  constructor(view: GEView) {
+  constructor(view: GEView, renderer: GEGraphRenderer) {
     this.view = view;
+    this.renderer = renderer;
   }
 
   init(): void {
@@ -42,7 +45,7 @@ export class GEEventHandler {
       this.view.dragLineTargetY = node.y;
     }
 
-    this.view.requestDraw();
+    this.renderer.requestDraw();
   };
 
   handleMouseUp = (evt: MouseEvent): void => {
@@ -73,7 +76,7 @@ export class GEEventHandler {
     this.view.isDragging = false;
     this.view.isCreatingEdge = false;
 
-    this.view.requestDraw();
+    this.renderer.requestDraw();
   };
 
   updateCursorStyle = (): void => {
@@ -109,7 +112,7 @@ export class GEEventHandler {
       this.view.translateY += evt.movementY;
     }
 
-    this.view.requestDraw();
+    this.renderer.requestDraw();
     this.updateCursorStyle();
   };
 
@@ -135,7 +138,7 @@ export class GEEventHandler {
         this.view.selectedEdgeId = 0;
       }
 
-      this.view.requestDraw();
+      this.renderer.requestDraw();
       this.updateCursorStyle();
     }
   };
@@ -166,6 +169,6 @@ export class GEEventHandler {
     this.view.translateY += offsetY;
     this.view.scale += deltaScale;
 
-    this.view.requestDraw();
+    this.renderer.requestDraw();
   };
 }

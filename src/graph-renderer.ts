@@ -1,4 +1,3 @@
-import { GEGraph } from "./graph";
 import { GENode, GEEdge } from "./types";
 import { GEView } from "./view";
 
