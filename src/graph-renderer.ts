@@ -27,7 +27,6 @@ const EDGE_SELECTED_TEXT_COLOR = "white";
 const EDGE_TEXT_FONT = "16px sans-serif";
 const EDGE_TEXT_ALIGN = "center";
 const EDGE_TEXT_BASELINE = "middle";
-const EDGE_TEXT = "35";
 
 export class GEGraphRenderer {
   graph: GEGraph;
