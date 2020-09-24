@@ -1,8 +1,7 @@
 import { GEViewOptions } from "./types";
 import { GEGraph } from "./graph";
 
-export class GEView {
-  canvas: HTMLCanvasElement;
+export class GEState {
   graph: GEGraph;
 
   options: GEViewOptions;
@@ -38,7 +37,6 @@ export class GEView {
   dragLineTargetY = 0;
 
   constructor() {
-    this.canvas = document.createElement("canvas");
     this.graph = new GEGraph();
 
     this.options = {
@@ -72,15 +70,8 @@ export class GEView {
     };
   }
 
-  init(container: HTMLElement): void {
-    this.graph.randomize(10000);
-
-    container.appendChild(this.canvas);
-
-    this.canvas.textContent = "Canvas is not supported in your browser.";
-    this.canvas.width = container.clientWidth;
-    this.canvas.height = container.clientHeight;
-    this.boundingClientRect = this.canvas.getBoundingClientRect();
+  setBoundingRect(canvas: HTMLCanvasElement): void {
+    this.boundingClientRect = canvas.getBoundingClientRect();
   }
 
   setPointerPosition(screenX: number, screenY: number): void {

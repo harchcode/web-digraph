@@ -1,40 +1,42 @@
 import { GENode, GEEdge } from "./types";
-import { GEView } from "./view";
+import { GEState } from "./state";
 
 const TEXT_ALIGN = "center";
 const TEXT_BASELINE = "middle";
 
 export class GEGraphRenderer {
-  view: GEView;
+  state: GEState;
+  canvas: HTMLCanvasElement;
   ctx: CanvasRenderingContext2D;
 
-  constructor(view: GEView) {
-    this.view = view;
-    this.ctx = view.canvas.getContext("2d", { alpha: false });
+  constructor(view: GEState, canvas: HTMLCanvasElement) {
+    this.state = view;
+    this.canvas = canvas;
+    this.ctx = canvas.getContext("2d", { alpha: false });
   }
 
   requestDraw(): void {
-    if (!this.view.isDrawing) {
+    if (!this.state.isDrawing) {
       requestAnimationFrame(this.draw);
     }
 
-    this.view.isDrawing = true;
+    this.state.isDrawing = true;
   }
 
   draw = (): void => {
-    this.view.isDrawing = false;
-    this.view.hoveredNodeId = 0;
-    this.view.hoveredEdgeId = 0;
+    this.state.isDrawing = false;
+    this.state.hoveredNodeId = 0;
+    this.state.hoveredEdgeId = 0;
 
     this.drawBackground();
 
     this.ctx.transform(
-      this.view.scale,
+      this.state.scale,
       0,
       0,
-      this.view.scale,
-      this.view.translateX,
-      this.view.translateY
+      this.state.scale,
+      this.state.translateX,
+      this.state.translateY
     );
 
     this.drawGraph();
@@ -43,8 +45,8 @@ export class GEGraphRenderer {
   };
 
   drawBackground(): void {
-    const { ctx } = this;
-    const { canvas, translateX, translateY, scale, options } = this.view;
+    const { canvas, ctx } = this;
+    const { translateX, translateY, scale, options } = this.state;
 
     ctx.fillStyle = options.backgroundColor;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -67,15 +69,16 @@ export class GEGraphRenderer {
   }
 
   drawGraph(): void {
-    this.view.graph.edges.forEach(this.drawEdge);
+    this.state.graph.edges.forEach(this.drawEdge);
 
     this.drawDragLine();
 
-    this.view.graph.nodes.forEach(this.drawNode);
+    this.state.graph.nodes.forEach(this.drawNode);
   }
 
   isNodeOutOfView(node: GENode): boolean {
-    const { canvas, translateX, translateY, scale } = this.view;
+    const { canvas } = this;
+    const { translateX, translateY, scale } = this.state;
 
     return (
       (node.x + node.r) * scale + translateX < 0 ||
@@ -86,7 +89,8 @@ export class GEGraphRenderer {
   }
 
   isEdgeOutOfView(edge: GEEdge): boolean {
-    const { canvas, translateX, translateY, scale, graph, options } = this.view;
+    const { canvas } = this;
+    const { translateX, translateY, scale, graph, options } = this.state;
 
     const source = graph.nodes.get(edge.sourceNodeId);
     const target = graph.nodes.get(edge.targetNodeId);
@@ -111,7 +115,7 @@ export class GEGraphRenderer {
     if (this.isNodeOutOfView(node)) return;
 
     const { ctx } = this;
-    const { pointerCanvasX, pointerCanvasY, options } = this.view;
+    const { pointerCanvasX, pointerCanvasY, options } = this.state;
 
     ctx.strokeStyle = options.nodeStrokeColor;
     ctx.lineWidth = 2;
@@ -120,13 +124,13 @@ export class GEGraphRenderer {
     ctx.arc(node.x, node.y, node.r, 0, Math.PI * 2);
 
     if (ctx.isPointInPath(pointerCanvasX, pointerCanvasY)) {
-      this.view.hoveredNodeId = node.id;
+      this.state.hoveredNodeId = node.id;
     }
 
-    if (node.id === this.view.selectedNodeId) {
+    if (node.id === this.state.selectedNodeId) {
       ctx.strokeStyle = options.nodeSelectedColor;
       ctx.fillStyle = options.nodeSelectedColor;
-    } else if (node.id === this.view.hoveredNodeId) {
+    } else if (node.id === this.state.hoveredNodeId) {
       ctx.strokeStyle = options.nodeSelectedColor;
       ctx.fillStyle = options.nodeColor;
     } else {
@@ -137,7 +141,7 @@ export class GEGraphRenderer {
     ctx.fill();
     ctx.stroke();
 
-    if (node.id === this.view.selectedNodeId) {
+    if (node.id === this.state.selectedNodeId) {
       ctx.fillStyle = options.nodeSelectedTextColor;
     } else {
       ctx.fillStyle = options.nodeTextColor;
@@ -151,15 +155,15 @@ export class GEGraphRenderer {
   };
 
   drawDragLine(): void {
-    if (!this.view.isCreatingEdge) return;
+    if (!this.state.isCreatingEdge) return;
 
     const { ctx } = this;
-    const { pointerViewX, pointerViewY, graph, options } = this.view;
+    const { pointerViewX, pointerViewY, graph, options } = this.state;
 
     const targetX = pointerViewX;
     const targetY = pointerViewY;
 
-    const source = graph.nodes.get(this.view.drageLineSourceNodeId);
+    const source = graph.nodes.get(this.state.drageLineSourceNodeId);
     const dx = targetX - source.x;
     const dy = targetY - source.y;
 
@@ -205,7 +209,7 @@ export class GEGraphRenderer {
     if (this.isEdgeOutOfView(edge)) return;
 
     const { ctx } = this;
-    const { pointerCanvasX, pointerCanvasY, graph, options } = this.view;
+    const { pointerCanvasX, pointerCanvasY, graph, options } = this.state;
 
     const source = graph.nodes.get(edge.sourceNodeId);
     const target = graph.nodes.get(edge.targetNodeId);
@@ -244,7 +248,7 @@ export class GEGraphRenderer {
       ctx.isPointInPath(pointerCanvasX, pointerCanvasY) ||
       ctx.isPointInStroke(pointerCanvasX, pointerCanvasY)
     ) {
-      this.view.hoveredEdgeId = edge.id;
+      this.state.hoveredEdgeId = edge.id;
     }
 
     ctx.beginPath();
@@ -266,13 +270,13 @@ export class GEGraphRenderer {
       ctx.isPointInPath(pointerCanvasX, pointerCanvasY) ||
       ctx.isPointInStroke(pointerCanvasX, pointerCanvasY)
     ) {
-      this.view.hoveredEdgeId = edge.id;
+      this.state.hoveredEdgeId = edge.id;
     }
 
-    if (edge.id === this.view.selectedEdgeId) {
+    if (edge.id === this.state.selectedEdgeId) {
       ctx.strokeStyle = options.edgeLineSelectedColor;
       ctx.fillStyle = options.edgeLineSelectedColor;
-    } else if (edge.id === this.view.hoveredEdgeId) {
+    } else if (edge.id === this.state.hoveredEdgeId) {
       ctx.strokeStyle = options.edgeLineHoverColor;
       ctx.fillStyle = options.edgeLineHoverColor;
     } else {
@@ -291,7 +295,7 @@ export class GEGraphRenderer {
       options.edgeRectHeight
     );
 
-    if (edge.id === this.view.selectedEdgeId) {
+    if (edge.id === this.state.selectedEdgeId) {
       ctx.fillStyle = options.edgeLineSelectedColor;
     } else {
       ctx.fillStyle = options.edgeRectFillColor;
@@ -300,7 +304,7 @@ export class GEGraphRenderer {
     ctx.fill();
     ctx.stroke();
 
-    if (edge.id === this.view.selectedEdgeId) {
+    if (edge.id === this.state.selectedEdgeId) {
       ctx.fillStyle = options.edgeSelectedTextColor;
     } else {
       ctx.fillStyle = options.edgeTextColor;
