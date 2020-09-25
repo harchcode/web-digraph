@@ -109,8 +109,6 @@ export class GEEventHandler {
 
       node.x += evt.movementX / this.state.scale;
       node.y += evt.movementY / this.state.scale;
-
-      this.renderer.requestDraw();
     } else if (
       !this.state.isShiftDown &&
       this.state.isDragging &&
@@ -118,12 +116,9 @@ export class GEEventHandler {
     ) {
       this.state.translateX += evt.movementX;
       this.state.translateY += evt.movementY;
-
-      this.renderer.requestDraw(true);
-    } else {
-      this.renderer.requestDraw();
     }
 
+    this.renderer.requestDraw();
     this.updateCursorStyle();
   };
 
@@ -180,6 +175,6 @@ export class GEEventHandler {
     this.state.translateY += offsetY;
     this.state.scale += deltaScale;
 
-    this.renderer.requestDraw(true);
+    this.renderer.requestDraw();
   };
 }
