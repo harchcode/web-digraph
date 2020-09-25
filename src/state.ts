@@ -1,4 +1,4 @@
-import { GEViewOptions, GEViewOptionsParams } from "./types";
+import { GEViewOptions, GEViewOptionsParams, GEGridType } from "./types";
 import { GEGraph } from "./graph";
 
 export class GEState {
@@ -56,10 +56,11 @@ export class GEState {
       edgeRectWidth: 48,
       edgeRectHeight: 24,
       backgroundColor: "#F7FAFC",
-      showBackgroundDots: true,
-      backgroundDotColor: "#CBD5E0",
-      backgroundDotRadius: 4,
-      backgroundDotGap: 64,
+      showGrid: true,
+      gridType: GEGridType.DOTS,
+      gridColor: "#CBD5E0",
+      gridLineWidth: 8,
+      gridDotGap: 64,
       nodeColor: "white",
       nodeSelectedColor: "#3182CE",
       nodeStrokeColor: "#4A5568",

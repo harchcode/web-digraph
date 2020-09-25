@@ -10,36 +10,6 @@ export class GEGraph {
     this.reset();
   }
 
-  getRandomIntInclusive(minF: number, maxF: number): number {
-    const min = Math.ceil(minF);
-    const max = Math.floor(maxF);
-    return Math.floor(Math.random() * (max - min + 1) + min); //The maximum is inclusive and the minimum is inclusive
-  }
-
-  randomize(nodeCount = 1000, cols = 40): void {
-    this.reset;
-
-    for (let i = 0; i < nodeCount; i++) {
-      const col = i % cols;
-      const row = Math.floor(i / cols);
-
-      this.addNode(
-        col * 320,
-        row * 480,
-        this.getRandomIntInclusive(50, 120),
-        `Node ${i + 1}`
-      );
-
-      if (i > 0) {
-        this.addEdge(
-          this.nodes.get(i).id,
-          this.nodes.get(i + 1).id,
-          this.getRandomIntInclusive(1, 1000).toString()
-        );
-      }
-    }
-  }
-
   reset(): void {
     this.nodes = new Map<number, GENode>();
     this.edges = new Map<number, GEEdge>();
@@ -69,9 +39,7 @@ export class GEGraph {
       x,
       y,
       r,
-      text,
-      sourceOfEdgeIds: new Set(),
-      targetOfEdgeIds: new Set()
+      text
     };
 
     this.nodes.set(nextNodeId, newNode);
@@ -112,32 +80,20 @@ export class GEGraph {
 
     this.lastEdgeId = nextEdgeId;
 
-    this.nodes.get(sourceNodeId).sourceOfEdgeIds.add(nextEdgeId);
-    this.nodes.get(targetNodeId).targetOfEdgeIds.add(nextEdgeId);
-
     return newEdge;
   }
 
   deleteNode(nodeId: number): void {
-    const node = this.nodes.get(nodeId);
-
-    node.sourceOfEdgeIds.forEach(edgeId => {
-      this.deleteEdge(edgeId);
-    });
-
-    node.targetOfEdgeIds.forEach(edgeId => {
-      this.deleteEdge(edgeId);
+    this.edges.forEach(edge => {
+      if (edge.sourceNodeId === nodeId || edge.targetNodeId === nodeId) {
+        this.edges.delete(edge.id);
+      }
     });
 
     this.nodes.delete(nodeId);
   }
 
   deleteEdge(edgeId: number): void {
-    const edge = this.edges.get(edgeId);
-
-    this.nodes.get(edge.sourceNodeId).sourceOfEdgeIds.delete(edgeId);
-    this.nodes.get(edge.targetNodeId).targetOfEdgeIds.delete(edgeId);
-
     this.edges.delete(edgeId);
   }
 }

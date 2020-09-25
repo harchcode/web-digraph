@@ -1,8 +1,10 @@
-import { GENode, GEEdge } from "./types";
+import { GENode, GEEdge, GEGridType } from "./types";
 import { GEState } from "./state";
 
 const TEXT_ALIGN = "center";
 const TEXT_BASELINE = "middle";
+const LINE_CAP_ROUND = "round";
+const LINE_CAP_SQUARE = "square";
 
 export class GEGraphRenderer {
   state: GEState;
@@ -51,25 +53,45 @@ export class GEGraphRenderer {
     ctx.fillStyle = options.backgroundColor;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    if (!options.showBackgroundDots) return;
+    if (!options.showGrid) return;
 
-    const r = options.backgroundDotRadius * scale;
-    const gap = options.backgroundDotGap * scale;
+    const lw = options.gridLineWidth * scale;
+    const gap = options.gridDotGap * scale;
 
-    const offsetX = (translateX % gap) - r;
-    const offsetY = (translateY % gap) - r;
+    const offsetX = (translateX % gap) - lw;
+    const offsetY = (translateY % gap) - lw;
 
-    ctx.beginPath();
+    ctx.strokeStyle = options.gridColor;
+    ctx.lineWidth = lw;
 
-    for (let i = offsetX; i < canvas.width + r; i += gap) {
-      for (let j = offsetY; j < canvas.height + r; j += gap) {
-        ctx.moveTo(i, j);
-        ctx.arc(i, j, r, 0, Math.PI * 2);
+    if (options.gridType === GEGridType.DOTS) {
+      ctx.beginPath();
+
+      for (let i = offsetX; i < canvas.width + lw; i += gap) {
+        ctx.moveTo(i, offsetY);
+        ctx.lineTo(i, canvas.height + offsetY);
       }
-    }
 
-    ctx.fillStyle = options.backgroundDotColor;
-    ctx.fill();
+      ctx.lineCap = LINE_CAP_ROUND;
+      ctx.setLineDash([0, gap]);
+      ctx.stroke();
+      ctx.setLineDash([0]);
+      ctx.lineCap = LINE_CAP_SQUARE;
+    } else {
+      ctx.beginPath();
+
+      for (let i = offsetX; i < canvas.width + lw; i += gap) {
+        ctx.moveTo(i, 0);
+        ctx.lineTo(i, canvas.height);
+      }
+
+      for (let i = offsetY; i < canvas.height + lw; i += gap) {
+        ctx.moveTo(0, i);
+        ctx.lineTo(canvas.width, i);
+      }
+
+      ctx.stroke();
+    }
   }
 
   drawGraph(): void {

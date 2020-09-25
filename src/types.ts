@@ -4,8 +4,6 @@ export type GENode = {
   y: number;
   r: number;
   text: string;
-  sourceOfEdgeIds: Set<number>;
-  targetOfEdgeIds: Set<number>;
 };
 
 export type GEEdge = {
@@ -15,6 +13,11 @@ export type GEEdge = {
   targetNodeId: number;
 };
 
+export enum GEGridType {
+  LINES,
+  DOTS
+}
+
 export type GEViewOptions = {
   nodeRadius: number;
   edgeArrowLength: number;
@@ -22,10 +25,11 @@ export type GEViewOptions = {
   edgeRectWidth: number;
   edgeRectHeight: number;
   backgroundColor: string;
-  showBackgroundDots: boolean;
-  backgroundDotColor: string;
-  backgroundDotRadius: number;
-  backgroundDotGap: number;
+  showGrid: boolean;
+  gridType: GEGridType;
+  gridColor: string;
+  gridLineWidth: number;
+  gridDotGap: number;
   nodeColor: string;
   nodeSelectedColor: string;
   nodeStrokeColor: string;
