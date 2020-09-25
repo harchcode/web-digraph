@@ -1,4 +1,4 @@
-import { GEViewOptions } from "./types";
+import { GEViewOptions, GEViewOptionsParams } from "./types";
 import { GEGraph } from "./graph";
 
 export class GEState {
@@ -39,14 +39,25 @@ export class GEState {
   constructor() {
     this.graph = new GEGraph();
 
-    this.options = {
+    this.options = this.getDefaultOptions();
+  }
+
+  setOptions(options: GEViewOptionsParams): void {
+    Object.keys(options).forEach(k => {
+      this.options[k] = options[k];
+    });
+  }
+
+  getDefaultOptions(): GEViewOptions {
+    return {
       nodeRadius: 80,
       edgeArrowLength: 16,
       edgeArrowRadian: Math.PI / 6,
       edgeRectWidth: 48,
       edgeRectHeight: 24,
       backgroundColor: "#F7FAFC",
-      backgroundDotColor: "#E2E8F0",
+      showBackgroundDots: true,
+      backgroundDotColor: "#CBD5E0",
       backgroundDotRadius: 4,
       backgroundDotGap: 64,
       nodeColor: "white",

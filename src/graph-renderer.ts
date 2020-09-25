@@ -7,15 +7,26 @@ const TEXT_BASELINE = "middle";
 export class GEGraphRenderer {
   state: GEState;
   canvas: HTMLCanvasElement;
+  bgCanvas: HTMLCanvasElement;
   ctx: CanvasRenderingContext2D;
+  bgCtx: CanvasRenderingContext2D;
+  bgNeedRedraw = false;
 
-  constructor(view: GEState, canvas: HTMLCanvasElement) {
+  constructor(
+    view: GEState,
+    canvas: HTMLCanvasElement,
+    bgCanvas: HTMLCanvasElement
+  ) {
     this.state = view;
     this.canvas = canvas;
-    this.ctx = canvas.getContext("2d", { alpha: false });
+    this.bgCanvas = bgCanvas;
+    this.ctx = canvas.getContext("2d");
+    this.bgCtx = bgCanvas.getContext("2d", { alpha: false });
   }
 
-  requestDraw(): void {
+  requestDraw(bgNeedRedraw = false): void {
+    if (bgNeedRedraw) this.bgNeedRedraw = true;
+
     if (!this.state.isDrawing) {
       requestAnimationFrame(this.draw);
     }
@@ -24,13 +35,20 @@ export class GEGraphRenderer {
   }
 
   draw = (): void => {
-    this.state.isDrawing = false;
-    this.state.hoveredNodeId = 0;
-    this.state.hoveredEdgeId = 0;
+    const { state, ctx, canvas } = this;
 
-    this.drawBackground();
+    state.isDrawing = false;
+    state.hoveredNodeId = 0;
+    state.hoveredEdgeId = 0;
 
-    this.ctx.transform(
+    if (this.bgNeedRedraw) {
+      this.drawBackground();
+      this.bgNeedRedraw = false;
+    }
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    ctx.transform(
       this.state.scale,
       0,
       0,
@@ -41,15 +59,17 @@ export class GEGraphRenderer {
 
     this.drawGraph();
 
-    this.ctx.resetTransform();
+    ctx.resetTransform();
   };
 
   drawBackground(): void {
-    const { canvas, ctx } = this;
+    const { bgCanvas, bgCtx } = this;
     const { translateX, translateY, scale, options } = this.state;
 
-    ctx.fillStyle = options.backgroundColor;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    bgCtx.fillStyle = options.backgroundColor;
+    bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
+
+    if (!options.showBackgroundDots) return;
 
     const r = options.backgroundDotRadius * scale;
     const gap = options.backgroundDotGap * scale;
@@ -57,15 +77,17 @@ export class GEGraphRenderer {
     const offsetX = (translateX % gap) - r;
     const offsetY = (translateY % gap) - r;
 
-    for (let i = offsetX; i < canvas.width + r; i += gap) {
-      for (let j = offsetY; j < canvas.height + r; j += gap) {
-        ctx.beginPath();
-        ctx.arc(i, j, r, 0, Math.PI * 2);
+    bgCtx.beginPath();
 
-        ctx.fillStyle = options.backgroundDotColor;
-        ctx.fill();
+    for (let i = offsetX; i < bgCanvas.width + r; i += gap) {
+      for (let j = offsetY; j < bgCanvas.height + r; j += gap) {
+        bgCtx.moveTo(i, j);
+        bgCtx.arc(i, j, r, 0, Math.PI * 2);
       }
     }
+
+    bgCtx.fillStyle = options.backgroundDotColor;
+    bgCtx.fill();
   }
 
   drawGraph(): void {

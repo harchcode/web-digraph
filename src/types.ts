@@ -22,6 +22,7 @@ export type GEViewOptions = {
   edgeRectWidth: number;
   edgeRectHeight: number;
   backgroundColor: string;
+  showBackgroundDots: boolean;
   backgroundDotColor: string;
   backgroundDotRadius: number;
   backgroundDotGap: number;
@@ -43,4 +44,8 @@ export type GEViewOptions = {
   cursorGrab: string;
   cursorPointer: string;
   cursorCrosshair: string;
+};
+
+export type GEViewOptionsParams = {
+  [T in keyof GEViewOptions]?: GEViewOptions[T];
 };
