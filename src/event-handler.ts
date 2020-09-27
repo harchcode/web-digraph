@@ -17,7 +17,7 @@ export class GEEventHandler {
   }
 
   init(): void {
-    window.addEventListener("mousedown", this.handleMouseDown);
+    this.canvas.addEventListener("mousedown", this.handleMouseDown);
     window.addEventListener("mouseup", this.handleMouseUp);
     window.addEventListener("mousemove", this.handleMouseMove);
     window.addEventListener("keydown", this.handleKeyDown);
@@ -26,7 +26,7 @@ export class GEEventHandler {
   }
 
   destroy(): void {
-    window.removeEventListener("mousedown", this.handleMouseDown);
+    this.canvas.removeEventListener("mousedown", this.handleMouseDown);
     window.removeEventListener("mouseup", this.handleMouseUp);
     window.removeEventListener("mousemove", this.handleMouseMove);
     window.removeEventListener("keydown", this.handleKeyDown);
@@ -159,21 +159,11 @@ export class GEEventHandler {
   handleCanvasWheel = (evt: WheelEvent): void => {
     evt.preventDefault();
 
-    const { options } = this.state;
-
-    // calc the new scale, but limitting the value to the max of 3, and min of 0.05
-    const newScale = Math.min(
-      options.maxScale,
-      Math.max(options.minScale, this.state.scale - evt.deltaY * 0.001)
+    this.state.zoomTo(
+      this.state.scale - evt.deltaY * 0.001,
+      this.state.pointerViewX,
+      this.state.pointerViewY
     );
-
-    const deltaScale = newScale - this.state.scale;
-    const offsetX = -(this.state.pointerViewX * deltaScale);
-    const offsetY = -(this.state.pointerViewY * deltaScale);
-
-    this.state.translateX += offsetX;
-    this.state.translateY += offsetY;
-    this.state.scale += deltaScale;
 
     this.renderer.requestDraw();
   };

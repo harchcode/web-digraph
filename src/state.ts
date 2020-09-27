@@ -94,4 +94,18 @@ export class GEState {
     this.pointerViewX = (this.pointerCanvasX - this.translateX) / this.scale;
     this.pointerViewY = (this.pointerCanvasY - this.translateY) / this.scale;
   }
+
+  zoomTo(scale: number, viewX: number, viewY: number): void {
+    const { maxScale, minScale } = this.options;
+
+    const newScale = Math.min(maxScale, Math.max(minScale, scale));
+
+    const deltaScale = newScale - this.scale;
+    const offsetX = -(viewX * deltaScale);
+    const offsetY = -(viewY * deltaScale);
+
+    this.translateX += offsetX;
+    this.translateY += offsetY;
+    this.scale += deltaScale;
+  }
 }

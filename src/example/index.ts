@@ -1,7 +1,18 @@
 import { GEView } from "../index";
 
 const graphDiv = document.getElementById("graph");
-const graphView = new GEView();
+const nodeCountSpan = document.getElementById("node-count-span");
+const edgeCountSpan = document.getElementById("edge-count-span");
+const zoomSlider = document.getElementById("zoom-slider");
+const generateTextbox = document.getElementById("generate-textbox");
+const generateButton = document.getElementById("generate-button");
+
+const options = {
+  minScale: 0.2,
+  maxScale: 1.8
+};
+
+const graphView = new GEView(options);
 
 function getRandomIntInclusive(minF: number, maxF: number): number {
   const min = Math.ceil(minF);
@@ -40,4 +51,10 @@ randomize(10000, 200);
 
 window.addEventListener("resize", () => {
   graphView.resize(window.innerWidth, window.innerHeight);
+});
+
+zoomSlider.addEventListener("input", e => {
+  const target = e.target as HTMLInputElement;
+
+  graphView.zoomTo(Number(target.value) * 0.01 * 1.8 + 0.2);
 });

@@ -7,7 +7,24 @@
   </head>
 
   <body>
-    <div id="graph"></div>>
+    <div id="container">
+      <div id="graph"></div>
+      <div id="buttons">
+        <div class="zoom-input">
+          <input id="zoom-slider" type="range" min="1" max="100" />
+        </div>
+
+        <div class="generate-input">
+          <input id="generate-textbox" type="number" placeholder="Total nodes" max="9999" min="0" />
+          <button id="generate-button" type="button">Go</button>
+        </div>
+
+        <div class="info">
+          <div>Node count: <span id="node-count-span">0</span></div>
+          <div>Edge count: <span id="node-count-span">0</span></div>
+        </div>
+      </div>
+    </div>
 
     <script src="./index.ts"></script>
   </body>

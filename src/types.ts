@@ -48,6 +48,8 @@ export type GEViewOptions = {
   cursorGrab: string;
   cursorPointer: string;
   cursorCrosshair: string;
+  onViewMoved?: () => void;
+  onViewZoom?: () => void;
 };
 
 export type GEViewOptionsParams = {
