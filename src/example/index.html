@@ -11,17 +11,17 @@
       <div id="graph"></div>
       <div id="buttons">
         <div class="zoom-input">
-          <input id="zoom-slider" type="range" min="1" max="100" />
+          <input id="zoom-slider" type="range" min="0.2" max="3.0" step="0.01" value="1.0" />
         </div>
 
         <div class="generate-input">
-          <input id="generate-textbox" type="number" placeholder="Total nodes" max="9999" min="0" />
+          <input id="generate-textbox" type="text" placeholder="Total nodes" maxlength="4" value="10" />
           <button id="generate-button" type="button">Go</button>
         </div>
 
         <div class="info">
           <div>Node count: <span id="node-count-span">0</span></div>
-          <div>Edge count: <span id="node-count-span">0</span></div>
+          <div>Edge count: <span id="edge-count-span">0</span></div>
         </div>
       </div>
     </div>

@@ -50,6 +50,10 @@ export type GEViewOptions = {
   cursorCrosshair: string;
   onViewMoved?: () => void;
   onViewZoom?: () => void;
+  onAddNode?: (node: GENode) => void;
+  onDeleteNode?: (node: GENode) => void;
+  onAddEdge?: (edge: GEEdge) => void;
+  onDeleteEdge?: (edge: GEEdge, sourceNode: GENode, targetNode: GENode) => void;
 };
 
 export type GEViewOptionsParams = {

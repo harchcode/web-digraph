@@ -31,7 +31,7 @@ html, body {
   margin-top: 1em;
 }
 
-input[type="number"] {
+#generate-textbox {
   padding: 0.5em;
   width: 7.5em;
   text-align: right;

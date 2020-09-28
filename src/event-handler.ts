@@ -62,21 +62,25 @@ export class GEEventHandler {
       this.state.hoveredNodeId > 0 &&
       this.state.hoveredNodeId !== this.state.drageLineSourceNodeId
     ) {
-      this.state.graph.addEdge(
+      const newEdge = this.state.graph.addEdge(
         this.state.drageLineSourceNodeId,
         this.state.hoveredNodeId
       );
+
+      this.state.options.onAddEdge?.(newEdge);
     } else if (
       this.state.isShiftDown &&
       !this.state.isCreatingEdge &&
       this.state.hoveredNodeId <= 0 &&
       this.state.hoveredEdgeId <= 0
     ) {
-      this.state.graph.addNode(
+      const newNode = this.state.graph.addNode(
         this.state.pointerViewX,
         this.state.pointerViewY,
         80
       );
+
+      this.state.options.onAddNode?.(newNode);
     }
 
     this.state.isDragging = false;
@@ -135,13 +139,23 @@ export class GEEventHandler {
       evt.keyCode === 46
     ) {
       if (this.state.selectedNodeId > 0) {
+        const node = this.state.graph.nodes.get(this.state.selectedNodeId);
+
         this.state.graph.deleteNode(this.state.selectedNodeId);
         this.state.selectedNodeId = 0;
+
+        this.state.options.onDeleteNode(node);
       }
 
       if (this.state.selectedEdgeId > 0) {
+        const edge = this.state.graph.edges.get(this.state.selectedEdgeId);
+        const source = this.state.graph.nodes.get(edge.sourceNodeId);
+        const target = this.state.graph.nodes.get(edge.targetNodeId);
+
         this.state.graph.deleteEdge(this.state.selectedEdgeId);
         this.state.selectedEdgeId = 0;
+
+        this.state.options.onDeleteEdge(edge, source, target);
       }
 
       this.renderer.requestDraw();
@@ -164,6 +178,8 @@ export class GEEventHandler {
       this.state.pointerViewX,
       this.state.pointerViewY
     );
+
+    this.state.options.onViewZoom?.();
 
     this.renderer.requestDraw();
   };

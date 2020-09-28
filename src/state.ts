@@ -75,7 +75,7 @@ export class GEState {
       edgeSelectedTextColor: "white",
       edgeTextStyle: "16px sans-serif",
       minScale: 0.2,
-      maxScale: 3.0,
+      maxScale: 1.8,
       cursorGrab: "grab",
       cursorPointer: "pointer",
       cursorCrosshair: "crosshair"

@@ -1,7 +1,7 @@
 import { GEState } from "./state";
 import { GEGraphRenderer } from "./graph-renderer";
 import { GEEventHandler } from "./event-handler";
-import { GENode, GEEdge, GEViewOptionsParams, GEViewOptions } from "./types";
+import { GENode, GEEdge, GEViewOptionsParams } from "./types";
 
 export class GEView {
   readonly canvas: HTMLCanvasElement;
@@ -81,6 +81,14 @@ export class GEView {
   setData(nodes: GENode[], edges: GEEdge[]): void {
     this._state.graph.setData(nodes, edges);
     this.requestDraw();
+  }
+
+  getNodes(): Map<number, GENode> {
+    return this._state.graph.nodes;
+  }
+
+  getEdges(): Map<number, GEEdge> {
+    return this._state.graph.edges;
   }
 
   setOptions(options: GEViewOptionsParams): void {

@@ -69,7 +69,7 @@ export class GEGraphRenderer {
 
       for (let i = offsetX; i < canvas.width + lw; i += gap) {
         ctx.moveTo(i, offsetY);
-        ctx.lineTo(i, canvas.height + offsetY);
+        ctx.lineTo(i, canvas.height + lw);
       }
 
       ctx.lineCap = LINE_CAP_ROUND;

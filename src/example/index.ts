@@ -3,16 +3,40 @@ import { GEView } from "../index";
 const graphDiv = document.getElementById("graph");
 const nodeCountSpan = document.getElementById("node-count-span");
 const edgeCountSpan = document.getElementById("edge-count-span");
-const zoomSlider = document.getElementById("zoom-slider");
-const generateTextbox = document.getElementById("generate-textbox");
+const zoomSlider = document.getElementById("zoom-slider") as HTMLInputElement;
+const generateTextbox = document.getElementById(
+  "generate-textbox"
+) as HTMLInputElement;
 const generateButton = document.getElementById("generate-button");
 
-const options = {
-  minScale: 0.2,
-  maxScale: 1.8
-};
+const graphView = new GEView();
 
-const graphView = new GEView(options);
+function updateNodeCount(): void {
+  const count = graphView.getNodes().size;
+
+  nodeCountSpan.innerHTML = count.toString();
+}
+
+function updateEdgeCount(): void {
+  const count = graphView.getEdges().size;
+
+  edgeCountSpan.innerHTML = count.toString();
+}
+
+graphView.setOptions({
+  minScale: 0.2,
+  maxScale: 3.0,
+  onViewZoom: () => {
+    zoomSlider.value = graphView.scale.toString();
+  },
+  onAddNode: updateNodeCount,
+  onAddEdge: updateEdgeCount,
+  onDeleteNode: () => {
+    updateNodeCount();
+    updateEdgeCount();
+  },
+  onDeleteEdge: updateEdgeCount
+});
 
 function getRandomIntInclusive(minF: number, maxF: number): number {
   const min = Math.ceil(minF);
@@ -21,6 +45,8 @@ function getRandomIntInclusive(minF: number, maxF: number): number {
 }
 
 function randomize(nodeCount = 1000, cols = 40) {
+  graphView.clearData();
+
   let prevNode;
 
   for (let i = 0; i < nodeCount; i++) {
@@ -29,7 +55,7 @@ function randomize(nodeCount = 1000, cols = 40) {
 
     const currNode = graphView.addNode(
       col * 320,
-      row * 480,
+      row * 320,
       getRandomIntInclusive(50, 120),
       `Node ${i + 1}`
     );
@@ -47,7 +73,6 @@ function randomize(nodeCount = 1000, cols = 40) {
 }
 
 graphView.init(graphDiv);
-randomize(10000, 200);
 
 window.addEventListener("resize", () => {
   graphView.resize(window.innerWidth, window.innerHeight);
@@ -56,5 +81,15 @@ window.addEventListener("resize", () => {
 zoomSlider.addEventListener("input", e => {
   const target = e.target as HTMLInputElement;
 
-  graphView.zoomTo(Number(target.value) * 0.01 * 1.8 + 0.2);
+  graphView.zoomTo(Number(target.value));
+});
+
+generateButton.addEventListener("click", () => {
+  const value = parseInt(generateTextbox.value, 10);
+  const columns = Math.ceil(Math.sqrt(value));
+
+  randomize(value, columns);
+
+  updateNodeCount();
+  updateEdgeCount();
 });
