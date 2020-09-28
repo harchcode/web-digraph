@@ -11,6 +11,7 @@
   "license": "MIT",
   "scripts": {
     "dev:example": "parcel src/example/index.html --port 1234 --hmr-port 1235",
+    "build:example": "rm -rf dist-example && parcel build src/example/index.html --out-dir dist-example",
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "rm -rf dist && tsc src/index.ts --outDir dist --declaration",
     "format": "prettier --write \"src/**/*.ts\" \"src/**/*.js\"",
