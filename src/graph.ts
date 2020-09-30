@@ -1,4 +1,4 @@
-import { GENode, GEEdge, GEShapes } from "./types";
+import { GENode, GEEdge } from "./types";
 
 export class GEGraph {
   nodes: Map<number, GENode>;
