@@ -20,8 +20,19 @@ const nodeTypes: GEShapeTypes = {
   decision: {
     mainShape: {
       shape: GEShapeName.RECTANGLE,
-      width: 100,
-      height: 80
+      width: 150,
+      height: 120
+    }
+  },
+  unknown: {
+    mainShape: {
+      shape: GEShapeName.POLYGON,
+      points: [
+        [0, -80],
+        [80, 0],
+        [0, 80],
+        [-80, 0]
+      ]
     }
   }
 };
@@ -92,8 +103,8 @@ function randomize(nodeCount = 1000, cols = 40) {
     const col = i % cols;
     const row = Math.floor(i / cols);
 
-    const tmp = getRandomIntInclusive(0, 1);
-    const nodeType = tmp === 0 ? "empty" : "decision";
+    const tmp = getRandomIntInclusive(0, 2);
+    const nodeType = tmp === 0 ? "empty" : tmp === 1 ? "decision" : "unknown";
 
     const tmp2 = getRandomIntInclusive(0, 1);
     const edgeType = tmp2 === 0 ? "normal" : "round";
