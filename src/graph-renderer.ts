@@ -1,5 +1,13 @@
-import { GENode, GEEdge, GEGridType } from "./types";
+import {
+  GENode,
+  GEEdge,
+  GEGridType,
+  GEShapes,
+  GEShape,
+  GEShapeName
+} from "./types";
 import { GEState } from "./state";
+import { intersectLineRect, intersect } from "./intersections";
 
 const TEXT_ALIGN = "center";
 const TEXT_BASELINE = "middle";
@@ -102,15 +110,33 @@ export class GEGraphRenderer {
     this.state.graph.nodes.forEach(this.drawNode);
   }
 
+  getShapeBound(shapes: GEShapes): number {
+    const shape = shapes.mainShape;
+
+    if (shape.shape === GEShapeName.CIRCLE) return shape.r;
+    if (shape.shape === GEShapeName.RECTANGLE)
+      return Math.max(shape.width, shape.height);
+
+    let r = 0;
+
+    shape.points.forEach(p => {
+      r = Math.max(r, Math.max(p[0], p[1]));
+    });
+
+    return r;
+  }
+
   isNodeOutOfView(node: GENode): boolean {
     const { canvas } = this;
-    const { translateX, translateY, scale } = this.state;
+    const { translateX, translateY, scale, options } = this.state;
+
+    const r = this.getShapeBound(options.nodeTypes[node.type]);
 
     return (
-      (node.x + node.r) * scale + translateX < 0 ||
-      (node.y + node.r) * scale + translateY < 0 ||
-      (node.x - node.r) * scale + translateX > canvas.width ||
-      (node.y - node.r) * scale + translateY > canvas.height
+      (node.x + r) * scale + translateX < 0 ||
+      (node.y + r) * scale + translateY < 0 ||
+      (node.x - r) * scale + translateX > canvas.width ||
+      (node.y - r) * scale + translateY > canvas.height
     );
   }
 
@@ -126,16 +152,40 @@ export class GEGraphRenderer {
     const targetX = target.x * scale + translateX;
     const targetY = target.y * scale + translateY;
 
+    const r = this.getShapeBound(options.edgeTypes[edge.type]);
+
     return (
-      (sourceX < -options.edgeRectWidth && targetX < -options.edgeRectWidth) ||
-      (sourceY < -options.edgeRectHeight &&
-        targetY < -options.edgeRectHeight) ||
-      (sourceX > canvas.width + options.edgeRectWidth &&
-        targetX > canvas.width + options.edgeRectWidth) ||
-      (sourceY > canvas.height + options.edgeRectHeight &&
-        targetY > canvas.height + options.edgeRectHeight)
+      (sourceX < -r && targetX < -r) ||
+      (sourceY < -r && targetY < -r) ||
+      (sourceX > canvas.width + r && targetX > canvas.width + r) ||
+      (sourceY > canvas.height + r && targetY > canvas.height + r)
     );
   }
+
+  shapePath = (x: number, y: number, shape: GEShape): void => {
+    const { ctx } = this;
+
+    if (shape.shape === GEShapeName.CIRCLE) {
+      ctx.arc(x, y, shape.r, 0, Math.PI * 2);
+    } else if (shape.shape === GEShapeName.RECTANGLE) {
+      ctx.rect(
+        x - shape.width * 0.5,
+        y - shape.height * 0.5,
+        shape.width,
+        shape.height
+      );
+    } else {
+      ctx.moveTo(x + shape.points[0][0], y + shape.points[0][1]);
+
+      for (let i = 1; i < shape.points.length; i++) {
+        ctx.lineTo(x + shape.points[i][0], y + shape.points[i][1]);
+      }
+
+      ctx.lineTo(x + shape.points[0][0], y + shape.points[0][1]);
+
+      ctx.closePath();
+    }
+  };
 
   drawNode = (node: GENode): void => {
     if (this.isNodeOutOfView(node)) return;
@@ -147,7 +197,7 @@ export class GEGraphRenderer {
     ctx.lineWidth = 2;
 
     ctx.beginPath();
-    ctx.arc(node.x, node.y, node.r, 0, Math.PI * 2);
+    this.shapePath(node.x, node.y, options.nodeTypes[node.type].mainShape);
 
     if (ctx.isPointInPath(pointerCanvasX, pointerCanvasY)) {
       this.state.hoveredNodeId = node.id;
@@ -231,6 +281,66 @@ export class GEGraphRenderer {
     ctx.fill();
   }
 
+  getInstersectionPoint = (
+    sourceX: number,
+    sourceY: number,
+    node: GENode
+  ): [number, number] => {
+    const { options } = this.state;
+
+    const shape = options.nodeTypes[node.type].mainShape;
+
+    if (shape.shape === GEShapeName.CIRCLE) {
+      const dx = node.x - sourceX;
+      const dy = node.y - sourceY;
+
+      const rad = Math.atan2(dy, dx);
+      const sinr = Math.sin(rad);
+      const cosr = Math.cos(rad);
+
+      return [node.x - cosr * shape.r, node.y - sinr * shape.r];
+    } else if (shape.shape === GEShapeName.RECTANGLE) {
+      const x1 = sourceX;
+      const y1 = sourceY;
+      const x2 = node.x;
+      const y2 = node.y;
+
+      const int = intersectLineRect(
+        x1,
+        y1,
+        x2,
+        y2,
+        node.x,
+        node.y,
+        shape.width,
+        shape.height
+      );
+
+      if (int) return int;
+    } else {
+      const x1 = sourceX;
+      const y1 = sourceY;
+      const x2 = node.x;
+      const y2 = node.y;
+
+      const len = shape.points.length;
+
+      for (let i = 0; i < len; i++) {
+        const nextIndex = i + 1 === len ? 0 : i + 1;
+
+        const x3 = node.x + shape.points[i][0];
+        const y3 = node.y + shape.points[i][1];
+        const x4 = node.x + shape.points[nextIndex][0];
+        const y4 = node.y + shape.points[nextIndex][1];
+
+        const int = intersect(x1, y1, x2, y2, x3, y3, x4, y4);
+        if (int) return int;
+      }
+    }
+
+    return [node.x, node.y];
+  };
+
   drawEdge = (edge: GEEdge): void => {
     if (this.isEdgeOutOfView(edge)) return;
 
@@ -247,14 +357,23 @@ export class GEGraphRenderer {
     const cosr = Math.cos(rad);
 
     // calculate the start and end points of the line
-    const startX = source.x + cosr * source.r;
-    const startY = source.y + sinr * source.r;
-    const endX = target.x - cosr * (target.r + 3);
-    const endY = target.y - sinr * (target.r + 3);
+    const [startX, startY] = this.getInstersectionPoint(
+      target.x,
+      target.y,
+      source
+    );
+    const [endX0, endY0] = this.getInstersectionPoint(
+      source.x,
+      source.y,
+      target
+    );
+
+    const endX = endX0 - cosr * 3;
+    const endY = endY0 - sinr * 3;
     const edgeLineOffset =
       options.edgeArrowLength * Math.cos(options.edgeArrowRadian);
-    const lineEndX = target.x - cosr * (target.r + edgeLineOffset);
-    const lineEndY = target.y - sinr * (target.r + edgeLineOffset);
+    const lineEndX = endX - cosr * edgeLineOffset;
+    const lineEndY = endY - sinr * edgeLineOffset;
 
     ctx.lineWidth = 2;
 
@@ -263,12 +382,7 @@ export class GEGraphRenderer {
 
     // this is just to check if the rect is hovered
     ctx.beginPath();
-    this.roundedRect(
-      midX - options.edgeRectWidth * 0.5,
-      midY - options.edgeRectHeight * 0.5,
-      options.edgeRectWidth,
-      options.edgeRectHeight
-    );
+    this.shapePath(midX, midY, options.edgeTypes[edge.type].mainShape);
 
     if (
       ctx.isPointInPath(pointerCanvasX, pointerCanvasY) ||
@@ -314,12 +428,7 @@ export class GEGraphRenderer {
     ctx.fill();
 
     ctx.beginPath();
-    this.roundedRect(
-      midX - options.edgeRectWidth * 0.5,
-      midY - options.edgeRectHeight * 0.5,
-      options.edgeRectWidth,
-      options.edgeRectHeight
-    );
+    this.shapePath(midX, midY, options.edgeTypes[edge.type].mainShape);
 
     if (edge.id === this.state.selectedEdgeId) {
       ctx.fillStyle = options.edgeLineSelectedColor;
@@ -340,25 +449,4 @@ export class GEGraphRenderer {
     ctx.textBaseline = TEXT_BASELINE;
     ctx.fillText(edge.text, midX, midY);
   };
-
-  roundedRect(
-    x: number,
-    y: number,
-    width: number,
-    height: number,
-    radius = 8
-  ): void {
-    const { ctx } = this;
-
-    ctx.moveTo(x + radius, y);
-    ctx.lineTo(x + width - radius, y);
-    ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
-    ctx.lineTo(x + width, y + height - radius);
-    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-    ctx.lineTo(x + radius, y + height);
-    ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
-    ctx.lineTo(x, y + radius);
-    ctx.quadraticCurveTo(x, y, x + radius, y);
-    ctx.closePath();
-  }
 }

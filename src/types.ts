@@ -1,9 +1,45 @@
+export type Point = [number, number];
+
+export enum GEShapeName {
+  CIRCLE,
+  RECTANGLE,
+  POLYGON
+}
+
+export type GECircleShape = {
+  shape: GEShapeName.CIRCLE;
+  r: number;
+  color?: string;
+};
+
+export type GERectangleShape = {
+  shape: GEShapeName.RECTANGLE;
+  width: number;
+  height: number;
+  color?: string;
+};
+
+export type GEPolygonShape = {
+  shape: GEShapeName.POLYGON;
+  points: Point[];
+  color?: string;
+};
+
+export type GEShape = GECircleShape | GERectangleShape | GEPolygonShape;
+
+export type GEShapes = {
+  mainShape: GEShape;
+  auxShape?: GEShape[];
+};
+
+export type GEShapeTypes = Record<string, GEShapes>;
+
 export type GENode = {
   id: number;
   x: number;
   y: number;
-  r: number;
   text: string;
+  type: string;
 };
 
 export type GEEdge = {
@@ -11,6 +47,7 @@ export type GEEdge = {
   text: string;
   sourceNodeId: number;
   targetNodeId: number;
+  type: string;
 };
 
 export enum GEGridType {
@@ -48,6 +85,10 @@ export type GEViewOptions = {
   cursorGrab: string;
   cursorPointer: string;
   cursorCrosshair: string;
+  defaultNodeType: string;
+  defaultEdgeType: string;
+  nodeTypes: GEShapeTypes;
+  edgeTypes: GEShapeTypes;
   onViewMoved?: () => void;
   onViewZoom?: () => void;
   onAddNode?: (node: GENode) => void;

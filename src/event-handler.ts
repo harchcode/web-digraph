@@ -64,7 +64,8 @@ export class GEEventHandler {
     ) {
       const newEdge = this.state.graph.addEdge(
         this.state.drageLineSourceNodeId,
-        this.state.hoveredNodeId
+        this.state.hoveredNodeId,
+        this.state.options.defaultEdgeType
       );
 
       this.state.options.onAddEdge?.(newEdge);
@@ -77,7 +78,7 @@ export class GEEventHandler {
       const newNode = this.state.graph.addNode(
         this.state.pointerViewX,
         this.state.pointerViewY,
-        80
+        this.state.options.defaultNodeType
       );
 
       this.state.options.onAddNode?.(newNode);

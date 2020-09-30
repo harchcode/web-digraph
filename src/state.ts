@@ -1,4 +1,9 @@
-import { GEViewOptions, GEViewOptionsParams, GEGridType } from "./types";
+import {
+  GEViewOptions,
+  GEViewOptionsParams,
+  GEGridType,
+  GEShapeName
+} from "./types";
 import { GEGraph } from "./graph";
 
 export class GEState {
@@ -78,7 +83,26 @@ export class GEState {
       maxScale: 1.8,
       cursorGrab: "grab",
       cursorPointer: "pointer",
-      cursorCrosshair: "crosshair"
+      cursorCrosshair: "crosshair",
+      defaultNodeType: "empty",
+      defaultEdgeType: "empty",
+      nodeTypes: {
+        empty: {
+          mainShape: {
+            shape: GEShapeName.CIRCLE,
+            r: 80
+          }
+        }
+      },
+      edgeTypes: {
+        empty: {
+          mainShape: {
+            shape: GEShapeName.RECTANGLE,
+            width: 30,
+            height: 20
+          }
+        }
+      }
     };
   }
 
