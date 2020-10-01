@@ -36,34 +36,76 @@ export function intersect(
   return [x, y];
 }
 
-export function intersectLineRect(
+export function intersectLineRectCenter(
   x1: number,
   y1: number,
   x2: number,
   y2: number,
-  x3: number,
-  y3: number,
   w: number,
   h: number
 ): false | [number, number] {
   const wh = w * 0.5;
   const hh = h * 0.5;
 
-  const i1 = intersect(x1, y1, x2, y2, x3 - wh, y3 - hh, x3 + wh, y3 - hh);
+  const i1 = intersect(x1, y1, x2, y2, x2 - wh, y2 - hh, x2 + wh, y2 - hh);
 
   if (i1) return i1;
 
-  const i2 = intersect(x1, y1, x2, y2, x3 + wh, y3 - hh, x3 + wh, y3 + hh);
+  const i2 = intersect(x1, y1, x2, y2, x2 + wh, y2 - hh, x2 + wh, y2 + hh);
 
   if (i2) return i2;
 
-  const i3 = intersect(x1, y1, x2, y2, x3 + wh, y3 + hh, x3 - wh, y3 + hh);
+  const i3 = intersect(x1, y1, x2, y2, x2 + wh, y2 + hh, x2 - wh, y2 + hh);
 
   if (i3) return i3;
 
-  const i4 = intersect(x1, y1, x2, y2, x3 - wh, y3 + hh, x3 - wh, y3 - hh);
+  const i4 = intersect(x1, y1, x2, y2, x2 - wh, y2 + hh, x2 - wh, y2 - hh);
 
   if (i4) return i4;
 
   return false;
+}
+
+export function instersectLinePolygonCenter(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  points: [number, number][]
+): false | [number, number] {
+  const len = points.length;
+
+  for (let i = 0; i < len; i++) {
+    const nextIndex = (i + 1) % len;
+
+    const x3 = x2 + points[i][0];
+    const y3 = y2 + points[i][1];
+    const x4 = x2 + points[nextIndex][0];
+    const y4 = y2 + points[nextIndex][1];
+
+    const int = intersect(x1, y1, x2, y2, x3, y3, x4, y4);
+
+    if (int) return int;
+  }
+
+  return false;
+}
+
+export function intersectLineCircleCenter(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  r: number
+): false | [number, number] {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+
+  if (dx * dx + dy * dy <= r * r) return false;
+
+  const rad = Math.atan2(dy, dx);
+  const sinr = Math.sin(rad);
+  const cosr = Math.cos(rad);
+
+  return [x2 - cosr * r, y2 - sinr * r];
 }

@@ -27,10 +27,7 @@ export type GEPolygonShape = {
 
 export type GEShape = GECircleShape | GERectangleShape | GEPolygonShape;
 
-export type GEShapes = {
-  mainShape: GEShape;
-  auxShapes?: GEShape[];
-};
+export type GEShapes = { 0: GEShape } & GEShape[];
 
 export type GEShapeTypes = Record<string, GEShapes>;
 
@@ -68,12 +65,14 @@ export type GEViewOptions = {
   gridLineWidth: number;
   gridDotGap: number;
   defaultAuxShapeColor: string;
+  nodeLineWidth: number;
   nodeColor: string;
   nodeSelectedColor: string;
   nodeStrokeColor: string;
   nodeTextColor: string;
   nodeSelectedTextColor: string;
   nodeTextStyle: string;
+  edgeLineWidth: number;
   edgeLineColor: string;
   edgeLineSelectedColor: string;
   edgeRectFillColor: string;

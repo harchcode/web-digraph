@@ -67,13 +67,15 @@ export class GEState {
       gridLineWidth: 8,
       gridDotGap: 64,
       defaultAuxShapeColor: "green",
+      nodeLineWidth: 2,
       nodeColor: "white",
       nodeSelectedColor: "#4299E1",
       nodeStrokeColor: "#1A202C",
       nodeTextColor: "#1A202C",
       nodeSelectedTextColor: "white",
       nodeTextStyle: "16px sans-serif",
-      edgeLineColor: "#3182CE",
+      edgeLineWidth: 3,
+      edgeLineColor: "#2B6CB0",
       edgeLineSelectedColor: "#4299E1",
       edgeRectFillColor: "white",
       edgeTextColor: "#1A202C",
@@ -87,21 +89,21 @@ export class GEState {
       defaultNodeType: "empty",
       defaultEdgeType: "empty",
       nodeTypes: {
-        empty: {
-          mainShape: {
+        empty: [
+          {
             shape: GEShapeName.CIRCLE,
             r: 80
           }
-        }
+        ]
       },
       edgeTypes: {
-        empty: {
-          mainShape: {
+        empty: [
+          {
             shape: GEShapeName.RECTANGLE,
             width: 30,
             height: 20
           }
-        }
+        ]
       }
     };
   }

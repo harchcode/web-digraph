@@ -7,7 +7,12 @@ import {
   GEShapeName
 } from "./types";
 import { GEState } from "./state";
-import { intersectLineRect, intersect } from "./intersections";
+import {
+  intersect,
+  intersectLineCircleCenter,
+  intersectLineRectCenter,
+  instersectLinePolygonCenter
+} from "./intersections";
 
 const TEXT_ALIGN = "center";
 const TEXT_BASELINE = "middle";
@@ -111,7 +116,7 @@ export class GEGraphRenderer {
   }
 
   getShapeBound(shapes: GEShapes): number {
-    const shape = shapes.mainShape;
+    const shape = shapes[0];
 
     if (shape.shape === GEShapeName.CIRCLE) return shape.r;
     if (shape.shape === GEShapeName.RECTANGLE)
@@ -214,7 +219,7 @@ export class GEGraphRenderer {
     const lineEndX = targetX - cosr * edgeLineOffset;
     const lineEndY = targetY - sinr * edgeLineOffset;
 
-    ctx.lineWidth = 2;
+    ctx.lineWidth = options.edgeLineWidth;
 
     ctx.beginPath();
     ctx.moveTo(startX, startY);
@@ -245,28 +250,22 @@ export class GEGraphRenderer {
   ): [number, number] => {
     const { options } = this.state;
 
-    const shape = options.nodeTypes[node.type].mainShape;
+    const shape = options.nodeTypes[node.type][0];
 
     if (shape.shape === GEShapeName.CIRCLE) {
-      const dx = node.x - sourceX;
-      const dy = node.y - sourceY;
+      const int = intersectLineCircleCenter(
+        sourceX,
+        sourceY,
+        node.x,
+        node.y,
+        shape.r
+      );
 
-      const rad = Math.atan2(dy, dx);
-      const sinr = Math.sin(rad);
-      const cosr = Math.cos(rad);
-
-      return [node.x - cosr * shape.r, node.y - sinr * shape.r];
+      if (int) return int;
     } else if (shape.shape === GEShapeName.RECTANGLE) {
-      const x1 = sourceX;
-      const y1 = sourceY;
-      const x2 = node.x;
-      const y2 = node.y;
-
-      const int = intersectLineRect(
-        x1,
-        y1,
-        x2,
-        y2,
+      const int = intersectLineRectCenter(
+        sourceX,
+        sourceY,
         node.x,
         node.y,
         shape.width,
@@ -275,27 +274,51 @@ export class GEGraphRenderer {
 
       if (int) return int;
     } else {
-      const x1 = sourceX;
-      const y1 = sourceY;
-      const x2 = node.x;
-      const y2 = node.y;
+      const int = instersectLinePolygonCenter(
+        sourceX,
+        sourceY,
+        node.x,
+        node.y,
+        shape.points
+      );
 
-      const len = shape.points.length;
-
-      for (let i = 0; i < len; i++) {
-        const nextIndex = i + 1 === len ? 0 : i + 1;
-
-        const x3 = node.x + shape.points[i][0];
-        const y3 = node.y + shape.points[i][1];
-        const x4 = node.x + shape.points[nextIndex][0];
-        const y4 = node.y + shape.points[nextIndex][1];
-
-        const int = intersect(x1, y1, x2, y2, x3, y3, x4, y4);
-        if (int) return int;
-      }
+      if (int) return int;
     }
 
     return [node.x, node.y];
+  };
+
+  drawSubShapes = (shapes: GEShapes, x: number, y: number): void => {
+    const { ctx } = this;
+    const { options } = this.state;
+
+    if (shapes.length <= 1) return;
+
+    for (let i = 1; i < shapes.length; i++) {
+      const sh = shapes[i];
+
+      ctx.beginPath();
+      this.shapePath(x, y, sh);
+
+      ctx.fillStyle = sh.color ? sh.color : options.defaultAuxShapeColor;
+      ctx.fill();
+    }
+  };
+
+  drawSelectedShape = (
+    shape: GEShape,
+    x: number,
+    y: number,
+    color: string
+  ): void => {
+    const { ctx } = this;
+
+    ctx.beginPath();
+    this.shapePath(x, y, shape);
+    ctx.fillStyle = color;
+    ctx.globalAlpha = 0.8;
+    ctx.fill();
+    ctx.globalAlpha = 1.0;
   };
 
   drawNode = (node: GENode): void => {
@@ -307,10 +330,10 @@ export class GEGraphRenderer {
     const shapes = options.nodeTypes[node.type];
 
     ctx.strokeStyle = options.nodeStrokeColor;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = options.nodeLineWidth;
 
     ctx.beginPath();
-    this.shapePath(node.x, node.y, shapes.mainShape);
+    this.shapePath(node.x, node.y, shapes[0]);
 
     if (ctx.isPointInPath(pointerCanvasX, pointerCanvasY)) {
       this.state.hoveredNodeId = node.id;
@@ -326,23 +349,15 @@ export class GEGraphRenderer {
     ctx.fill();
     ctx.stroke();
 
-    if (shapes.auxShapes) {
-      shapes.auxShapes.forEach(sh => {
-        ctx.beginPath();
-        this.shapePath(node.x, node.y, sh);
-
-        ctx.fillStyle = sh.color ? sh.color : options.defaultAuxShapeColor;
-        ctx.fill();
-      });
-    }
+    this.drawSubShapes(shapes, node.x, node.y);
 
     if (selected) {
-      ctx.beginPath();
-      this.shapePath(node.x, node.y, shapes.mainShape);
-      ctx.fillStyle = options.nodeSelectedColor;
-      ctx.globalAlpha = 0.8;
-      ctx.fill();
-      ctx.globalAlpha = 1.0;
+      this.drawSelectedShape(
+        shapes[0],
+        node.x,
+        node.y,
+        options.nodeSelectedColor
+      );
     }
 
     if (selected) {
@@ -392,14 +407,14 @@ export class GEGraphRenderer {
     const lineEndX = endX - cosr * edgeLineOffset;
     const lineEndY = endY - sinr * edgeLineOffset;
 
-    ctx.lineWidth = 2;
+    ctx.lineWidth = options.edgeLineWidth;
 
     const midX = (startX + endX) * 0.5;
     const midY = (startY + endY) * 0.5;
 
     // this is just to check if the rect is hovered
     ctx.beginPath();
-    this.shapePath(midX, midY, options.edgeTypes[edge.type].mainShape);
+    this.shapePath(midX, midY, options.edgeTypes[edge.type][0]);
 
     if (
       ctx.isPointInPath(pointerCanvasX, pointerCanvasY) ||
@@ -446,30 +461,22 @@ export class GEGraphRenderer {
     ctx.fill();
 
     ctx.beginPath();
-    this.shapePath(midX, midY, shapes.mainShape);
+    this.shapePath(midX, midY, shapes[0]);
 
     ctx.fillStyle = options.edgeRectFillColor;
 
     ctx.fill();
     ctx.stroke();
 
-    if (shapes.auxShapes) {
-      shapes.auxShapes.forEach(sh => {
-        ctx.beginPath();
-        this.shapePath(midX, midY, sh);
-
-        ctx.fillStyle = sh.color ? sh.color : options.defaultAuxShapeColor;
-        ctx.fill();
-      });
-    }
+    this.drawSubShapes(shapes, midX, midY);
 
     if (selected) {
-      ctx.beginPath();
-      this.shapePath(midX, midY, shapes.mainShape);
-      ctx.fillStyle = options.edgeLineSelectedColor;
-      ctx.globalAlpha = 0.8;
-      ctx.fill();
-      ctx.globalAlpha = 1.0;
+      this.drawSelectedShape(
+        shapes[0],
+        midX,
+        midY,
+        options.edgeLineSelectedColor
+      );
     }
 
     if (selected) {

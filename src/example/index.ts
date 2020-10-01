@@ -11,21 +11,21 @@ const generateTextbox = document.getElementById(
 const generateButton = document.getElementById("generate-button");
 
 const nodeTypes: GEShapeTypes = {
-  empty: {
-    mainShape: {
+  empty: [
+    {
       shape: GEShapeName.CIRCLE,
       r: 80
     }
-  },
-  decision: {
-    mainShape: {
+  ],
+  decision: [
+    {
       shape: GEShapeName.RECTANGLE,
       width: 150,
       height: 120
     }
-  },
-  unknown: {
-    mainShape: {
+  ],
+  unknown: [
+    {
       shape: GEShapeName.POLYGON,
       points: [
         [0, -80],
@@ -34,30 +34,28 @@ const nodeTypes: GEShapeTypes = {
         [-80, 0]
       ]
     }
-  },
-  complex: {
-    mainShape: {
+  ],
+  complex: [
+    {
       shape: GEShapeName.CIRCLE,
       r: 80
     },
-    auxShapes: [
-      {
-        shape: GEShapeName.CIRCLE,
-        r: 60,
-        color: "#ccc"
-      },
-      {
-        shape: GEShapeName.CIRCLE,
-        r: 40,
-        color: "white"
-      }
-    ]
-  }
+    {
+      shape: GEShapeName.CIRCLE,
+      r: 60,
+      color: "#ccc"
+    },
+    {
+      shape: GEShapeName.CIRCLE,
+      r: 40,
+      color: "white"
+    }
+  ]
 };
 
 const edgeTypes: GEShapeTypes = {
-  normal: {
-    mainShape: {
+  normal: [
+    {
       shape: GEShapeName.POLYGON,
       points: [
         [0, -25],
@@ -66,26 +64,24 @@ const edgeTypes: GEShapeTypes = {
         [-25, 0]
       ]
     }
-  },
-  round: {
-    mainShape: {
+  ],
+  round: [
+    {
       shape: GEShapeName.CIRCLE,
       r: 25
     }
-  },
-  double: {
-    mainShape: {
+  ],
+  double: [
+    {
       shape: GEShapeName.CIRCLE,
       r: 25
     },
-    auxShapes: [
-      {
-        shape: GEShapeName.CIRCLE,
-        r: 15,
-        color: "#ccc"
-      }
-    ]
-  }
+    {
+      shape: GEShapeName.CIRCLE,
+      r: 15,
+      color: "#ccc"
+    }
+  ]
 };
 
 const graphView = new GEView();
