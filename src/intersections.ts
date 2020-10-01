@@ -7,33 +7,28 @@ export function intersect(
   x3: number,
   y3: number,
   x4: number,
-  y4: number
-): false | [number, number] {
+  y4: number,
+  outPoint: [number, number]
+): boolean {
   // Check if none of the lines are of length 0
-  if ((x1 === x2 && y1 === y2) || (x3 === x4 && y3 === y4)) {
-    return false;
-  }
+  if ((x1 === x2 && y1 === y2) || (x3 === x4 && y3 === y4)) return false;
 
   const denominator = (y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1);
 
   // Lines are parallel
-  if (denominator === 0) {
-    return false;
-  }
+  if (denominator === 0) return false;
 
   const ua = ((x4 - x3) * (y1 - y3) - (y4 - y3) * (x1 - x3)) / denominator;
   const ub = ((x2 - x1) * (y1 - y3) - (y2 - y1) * (x1 - x3)) / denominator;
 
   // is the intersection along the segments
-  if (ua < 0 || ua > 1 || ub < 0 || ub > 1) {
-    return false;
-  }
+  if (ua < 0 || ua > 1 || ub < 0 || ub > 1) return false;
 
   // Return a object with the x and y coordinates of the intersection
-  const x = x1 + ua * (x2 - x1);
-  const y = y1 + ua * (y2 - y1);
+  outPoint[0] = x1 + ua * (x2 - x1);
+  outPoint[1] = y1 + ua * (y2 - y1);
 
-  return [x, y];
+  return true;
 }
 
 export function intersectLineRectCenter(
@@ -42,26 +37,67 @@ export function intersectLineRectCenter(
   x2: number,
   y2: number,
   w: number,
-  h: number
-): false | [number, number] {
+  h: number,
+  outPoint: [number, number]
+): boolean {
   const wh = w * 0.5;
   const hh = h * 0.5;
 
-  const i1 = intersect(x1, y1, x2, y2, x2 - wh, y2 - hh, x2 + wh, y2 - hh);
+  const i1 = intersect(
+    x1,
+    y1,
+    x2,
+    y2,
+    x2 - wh,
+    y2 - hh,
+    x2 + wh,
+    y2 - hh,
+    outPoint
+  );
 
-  if (i1) return i1;
+  if (i1) return true;
 
-  const i2 = intersect(x1, y1, x2, y2, x2 + wh, y2 - hh, x2 + wh, y2 + hh);
+  const i2 = intersect(
+    x1,
+    y1,
+    x2,
+    y2,
+    x2 + wh,
+    y2 - hh,
+    x2 + wh,
+    y2 + hh,
+    outPoint
+  );
 
-  if (i2) return i2;
+  if (i2) return true;
 
-  const i3 = intersect(x1, y1, x2, y2, x2 + wh, y2 + hh, x2 - wh, y2 + hh);
+  const i3 = intersect(
+    x1,
+    y1,
+    x2,
+    y2,
+    x2 + wh,
+    y2 + hh,
+    x2 - wh,
+    y2 + hh,
+    outPoint
+  );
 
-  if (i3) return i3;
+  if (i3) return true;
 
-  const i4 = intersect(x1, y1, x2, y2, x2 - wh, y2 + hh, x2 - wh, y2 - hh);
+  const i4 = intersect(
+    x1,
+    y1,
+    x2,
+    y2,
+    x2 - wh,
+    y2 + hh,
+    x2 - wh,
+    y2 - hh,
+    outPoint
+  );
 
-  if (i4) return i4;
+  if (i4) return true;
 
   return false;
 }
@@ -71,8 +107,9 @@ export function instersectLinePolygonCenter(
   y1: number,
   x2: number,
   y2: number,
-  points: [number, number][]
-): false | [number, number] {
+  points: [number, number][],
+  outPoint: [number, number]
+): boolean {
   const len = points.length;
 
   for (let i = 0; i < len; i++) {
@@ -83,9 +120,9 @@ export function instersectLinePolygonCenter(
     const x4 = x2 + points[nextIndex][0];
     const y4 = y2 + points[nextIndex][1];
 
-    const int = intersect(x1, y1, x2, y2, x3, y3, x4, y4);
+    const int = intersect(x1, y1, x2, y2, x3, y3, x4, y4, outPoint);
 
-    if (int) return int;
+    if (int) return true;
   }
 
   return false;
@@ -96,8 +133,9 @@ export function intersectLineCircleCenter(
   y1: number,
   x2: number,
   y2: number,
-  r: number
-): false | [number, number] {
+  r: number,
+  outPoint: [number, number]
+): boolean {
   const dx = x2 - x1;
   const dy = y2 - y1;
 
@@ -107,5 +145,8 @@ export function intersectLineCircleCenter(
   const sinr = Math.sin(rad);
   const cosr = Math.cos(rad);
 
-  return [x2 - cosr * r, y2 - sinr * r];
+  outPoint[0] = x2 - cosr * r;
+  outPoint[1] = y2 - sinr * r;
+
+  return true;
 }

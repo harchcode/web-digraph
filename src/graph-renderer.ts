@@ -8,7 +8,6 @@ import {
 } from "./types";
 import { GEState } from "./state";
 import {
-  intersect,
   intersectLineCircleCenter,
   intersectLineRectCenter,
   instersectLinePolygonCenter
@@ -18,6 +17,8 @@ const TEXT_ALIGN = "center";
 const TEXT_BASELINE = "middle";
 const LINE_CAP_ROUND = "round";
 const LINE_CAP_SQUARE = "square";
+
+const tmpPoint: [number, number] = [0, 0];
 
 export class GEGraphRenderer {
   state: GEState;
@@ -258,10 +259,11 @@ export class GEGraphRenderer {
         sourceY,
         node.x,
         node.y,
-        shape.r
+        shape.r,
+        tmpPoint
       );
 
-      if (int) return int;
+      if (int) return tmpPoint;
     } else if (shape.shape === GEShapeName.RECTANGLE) {
       const int = intersectLineRectCenter(
         sourceX,
@@ -269,20 +271,22 @@ export class GEGraphRenderer {
         node.x,
         node.y,
         shape.width,
-        shape.height
+        shape.height,
+        tmpPoint
       );
 
-      if (int) return int;
+      if (int) return tmpPoint;
     } else {
       const int = instersectLinePolygonCenter(
         sourceX,
         sourceY,
         node.x,
         node.y,
-        shape.points
+        shape.points,
+        tmpPoint
       );
 
-      if (int) return int;
+      if (int) return tmpPoint;
     }
 
     return [node.x, node.y];
