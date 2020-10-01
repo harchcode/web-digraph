@@ -187,49 +187,6 @@ export class GEGraphRenderer {
     }
   };
 
-  drawNode = (node: GENode): void => {
-    if (this.isNodeOutOfView(node)) return;
-
-    const { ctx } = this;
-    const { pointerCanvasX, pointerCanvasY, options } = this.state;
-
-    ctx.strokeStyle = options.nodeStrokeColor;
-    ctx.lineWidth = 2;
-
-    ctx.beginPath();
-    this.shapePath(node.x, node.y, options.nodeTypes[node.type].mainShape);
-
-    if (ctx.isPointInPath(pointerCanvasX, pointerCanvasY)) {
-      this.state.hoveredNodeId = node.id;
-    }
-
-    if (node.id === this.state.selectedNodeId) {
-      ctx.strokeStyle = options.nodeSelectedColor;
-      ctx.fillStyle = options.nodeSelectedColor;
-    } else if (node.id === this.state.hoveredNodeId) {
-      ctx.strokeStyle = options.nodeSelectedColor;
-      ctx.fillStyle = options.nodeColor;
-    } else {
-      ctx.strokeStyle = options.nodeStrokeColor;
-      ctx.fillStyle = options.nodeColor;
-    }
-
-    ctx.fill();
-    ctx.stroke();
-
-    if (node.id === this.state.selectedNodeId) {
-      ctx.fillStyle = options.nodeSelectedTextColor;
-    } else {
-      ctx.fillStyle = options.nodeTextColor;
-    }
-
-    ctx.font = options.nodeTextStyle;
-    ctx.textAlign = TEXT_ALIGN;
-    ctx.textBaseline = TEXT_BASELINE;
-
-    ctx.fillText(node.text, node.x, node.y);
-  };
-
   drawDragLine(): void {
     if (!this.state.isCreatingEdge) return;
 
@@ -341,6 +298,66 @@ export class GEGraphRenderer {
     return [node.x, node.y];
   };
 
+  drawNode = (node: GENode): void => {
+    if (this.isNodeOutOfView(node)) return;
+
+    const { ctx } = this;
+    const { pointerCanvasX, pointerCanvasY, options } = this.state;
+
+    const shapes = options.nodeTypes[node.type];
+
+    ctx.strokeStyle = options.nodeStrokeColor;
+    ctx.lineWidth = 2;
+
+    ctx.beginPath();
+    this.shapePath(node.x, node.y, shapes.mainShape);
+
+    if (ctx.isPointInPath(pointerCanvasX, pointerCanvasY)) {
+      this.state.hoveredNodeId = node.id;
+    }
+
+    const selected = node.id === this.state.selectedNodeId;
+    const hovered = node.id === this.state.hoveredNodeId;
+
+    ctx.strokeStyle =
+      selected || hovered ? options.nodeSelectedColor : options.nodeStrokeColor;
+    ctx.fillStyle = options.nodeColor;
+
+    ctx.fill();
+    ctx.stroke();
+
+    if (shapes.auxShapes) {
+      shapes.auxShapes.forEach(sh => {
+        ctx.beginPath();
+        this.shapePath(node.x, node.y, sh);
+
+        ctx.fillStyle = sh.color ? sh.color : options.defaultAuxShapeColor;
+        ctx.fill();
+      });
+    }
+
+    if (selected) {
+      ctx.beginPath();
+      this.shapePath(node.x, node.y, shapes.mainShape);
+      ctx.fillStyle = options.nodeSelectedColor;
+      ctx.globalAlpha = 0.8;
+      ctx.fill();
+      ctx.globalAlpha = 1.0;
+    }
+
+    if (selected) {
+      ctx.fillStyle = options.nodeSelectedTextColor;
+    } else {
+      ctx.fillStyle = options.nodeTextColor;
+    }
+
+    ctx.font = options.nodeTextStyle;
+    ctx.textAlign = TEXT_ALIGN;
+    ctx.textBaseline = TEXT_BASELINE;
+
+    ctx.fillText(node.text, node.x, node.y);
+  };
+
   drawEdge = (edge: GEEdge): void => {
     if (this.isEdgeOutOfView(edge)) return;
 
@@ -413,12 +430,13 @@ export class GEGraphRenderer {
       this.state.hoveredEdgeId = edge.id;
     }
 
-    if (edge.id === this.state.selectedEdgeId) {
+    const selected = edge.id === this.state.selectedEdgeId;
+    const hovered = edge.id === this.state.hoveredEdgeId;
+    const shapes = options.edgeTypes[edge.type];
+
+    if (selected || hovered) {
       ctx.strokeStyle = options.edgeLineSelectedColor;
       ctx.fillStyle = options.edgeLineSelectedColor;
-    } else if (edge.id === this.state.hoveredEdgeId) {
-      ctx.strokeStyle = options.edgeLineHoverColor;
-      ctx.fillStyle = options.edgeLineHoverColor;
     } else {
       ctx.strokeStyle = options.edgeLineColor;
       ctx.fillStyle = options.edgeLineColor;
@@ -428,18 +446,33 @@ export class GEGraphRenderer {
     ctx.fill();
 
     ctx.beginPath();
-    this.shapePath(midX, midY, options.edgeTypes[edge.type].mainShape);
+    this.shapePath(midX, midY, shapes.mainShape);
 
-    if (edge.id === this.state.selectedEdgeId) {
-      ctx.fillStyle = options.edgeLineSelectedColor;
-    } else {
-      ctx.fillStyle = options.edgeRectFillColor;
-    }
+    ctx.fillStyle = options.edgeRectFillColor;
 
     ctx.fill();
     ctx.stroke();
 
-    if (edge.id === this.state.selectedEdgeId) {
+    if (shapes.auxShapes) {
+      shapes.auxShapes.forEach(sh => {
+        ctx.beginPath();
+        this.shapePath(midX, midY, sh);
+
+        ctx.fillStyle = sh.color ? sh.color : options.defaultAuxShapeColor;
+        ctx.fill();
+      });
+    }
+
+    if (selected) {
+      ctx.beginPath();
+      this.shapePath(midX, midY, shapes.mainShape);
+      ctx.fillStyle = options.edgeLineSelectedColor;
+      ctx.globalAlpha = 0.8;
+      ctx.fill();
+      ctx.globalAlpha = 1.0;
+    }
+
+    if (selected) {
       ctx.fillStyle = options.edgeSelectedTextColor;
     } else {
       ctx.fillStyle = options.edgeTextColor;

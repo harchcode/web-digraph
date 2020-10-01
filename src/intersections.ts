@@ -1,3 +1,4 @@
+// http://paulbourke.net/geometry/pointlineplane/javascript.txt
 export function intersect(
   x1: number,
   y1: number,

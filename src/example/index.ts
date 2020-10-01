@@ -34,6 +34,24 @@ const nodeTypes: GEShapeTypes = {
         [-80, 0]
       ]
     }
+  },
+  complex: {
+    mainShape: {
+      shape: GEShapeName.CIRCLE,
+      r: 80
+    },
+    auxShapes: [
+      {
+        shape: GEShapeName.CIRCLE,
+        r: 60,
+        color: "#ccc"
+      },
+      {
+        shape: GEShapeName.CIRCLE,
+        r: 40,
+        color: "white"
+      }
+    ]
   }
 };
 
@@ -54,6 +72,19 @@ const edgeTypes: GEShapeTypes = {
       shape: GEShapeName.CIRCLE,
       r: 25
     }
+  },
+  double: {
+    mainShape: {
+      shape: GEShapeName.CIRCLE,
+      r: 25
+    },
+    auxShapes: [
+      {
+        shape: GEShapeName.CIRCLE,
+        r: 15,
+        color: "#ccc"
+      }
+    ]
   }
 };
 
@@ -76,6 +107,8 @@ graphView.setOptions({
   maxScale: 3.0,
   nodeTypes,
   edgeTypes,
+  defaultNodeType: "empty",
+  defaultEdgeType: "normal",
   onViewZoom: () => {
     zoomSlider.value = graphView.scale.toString();
   },
@@ -103,11 +136,18 @@ function randomize(nodeCount = 1000, cols = 40) {
     const col = i % cols;
     const row = Math.floor(i / cols);
 
-    const tmp = getRandomIntInclusive(0, 2);
-    const nodeType = tmp === 0 ? "empty" : tmp === 1 ? "decision" : "unknown";
+    const tmp = getRandomIntInclusive(0, 3);
+    const nodeType =
+      tmp === 0
+        ? "empty"
+        : tmp === 1
+        ? "decision"
+        : tmp === 2
+        ? "unknown"
+        : "complex";
 
-    const tmp2 = getRandomIntInclusive(0, 1);
-    const edgeType = tmp2 === 0 ? "normal" : "round";
+    const tmp2 = getRandomIntInclusive(0, 2);
+    const edgeType = tmp2 === 0 ? "normal" : tmp2 === 1 ? "round" : "double";
 
     const currNode = graphView.addNode(
       col * 320,
