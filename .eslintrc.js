@@ -13,7 +13,7 @@ module.exports = {
     // Error
     "arrow-parens": ["error", "as-needed", { requireForBlockBody: false }],
     "comma-dangle": ["error", "never"],
-    "max-lines": ["error", 1000],
+    "max-lines": ["error", 600],
     "no-console": ["error", { allow: ["warn", "error", "info"] }],
     "no-param-reassign": ["error", { props: false }],
     "prefer-destructuring": ["error", { object: true, array: false }],

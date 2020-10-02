@@ -70,7 +70,7 @@ export class GEGraphRenderer {
     if (!options.showGrid) return;
 
     const lw = options.gridLineWidth * scale;
-    const gap = options.gridDotGap * scale;
+    const gap = options.gridGap * scale;
 
     const offsetX = (translateX % gap) - lw;
     const offsetY = (translateY % gap) - lw;
@@ -304,7 +304,7 @@ export class GEGraphRenderer {
       ctx.beginPath();
       this.shapePath(x, y, sh);
 
-      ctx.fillStyle = sh.color ? sh.color : options.defaultAuxShapeColor;
+      ctx.fillStyle = sh.color ? sh.color : options.defaultSubShapeColor;
       ctx.fill();
     }
   };
@@ -348,7 +348,7 @@ export class GEGraphRenderer {
 
     ctx.strokeStyle =
       selected || hovered ? options.nodeSelectedColor : options.nodeStrokeColor;
-    ctx.fillStyle = options.nodeColor;
+    ctx.fillStyle = shapes[0].color || options.nodeColor;
 
     ctx.fill();
     ctx.stroke();
@@ -467,7 +467,7 @@ export class GEGraphRenderer {
     ctx.beginPath();
     this.shapePath(midX, midY, shapes[0]);
 
-    ctx.fillStyle = options.edgeRectFillColor;
+    ctx.fillStyle = shapes[0].color || options.edgeShapeFillColor;
 
     ctx.fill();
     ctx.stroke();

@@ -53,18 +53,15 @@ export enum GEGridType {
 }
 
 export type GEViewOptions = {
-  nodeRadius: number;
   edgeArrowLength: number;
   edgeArrowRadian: number;
-  edgeRectWidth: number;
-  edgeRectHeight: number;
   backgroundColor: string;
   showGrid: boolean;
   gridType: GEGridType;
   gridColor: string;
   gridLineWidth: number;
-  gridDotGap: number;
-  defaultAuxShapeColor: string;
+  gridGap: number;
+  defaultSubShapeColor: string;
   nodeLineWidth: number;
   nodeColor: string;
   nodeSelectedColor: string;
@@ -75,7 +72,7 @@ export type GEViewOptions = {
   edgeLineWidth: number;
   edgeLineColor: string;
   edgeLineSelectedColor: string;
-  edgeRectFillColor: string;
+  edgeShapeFillColor: string;
   edgeTextColor: string;
   edgeSelectedTextColor: string;
   edgeTextStyle: string;
