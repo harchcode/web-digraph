@@ -96,16 +96,26 @@ export class GEView {
     this.requestDraw();
   }
 
-  addNode(x: number, y: number, r: number, text = ""): GENode {
-    const newNode = this._state.graph.addNode(x, y, r, text);
+  addNode(x: number, y: number, type: string, text = ""): GENode {
+    const newNode = this._state.graph.addNode(x, y, type, text);
 
     this.requestDraw();
 
     return newNode;
   }
 
-  addEdge(sourceNodeId: number, targetNodeId: number, text = ""): GEEdge {
-    const newEdge = this._state.graph.addEdge(sourceNodeId, targetNodeId, text);
+  addEdge(
+    sourceNodeId: number,
+    targetNodeId: number,
+    type: string,
+    text = ""
+  ): GEEdge {
+    const newEdge = this._state.graph.addEdge(
+      sourceNodeId,
+      targetNodeId,
+      type,
+      text
+    );
 
     this.requestDraw();
 

@@ -1,4 +1,9 @@
-import { GEViewOptions, GEViewOptionsParams, GEGridType } from "./types";
+import {
+  GEViewOptions,
+  GEViewOptionsParams,
+  GEGridType,
+  GEShapeName
+} from "./types";
 import { GEGraph } from "./graph";
 
 export class GEState {
@@ -50,27 +55,26 @@ export class GEState {
 
   getDefaultOptions(): GEViewOptions {
     return {
-      nodeRadius: 80,
       edgeArrowLength: 16,
       edgeArrowRadian: Math.PI / 6,
-      edgeRectWidth: 48,
-      edgeRectHeight: 24,
       backgroundColor: "#F7FAFC",
       showGrid: true,
       gridType: GEGridType.DOTS,
       gridColor: "#CBD5E0",
       gridLineWidth: 8,
-      gridDotGap: 64,
+      gridGap: 64,
+      defaultSubShapeColor: "green",
+      nodeLineWidth: 2,
       nodeColor: "white",
-      nodeSelectedColor: "#3182CE",
-      nodeStrokeColor: "#4A5568",
+      nodeSelectedColor: "#4299E1",
+      nodeStrokeColor: "#1A202C",
       nodeTextColor: "#1A202C",
       nodeSelectedTextColor: "white",
       nodeTextStyle: "16px sans-serif",
-      edgeLineColor: "#4A5568",
-      edgeLineHoverColor: "#63B3ED",
-      edgeLineSelectedColor: "#3182CE",
-      edgeRectFillColor: "white",
+      edgeLineWidth: 3,
+      edgeLineColor: "#2B6CB0",
+      edgeLineSelectedColor: "#4299E1",
+      edgeShapeFillColor: "white",
       edgeTextColor: "#1A202C",
       edgeSelectedTextColor: "white",
       edgeTextStyle: "16px sans-serif",
@@ -78,7 +82,26 @@ export class GEState {
       maxScale: 1.8,
       cursorGrab: "grab",
       cursorPointer: "pointer",
-      cursorCrosshair: "crosshair"
+      cursorCrosshair: "crosshair",
+      defaultNodeType: "empty",
+      defaultEdgeType: "empty",
+      nodeTypes: {
+        empty: [
+          {
+            shape: GEShapeName.CIRCLE,
+            r: 80
+          }
+        ]
+      },
+      edgeTypes: {
+        empty: [
+          {
+            shape: GEShapeName.RECTANGLE,
+            width: 30,
+            height: 20
+          }
+        ]
+      }
     };
   }
 

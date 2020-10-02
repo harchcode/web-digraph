@@ -31,15 +31,15 @@ export class GEGraph {
     });
   }
 
-  addNode(x: number, y: number, r: number, text = ""): GENode {
+  addNode(x: number, y: number, type: string, text = ""): GENode {
     const nextNodeId = this.lastNodeId + 1;
 
     const newNode: GENode = {
       id: nextNodeId,
       x,
       y,
-      r,
-      text
+      text,
+      type
     };
 
     this.nodes.set(nextNodeId, newNode);
@@ -49,7 +49,12 @@ export class GEGraph {
     return newNode;
   }
 
-  addEdge(sourceNodeId: number, targetNodeId: number, text = ""): GEEdge {
+  addEdge(
+    sourceNodeId: number,
+    targetNodeId: number,
+    type: string,
+    text = ""
+  ): GEEdge {
     if (sourceNodeId === targetNodeId) return null;
 
     // find if there is already an edge connecting the two nodes
@@ -73,7 +78,8 @@ export class GEGraph {
       id: nextEdgeId,
       text: text,
       sourceNodeId,
-      targetNodeId
+      targetNodeId,
+      type
     };
 
     this.edges.set(nextEdgeId, newEdge);

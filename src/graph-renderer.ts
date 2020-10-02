@@ -1,10 +1,24 @@
-import { GENode, GEEdge, GEGridType } from "./types";
+import {
+  GENode,
+  GEEdge,
+  GEGridType,
+  GEShapes,
+  GEShape,
+  GEShapeName
+} from "./types";
 import { GEState } from "./state";
+import {
+  intersectLineCircleCenter,
+  intersectLineRectCenter,
+  instersectLinePolygonCenter
+} from "./intersections";
 
 const TEXT_ALIGN = "center";
 const TEXT_BASELINE = "middle";
 const LINE_CAP_ROUND = "round";
 const LINE_CAP_SQUARE = "square";
+
+const tmpPoint: [number, number] = [0, 0];
 
 export class GEGraphRenderer {
   state: GEState;
@@ -56,7 +70,7 @@ export class GEGraphRenderer {
     if (!options.showGrid) return;
 
     const lw = options.gridLineWidth * scale;
-    const gap = options.gridDotGap * scale;
+    const gap = options.gridGap * scale;
 
     const offsetX = (translateX % gap) - lw;
     const offsetY = (translateY % gap) - lw;
@@ -102,15 +116,33 @@ export class GEGraphRenderer {
     this.state.graph.nodes.forEach(this.drawNode);
   }
 
+  getShapeBound(shapes: GEShapes): number {
+    const shape = shapes[0];
+
+    if (shape.shape === GEShapeName.CIRCLE) return shape.r;
+    if (shape.shape === GEShapeName.RECTANGLE)
+      return Math.max(shape.width, shape.height);
+
+    let r = 0;
+
+    shape.points.forEach(p => {
+      r = Math.max(r, Math.max(p[0], p[1]));
+    });
+
+    return r;
+  }
+
   isNodeOutOfView(node: GENode): boolean {
     const { canvas } = this;
-    const { translateX, translateY, scale } = this.state;
+    const { translateX, translateY, scale, options } = this.state;
+
+    const r = this.getShapeBound(options.nodeTypes[node.type]);
 
     return (
-      (node.x + node.r) * scale + translateX < 0 ||
-      (node.y + node.r) * scale + translateY < 0 ||
-      (node.x - node.r) * scale + translateX > canvas.width ||
-      (node.y - node.r) * scale + translateY > canvas.height
+      (node.x + r) * scale + translateX < 0 ||
+      (node.y + r) * scale + translateY < 0 ||
+      (node.x - r) * scale + translateX > canvas.width ||
+      (node.y - r) * scale + translateY > canvas.height
     );
   }
 
@@ -126,58 +158,39 @@ export class GEGraphRenderer {
     const targetX = target.x * scale + translateX;
     const targetY = target.y * scale + translateY;
 
+    const r = this.getShapeBound(options.edgeTypes[edge.type]);
+
     return (
-      (sourceX < -options.edgeRectWidth && targetX < -options.edgeRectWidth) ||
-      (sourceY < -options.edgeRectHeight &&
-        targetY < -options.edgeRectHeight) ||
-      (sourceX > canvas.width + options.edgeRectWidth &&
-        targetX > canvas.width + options.edgeRectWidth) ||
-      (sourceY > canvas.height + options.edgeRectHeight &&
-        targetY > canvas.height + options.edgeRectHeight)
+      (sourceX < -r && targetX < -r) ||
+      (sourceY < -r && targetY < -r) ||
+      (sourceX > canvas.width + r && targetX > canvas.width + r) ||
+      (sourceY > canvas.height + r && targetY > canvas.height + r)
     );
   }
 
-  drawNode = (node: GENode): void => {
-    if (this.isNodeOutOfView(node)) return;
-
+  shapePath = (x: number, y: number, shape: GEShape): void => {
     const { ctx } = this;
-    const { pointerCanvasX, pointerCanvasY, options } = this.state;
 
-    ctx.strokeStyle = options.nodeStrokeColor;
-    ctx.lineWidth = 2;
-
-    ctx.beginPath();
-    ctx.arc(node.x, node.y, node.r, 0, Math.PI * 2);
-
-    if (ctx.isPointInPath(pointerCanvasX, pointerCanvasY)) {
-      this.state.hoveredNodeId = node.id;
-    }
-
-    if (node.id === this.state.selectedNodeId) {
-      ctx.strokeStyle = options.nodeSelectedColor;
-      ctx.fillStyle = options.nodeSelectedColor;
-    } else if (node.id === this.state.hoveredNodeId) {
-      ctx.strokeStyle = options.nodeSelectedColor;
-      ctx.fillStyle = options.nodeColor;
+    if (shape.shape === GEShapeName.CIRCLE) {
+      ctx.arc(x, y, shape.r, 0, Math.PI * 2);
+    } else if (shape.shape === GEShapeName.RECTANGLE) {
+      ctx.rect(
+        x - shape.width * 0.5,
+        y - shape.height * 0.5,
+        shape.width,
+        shape.height
+      );
     } else {
-      ctx.strokeStyle = options.nodeStrokeColor;
-      ctx.fillStyle = options.nodeColor;
+      ctx.moveTo(x + shape.points[0][0], y + shape.points[0][1]);
+
+      for (let i = 1; i < shape.points.length; i++) {
+        ctx.lineTo(x + shape.points[i][0], y + shape.points[i][1]);
+      }
+
+      ctx.lineTo(x + shape.points[0][0], y + shape.points[0][1]);
+
+      ctx.closePath();
     }
-
-    ctx.fill();
-    ctx.stroke();
-
-    if (node.id === this.state.selectedNodeId) {
-      ctx.fillStyle = options.nodeSelectedTextColor;
-    } else {
-      ctx.fillStyle = options.nodeTextColor;
-    }
-
-    ctx.font = options.nodeTextStyle;
-    ctx.textAlign = TEXT_ALIGN;
-    ctx.textBaseline = TEXT_BASELINE;
-
-    ctx.fillText(node.text, node.x, node.y);
   };
 
   drawDragLine(): void {
@@ -207,7 +220,7 @@ export class GEGraphRenderer {
     const lineEndX = targetX - cosr * edgeLineOffset;
     const lineEndY = targetY - sinr * edgeLineOffset;
 
-    ctx.lineWidth = 2;
+    ctx.lineWidth = options.edgeLineWidth;
 
     ctx.beginPath();
     ctx.moveTo(startX, startY);
@@ -231,6 +244,139 @@ export class GEGraphRenderer {
     ctx.fill();
   }
 
+  getInstersectionPoint = (
+    sourceX: number,
+    sourceY: number,
+    node: GENode
+  ): [number, number] => {
+    const { options } = this.state;
+
+    const shape = options.nodeTypes[node.type][0];
+
+    if (shape.shape === GEShapeName.CIRCLE) {
+      const int = intersectLineCircleCenter(
+        sourceX,
+        sourceY,
+        node.x,
+        node.y,
+        shape.r,
+        tmpPoint
+      );
+
+      if (int) return tmpPoint;
+    } else if (shape.shape === GEShapeName.RECTANGLE) {
+      const int = intersectLineRectCenter(
+        sourceX,
+        sourceY,
+        node.x,
+        node.y,
+        shape.width,
+        shape.height,
+        tmpPoint
+      );
+
+      if (int) return tmpPoint;
+    } else {
+      const int = instersectLinePolygonCenter(
+        sourceX,
+        sourceY,
+        node.x,
+        node.y,
+        shape.points,
+        tmpPoint
+      );
+
+      if (int) return tmpPoint;
+    }
+
+    return [node.x, node.y];
+  };
+
+  drawSubShapes = (shapes: GEShapes, x: number, y: number): void => {
+    const { ctx } = this;
+    const { options } = this.state;
+
+    if (shapes.length <= 1) return;
+
+    for (let i = 1; i < shapes.length; i++) {
+      const sh = shapes[i];
+
+      ctx.beginPath();
+      this.shapePath(x, y, sh);
+
+      ctx.fillStyle = sh.color ? sh.color : options.defaultSubShapeColor;
+      ctx.fill();
+    }
+  };
+
+  drawSelectedShape = (
+    shape: GEShape,
+    x: number,
+    y: number,
+    color: string
+  ): void => {
+    const { ctx } = this;
+
+    ctx.beginPath();
+    this.shapePath(x, y, shape);
+    ctx.fillStyle = color;
+    ctx.globalAlpha = 0.8;
+    ctx.fill();
+    ctx.globalAlpha = 1.0;
+  };
+
+  drawNode = (node: GENode): void => {
+    if (this.isNodeOutOfView(node)) return;
+
+    const { ctx } = this;
+    const { pointerCanvasX, pointerCanvasY, options } = this.state;
+
+    const shapes = options.nodeTypes[node.type];
+
+    ctx.strokeStyle = options.nodeStrokeColor;
+    ctx.lineWidth = options.nodeLineWidth;
+
+    ctx.beginPath();
+    this.shapePath(node.x, node.y, shapes[0]);
+
+    if (ctx.isPointInPath(pointerCanvasX, pointerCanvasY)) {
+      this.state.hoveredNodeId = node.id;
+    }
+
+    const selected = node.id === this.state.selectedNodeId;
+    const hovered = node.id === this.state.hoveredNodeId;
+
+    ctx.strokeStyle =
+      selected || hovered ? options.nodeSelectedColor : options.nodeStrokeColor;
+    ctx.fillStyle = shapes[0].color || options.nodeColor;
+
+    ctx.fill();
+    ctx.stroke();
+
+    this.drawSubShapes(shapes, node.x, node.y);
+
+    if (selected) {
+      this.drawSelectedShape(
+        shapes[0],
+        node.x,
+        node.y,
+        options.nodeSelectedColor
+      );
+    }
+
+    if (selected) {
+      ctx.fillStyle = options.nodeSelectedTextColor;
+    } else {
+      ctx.fillStyle = options.nodeTextColor;
+    }
+
+    ctx.font = options.nodeTextStyle;
+    ctx.textAlign = TEXT_ALIGN;
+    ctx.textBaseline = TEXT_BASELINE;
+
+    ctx.fillText(node.text, node.x, node.y);
+  };
+
   drawEdge = (edge: GEEdge): void => {
     if (this.isEdgeOutOfView(edge)) return;
 
@@ -247,28 +393,32 @@ export class GEGraphRenderer {
     const cosr = Math.cos(rad);
 
     // calculate the start and end points of the line
-    const startX = source.x + cosr * source.r;
-    const startY = source.y + sinr * source.r;
-    const endX = target.x - cosr * (target.r + 3);
-    const endY = target.y - sinr * (target.r + 3);
+    const [startX, startY] = this.getInstersectionPoint(
+      target.x,
+      target.y,
+      source
+    );
+    const [endX0, endY0] = this.getInstersectionPoint(
+      source.x,
+      source.y,
+      target
+    );
+
+    const endX = endX0 - cosr * 3;
+    const endY = endY0 - sinr * 3;
     const edgeLineOffset =
       options.edgeArrowLength * Math.cos(options.edgeArrowRadian);
-    const lineEndX = target.x - cosr * (target.r + edgeLineOffset);
-    const lineEndY = target.y - sinr * (target.r + edgeLineOffset);
+    const lineEndX = endX - cosr * edgeLineOffset;
+    const lineEndY = endY - sinr * edgeLineOffset;
 
-    ctx.lineWidth = 2;
+    ctx.lineWidth = options.edgeLineWidth;
 
     const midX = (startX + endX) * 0.5;
     const midY = (startY + endY) * 0.5;
 
     // this is just to check if the rect is hovered
     ctx.beginPath();
-    this.roundedRect(
-      midX - options.edgeRectWidth * 0.5,
-      midY - options.edgeRectHeight * 0.5,
-      options.edgeRectWidth,
-      options.edgeRectHeight
-    );
+    this.shapePath(midX, midY, options.edgeTypes[edge.type][0]);
 
     if (
       ctx.isPointInPath(pointerCanvasX, pointerCanvasY) ||
@@ -299,12 +449,13 @@ export class GEGraphRenderer {
       this.state.hoveredEdgeId = edge.id;
     }
 
-    if (edge.id === this.state.selectedEdgeId) {
+    const selected = edge.id === this.state.selectedEdgeId;
+    const hovered = edge.id === this.state.hoveredEdgeId;
+    const shapes = options.edgeTypes[edge.type];
+
+    if (selected || hovered) {
       ctx.strokeStyle = options.edgeLineSelectedColor;
       ctx.fillStyle = options.edgeLineSelectedColor;
-    } else if (edge.id === this.state.hoveredEdgeId) {
-      ctx.strokeStyle = options.edgeLineHoverColor;
-      ctx.fillStyle = options.edgeLineHoverColor;
     } else {
       ctx.strokeStyle = options.edgeLineColor;
       ctx.fillStyle = options.edgeLineColor;
@@ -314,23 +465,25 @@ export class GEGraphRenderer {
     ctx.fill();
 
     ctx.beginPath();
-    this.roundedRect(
-      midX - options.edgeRectWidth * 0.5,
-      midY - options.edgeRectHeight * 0.5,
-      options.edgeRectWidth,
-      options.edgeRectHeight
-    );
+    this.shapePath(midX, midY, shapes[0]);
 
-    if (edge.id === this.state.selectedEdgeId) {
-      ctx.fillStyle = options.edgeLineSelectedColor;
-    } else {
-      ctx.fillStyle = options.edgeRectFillColor;
-    }
+    ctx.fillStyle = shapes[0].color || options.edgeShapeFillColor;
 
     ctx.fill();
     ctx.stroke();
 
-    if (edge.id === this.state.selectedEdgeId) {
+    this.drawSubShapes(shapes, midX, midY);
+
+    if (selected) {
+      this.drawSelectedShape(
+        shapes[0],
+        midX,
+        midY,
+        options.edgeLineSelectedColor
+      );
+    }
+
+    if (selected) {
       ctx.fillStyle = options.edgeSelectedTextColor;
     } else {
       ctx.fillStyle = options.edgeTextColor;
@@ -340,25 +493,4 @@ export class GEGraphRenderer {
     ctx.textBaseline = TEXT_BASELINE;
     ctx.fillText(edge.text, midX, midY);
   };
-
-  roundedRect(
-    x: number,
-    y: number,
-    width: number,
-    height: number,
-    radius = 8
-  ): void {
-    const { ctx } = this;
-
-    ctx.moveTo(x + radius, y);
-    ctx.lineTo(x + width - radius, y);
-    ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
-    ctx.lineTo(x + width, y + height - radius);
-    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-    ctx.lineTo(x + radius, y + height);
-    ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
-    ctx.lineTo(x, y + radius);
-    ctx.quadraticCurveTo(x, y, x + radius, y);
-    ctx.closePath();
-  }
 }

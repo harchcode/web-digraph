@@ -17,12 +17,18 @@ export class GEEventHandler {
   }
 
   init(): void {
-    this.canvas.addEventListener("mousedown", this.handleMouseDown);
-    window.addEventListener("mouseup", this.handleMouseUp);
-    window.addEventListener("mousemove", this.handleMouseMove);
-    window.addEventListener("keydown", this.handleKeyDown);
-    window.addEventListener("keyup", this.handleKeyUp);
-    this.canvas.addEventListener("wheel", this.handleCanvasWheel);
+    this.canvas.addEventListener("mousedown", this.handleMouseDown, {
+      passive: true
+    });
+    window.addEventListener("mouseup", this.handleMouseUp, { passive: true });
+    window.addEventListener("mousemove", this.handleMouseMove, {
+      passive: true
+    });
+    window.addEventListener("keydown", this.handleKeyDown, { passive: true });
+    window.addEventListener("keyup", this.handleKeyUp, { passive: true });
+    this.canvas.addEventListener("wheel", this.handleCanvasWheel, {
+      passive: true
+    });
   }
 
   destroy(): void {
@@ -64,7 +70,8 @@ export class GEEventHandler {
     ) {
       const newEdge = this.state.graph.addEdge(
         this.state.drageLineSourceNodeId,
-        this.state.hoveredNodeId
+        this.state.hoveredNodeId,
+        this.state.options.defaultEdgeType
       );
 
       this.state.options.onAddEdge?.(newEdge);
@@ -77,7 +84,7 @@ export class GEEventHandler {
       const newNode = this.state.graph.addNode(
         this.state.pointerViewX,
         this.state.pointerViewY,
-        80
+        this.state.options.defaultNodeType
       );
 
       this.state.options.onAddNode?.(newNode);
