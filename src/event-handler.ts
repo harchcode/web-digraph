@@ -17,12 +17,18 @@ export class GEEventHandler {
   }
 
   init(): void {
-    this.canvas.addEventListener("mousedown", this.handleMouseDown);
-    window.addEventListener("mouseup", this.handleMouseUp);
-    window.addEventListener("mousemove", this.handleMouseMove);
-    window.addEventListener("keydown", this.handleKeyDown);
-    window.addEventListener("keyup", this.handleKeyUp);
-    this.canvas.addEventListener("wheel", this.handleCanvasWheel);
+    this.canvas.addEventListener("mousedown", this.handleMouseDown, {
+      passive: true
+    });
+    window.addEventListener("mouseup", this.handleMouseUp, { passive: true });
+    window.addEventListener("mousemove", this.handleMouseMove, {
+      passive: true
+    });
+    window.addEventListener("keydown", this.handleKeyDown, { passive: true });
+    window.addEventListener("keyup", this.handleKeyUp, { passive: true });
+    this.canvas.addEventListener("wheel", this.handleCanvasWheel, {
+      passive: true
+    });
   }
 
   destroy(): void {
