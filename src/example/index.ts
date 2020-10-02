@@ -43,7 +43,7 @@ const nodeTypes: GEShapeTypes = {
     {
       shape: GEShapeName.CIRCLE,
       r: 60,
-      color: "#ccc"
+      color: "#9AE6B4"
     },
     {
       shape: GEShapeName.CIRCLE,
@@ -74,12 +74,13 @@ const edgeTypes: GEShapeTypes = {
   double: [
     {
       shape: GEShapeName.CIRCLE,
-      r: 25
+      r: 25,
+      color: "#E9D8FD"
     },
     {
       shape: GEShapeName.CIRCLE,
       r: 15,
-      color: "#ccc"
+      color: "white"
     }
   ]
 };
