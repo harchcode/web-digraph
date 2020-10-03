@@ -26,9 +26,7 @@ export class GEEventHandler {
     });
     window.addEventListener("keydown", this.handleKeyDown, { passive: true });
     window.addEventListener("keyup", this.handleKeyUp, { passive: true });
-    this.canvas.addEventListener("wheel", this.handleCanvasWheel, {
-      passive: true
-    });
+    this.canvas.addEventListener("wheel", this.handleCanvasWheel);
   }
 
   destroy(): void {
