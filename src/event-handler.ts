@@ -26,7 +26,9 @@ export class GEEventHandler {
     });
     window.addEventListener("keydown", this.handleKeyDown, { passive: true });
     window.addEventListener("keyup", this.handleKeyUp, { passive: true });
-    this.canvas.addEventListener("wheel", this.handleCanvasWheel);
+    this.canvas.addEventListener("wheel", this.handleCanvasWheel, {
+      passive: false
+    });
   }
 
   destroy(): void {
@@ -72,7 +74,7 @@ export class GEEventHandler {
         this.state.options.defaultEdgeType
       );
 
-      this.state.options.onAddEdge?.(newEdge);
+      this.state.options.onCreateEdge?.(newEdge);
     } else if (
       this.state.isShiftDown &&
       !this.state.isCreatingEdge &&
@@ -85,7 +87,7 @@ export class GEEventHandler {
         this.state.options.defaultNodeType
       );
 
-      this.state.options.onAddNode?.(newNode);
+      this.state.options.onCreateNode?.(newNode);
     }
 
     this.state.isDragging = false;

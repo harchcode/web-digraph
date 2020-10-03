@@ -131,4 +131,28 @@ export class GEView {
     this._state.graph.deleteEdge(edgeId);
     this.requestDraw();
   }
+
+  setReadonly(readonly = true): void {
+    // TODO
+  }
+
+  setDisabled(disabled = true): void {
+    // TODO
+  }
+
+  setSelectedNode(id: number): void {
+    // TODO
+  }
+
+  getSelectedNode(): void {
+    // TODO
+  }
+
+  setSelectedEdge(id: number): void {
+    // TODO
+  }
+
+  getSelectedEdge(): void {
+    // TODO
+  }
 }

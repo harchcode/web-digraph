@@ -109,8 +109,8 @@ graphView.setOptions({
   onViewZoom: () => {
     zoomSlider.value = graphView.scale.toString();
   },
-  onAddNode: updateNodeCount,
-  onAddEdge: updateEdgeCount,
+  onCreateNode: updateNodeCount,
+  onCreateEdge: updateEdgeCount,
   onDeleteNode: () => {
     updateNodeCount();
     updateEdgeCount();
