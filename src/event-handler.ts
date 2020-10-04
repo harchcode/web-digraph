@@ -69,13 +69,8 @@ export class GEEventHandler {
     this.state.setPointerPosition(evt.clientX, evt.clientY);
 
     if (this.state.isMovingNode()) {
-      // const node = this.state.nodes.get(this.state.selectedNodeId);
-
       this.state.moveNodeX += evt.movementX / this.state.scale;
       this.state.moveNodeY += evt.movementY / this.state.scale;
-
-      // node.x += evt.movementX / this.state.scale;
-      // node.y += evt.movementY / this.state.scale;
     } else if (this.state.isMovingView()) {
       this.state.translateX += evt.movementX;
       this.state.translateY += evt.movementY;

@@ -83,27 +83,29 @@ export class GEView {
     this.requestDraw();
   }
 
-  setReadonly(readonly = true): void {
-    // TODO
-  }
-
-  setDisabled(disabled = true): void {
-    // TODO
-  }
-
   setSelectedNode(id: number): void {
-    // TODO
+    this._state.selectedNodeId = id;
+    this._state.selectedEdgeId = 0;
+
+    this.requestDraw();
   }
 
-  getSelectedNode(): void {
-    // TODO
+  getSelectedNode(): GENode | undefined {
+    if (this._state.selectedNodeId <= 0) return undefined;
+
+    return this._state.nodes.get(this._state.selectedNodeId);
   }
 
   setSelectedEdge(id: number): void {
-    // TODO
+    this._state.selectedNodeId = 0;
+    this._state.selectedEdgeId = id;
+
+    this.requestDraw();
   }
 
-  getSelectedEdge(): void {
-    // TODO
+  getSelectedEdge(): GEEdge | undefined {
+    if (this._state.selectedEdgeId <= 0) return undefined;
+
+    return this._state.edges.get(this._state.selectedEdgeId);
   }
 }
