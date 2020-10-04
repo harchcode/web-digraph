@@ -87,13 +87,17 @@ export type GEViewOptions = {
   edgeTypes: GEShapeTypes;
   onViewMoved?: () => void;
   onViewZoom?: () => void;
-  onCreateNode?: (node: GENode) => void;
+  onCreateNode?: (x: number, y: number, evt: MouseEvent) => void;
   onMoveNode?: (node: GENode) => void;
   onDeleteNode?: (node: GENode) => void;
   onSelectNode?: (node: GENode) => void;
   onNodeMouseOver?: (node: GENode) => void;
   onNodeMouseOut?: (node: GENode) => void;
-  onCreateEdge?: (edge: GEEdge) => void;
+  onCreateEdge?: (
+    sourceNode: GENode,
+    targetNode: GENode,
+    evt: MouseEvent
+  ) => void;
   onDeleteEdge?: (edge: GEEdge, sourceNode: GENode, targetNode: GENode) => void;
   onSelectEdge?: (edge: GEEdge) => void;
   onEdgeMouseOver?: (edge: GEEdge) => void;

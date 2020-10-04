@@ -73,62 +73,13 @@ export class GEView {
     this.requestDraw();
   }
 
-  clearData(): void {
-    this._state.graph.reset();
-    this.requestDraw();
-  }
-
   setData(nodes: GENode[], edges: GEEdge[]): void {
     this._state.graph.setData(nodes, edges);
     this.requestDraw();
   }
 
-  getNodes(): Map<number, GENode> {
-    return this._state.graph.nodes;
-  }
-
-  getEdges(): Map<number, GEEdge> {
-    return this._state.graph.edges;
-  }
-
   setOptions(options: GEViewOptionsParams): void {
     this._state.setOptions(options);
-    this.requestDraw();
-  }
-
-  addNode(x: number, y: number, type: string, text = ""): GENode {
-    const newNode = this._state.graph.addNode(x, y, type, text);
-
-    this.requestDraw();
-
-    return newNode;
-  }
-
-  addEdge(
-    sourceNodeId: number,
-    targetNodeId: number,
-    type: string,
-    text = ""
-  ): GEEdge {
-    const newEdge = this._state.graph.addEdge(
-      sourceNodeId,
-      targetNodeId,
-      type,
-      text
-    );
-
-    this.requestDraw();
-
-    return newEdge;
-  }
-
-  deleteNode(nodeId: number): void {
-    this._state.graph.deleteNode(nodeId);
-    this.requestDraw();
-  }
-
-  deleteEdge(edgeId: number): void {
-    this._state.graph.deleteEdge(edgeId);
     this.requestDraw();
   }
 

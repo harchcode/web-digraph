@@ -68,26 +68,24 @@ export class GEEventHandler {
       this.state.hoveredNodeId > 0 &&
       this.state.hoveredNodeId !== this.state.drageLineSourceNodeId
     ) {
-      const newEdge = this.state.graph.addEdge(
-        this.state.drageLineSourceNodeId,
-        this.state.hoveredNodeId,
-        this.state.options.defaultEdgeType
+      const sourceNode = this.state.graph.nodes.get(
+        this.state.drageLineSourceNodeId
       );
 
-      this.state.options.onCreateEdge?.(newEdge);
+      const targetNode = this.state.graph.nodes.get(this.state.hoveredNodeId);
+
+      this.state.options.onCreateEdge?.(sourceNode, targetNode, evt);
     } else if (
       this.state.isShiftDown &&
       !this.state.isCreatingEdge &&
       this.state.hoveredNodeId <= 0 &&
       this.state.hoveredEdgeId <= 0
     ) {
-      const newNode = this.state.graph.addNode(
+      this.state.options.onCreateNode?.(
         this.state.pointerViewX,
         this.state.pointerViewY,
-        this.state.options.defaultNodeType
+        evt
       );
-
-      this.state.options.onCreateNode?.(newNode);
     }
 
     this.state.isDragging = false;
@@ -148,10 +146,8 @@ export class GEEventHandler {
       if (this.state.selectedNodeId > 0) {
         const node = this.state.graph.nodes.get(this.state.selectedNodeId);
 
-        this.state.graph.deleteNode(this.state.selectedNodeId);
+        this.state.options.onDeleteNode?.(node);
         this.state.selectedNodeId = 0;
-
-        this.state.options.onDeleteNode(node);
       }
 
       if (this.state.selectedEdgeId > 0) {
@@ -159,10 +155,8 @@ export class GEEventHandler {
         const source = this.state.graph.nodes.get(edge.sourceNodeId);
         const target = this.state.graph.nodes.get(edge.targetNodeId);
 
-        this.state.graph.deleteEdge(this.state.selectedEdgeId);
+        this.state.options.onDeleteEdge?.(edge, source, target);
         this.state.selectedEdgeId = 0;
-
-        this.state.options.onDeleteEdge(edge, source, target);
       }
 
       this.renderer.requestDraw();
