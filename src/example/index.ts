@@ -1,5 +1,5 @@
 import { GEView } from "../index";
-import { GEShapeTypes, GEShapeName } from "../types";
+import { GEShapeTypes, GEShapeName, GENode, GEEdge } from "../types";
 
 const graphDiv = document.getElementById("graph");
 const nodeCountSpan = document.getElementById("node-count-span");
@@ -85,18 +85,77 @@ const edgeTypes: GEShapeTypes = {
   ]
 };
 
+let nodes: GENode[] = [];
+let edges: GEEdge[] = [];
+let lastId = 0;
+
 const graphView = new GEView();
 
 function updateNodeCount(): void {
-  const count = graphView.getNodes().size;
-
-  nodeCountSpan.innerHTML = count.toString();
+  nodeCountSpan.innerHTML = nodes.length.toString();
 }
 
 function updateEdgeCount(): void {
-  const count = graphView.getEdges().size;
+  edgeCountSpan.innerHTML = edges.length.toString();
+}
 
-  edgeCountSpan.innerHTML = count.toString();
+function handleCreateNode(x: number, y: number) {
+  lastId += 1;
+
+  const newNode: GENode = {
+    id: lastId,
+    x,
+    y,
+    type: "empty",
+    text: `Node ID: ${lastId}`
+  };
+
+  nodes = [...nodes, newNode];
+  graphView.setData(nodes, edges);
+
+  updateNodeCount();
+}
+
+function handleCreateEdge(sourceNode: GENode, targetNode: GENode) {
+  lastId += 1;
+
+  const newEdge: GEEdge = {
+    id: lastId,
+    sourceNodeId: sourceNode.id,
+    targetNodeId: targetNode.id,
+    type: "normal",
+    text: lastId.toString()
+  };
+
+  edges = [...edges, newEdge];
+  graphView.setData(nodes, edges);
+
+  updateEdgeCount();
+}
+
+function handleDeleteNode(node: GENode) {
+  nodes = nodes.filter(n => n.id !== node.id);
+  edges = edges.filter(
+    e => e.sourceNodeId !== node.id && e.targetNodeId !== node.id
+  );
+
+  graphView.setData(nodes, edges);
+
+  updateNodeCount();
+  updateEdgeCount();
+}
+
+function handleDeleteEdge(edge: GEEdge) {
+  edges = edges.filter(e => e.id !== edge.id);
+
+  graphView.setData(nodes, edges);
+
+  updateEdgeCount();
+}
+
+function handleMoveNode(node: GENode, newX: number, newY: number) {
+  node.x = newX;
+  node.y = newY;
 }
 
 graphView.setOptions({
@@ -104,18 +163,14 @@ graphView.setOptions({
   maxScale: 3.0,
   nodeTypes,
   edgeTypes,
-  defaultNodeType: "empty",
-  defaultEdgeType: "normal",
   onViewZoom: () => {
     zoomSlider.value = graphView.scale.toString();
   },
-  onAddNode: updateNodeCount,
-  onAddEdge: updateEdgeCount,
-  onDeleteNode: () => {
-    updateNodeCount();
-    updateEdgeCount();
-  },
-  onDeleteEdge: updateEdgeCount
+  onCreateNode: handleCreateNode,
+  onCreateEdge: handleCreateEdge,
+  onDeleteNode: handleDeleteNode,
+  onDeleteEdge: handleDeleteEdge,
+  onMoveNode: handleMoveNode
 });
 
 function getRandomIntInclusive(minF: number, maxF: number): number {
@@ -125,9 +180,9 @@ function getRandomIntInclusive(minF: number, maxF: number): number {
 }
 
 function randomize(nodeCount = 1000, cols = 40) {
-  graphView.clearData();
-
-  let prevNode;
+  nodes = [];
+  edges = [];
+  lastId = 0;
 
   for (let i = 0; i < nodeCount; i++) {
     const col = i % cols;
@@ -146,24 +201,32 @@ function randomize(nodeCount = 1000, cols = 40) {
     const tmp2 = getRandomIntInclusive(0, 2);
     const edgeType = tmp2 === 0 ? "normal" : tmp2 === 1 ? "round" : "double";
 
-    const currNode = graphView.addNode(
-      col * 320,
-      row * 320,
-      nodeType,
-      `Node ${i + 1}`
-    );
+    lastId++;
+    const currNode: GENode = {
+      id: lastId,
+      x: col * 320,
+      y: row * 320,
+      type: nodeType,
+      text: `Node ID: ${lastId}`
+    };
 
-    if (prevNode) {
-      graphView.addEdge(
-        currNode.id,
-        prevNode.id,
-        edgeType,
-        getRandomIntInclusive(1, 1000).toString()
-      );
+    nodes.push(currNode);
+
+    if (i > 0) {
+      const prevNode = nodes[i - 1];
+
+      lastId++;
+      edges.push({
+        id: lastId,
+        sourceNodeId: prevNode.id,
+        targetNodeId: currNode.id,
+        type: edgeType,
+        text: lastId.toString()
+      });
     }
-
-    prevNode = currNode;
   }
+
+  graphView.setData(nodes, edges);
 }
 
 graphView.init(graphDiv);

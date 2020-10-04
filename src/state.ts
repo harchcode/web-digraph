@@ -2,18 +2,23 @@ import {
   GEViewOptions,
   GEViewOptionsParams,
   GEGridType,
-  GEShapeName
+  GEShapeName,
+  GENode,
+  GEEdge
 } from "./types";
-import { GEGraph } from "./graph";
 
 export class GEState {
-  graph: GEGraph;
+  nodes: Map<number, GENode>;
+  edges: Map<number, GEEdge>;
 
   options: GEViewOptions;
 
   isDragging = false;
   isShiftDown = false;
   isDrawing = false;
+
+  moveNodeX = 0;
+  moveNodeY = 0;
 
   // transform
   translateX = 0;
@@ -42,9 +47,31 @@ export class GEState {
   dragLineTargetY = 0;
 
   constructor() {
-    this.graph = new GEGraph();
+    this.nodes = new Map<number, GENode>();
+    this.edges = new Map<number, GEEdge>();
 
     this.options = this.getDefaultOptions();
+  }
+
+  isMovingNode(): boolean {
+    return this.isDragging && !this.isCreatingEdge && this.selectedNodeId > 0;
+  }
+
+  isMovingView(): boolean {
+    return !this.isShiftDown && this.isDragging && this.selectedNodeId <= 0;
+  }
+
+  setData(nodes: GENode[], edges: GEEdge[]): void {
+    this.nodes.clear();
+    this.edges.clear();
+
+    nodes.forEach(node => {
+      this.nodes.set(node.id, node);
+    });
+
+    edges.forEach(edge => {
+      this.edges.set(edge.id, edge);
+    });
   }
 
   setOptions(options: GEViewOptionsParams): void {
@@ -83,8 +110,6 @@ export class GEState {
       cursorGrab: "grab",
       cursorPointer: "pointer",
       cursorCrosshair: "crosshair",
-      defaultNodeType: "empty",
-      defaultEdgeType: "empty",
       nodeTypes: {
         empty: [
           {

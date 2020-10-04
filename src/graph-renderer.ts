@@ -109,11 +109,11 @@ export class GEGraphRenderer {
   }
 
   drawGraph(): void {
-    this.state.graph.edges.forEach(this.drawEdge);
+    this.state.edges.forEach(this.drawEdge);
 
     this.drawDragLine();
 
-    this.state.graph.nodes.forEach(this.drawNode);
+    this.state.nodes.forEach(this.drawNode);
   }
 
   getShapeBound(shapes: GEShapes): number {
@@ -148,10 +148,10 @@ export class GEGraphRenderer {
 
   isEdgeOutOfView(edge: GEEdge): boolean {
     const { canvas } = this;
-    const { translateX, translateY, scale, graph, options } = this.state;
+    const { translateX, translateY, scale, nodes, options } = this.state;
 
-    const source = graph.nodes.get(edge.sourceNodeId);
-    const target = graph.nodes.get(edge.targetNodeId);
+    const source = nodes.get(edge.sourceNodeId);
+    const target = nodes.get(edge.targetNodeId);
 
     const sourceX = source.x * scale + translateX;
     const sourceY = source.y * scale + translateY;
@@ -197,12 +197,12 @@ export class GEGraphRenderer {
     if (!this.state.isCreatingEdge) return;
 
     const { ctx } = this;
-    const { pointerViewX, pointerViewY, graph, options } = this.state;
+    const { pointerViewX, pointerViewY, nodes, options } = this.state;
 
     const targetX = pointerViewX;
     const targetY = pointerViewY;
 
-    const source = graph.nodes.get(this.state.drageLineSourceNodeId);
+    const source = nodes.get(this.state.drageLineSourceNodeId);
     const dx = targetX - source.x;
     const dy = targetY - source.y;
 
@@ -247,18 +247,16 @@ export class GEGraphRenderer {
   getInstersectionPoint = (
     sourceX: number,
     sourceY: number,
-    node: GENode
+    targetX: number,
+    targetY: number,
+    shape: GEShape
   ): [number, number] => {
-    const { options } = this.state;
-
-    const shape = options.nodeTypes[node.type][0];
-
     if (shape.shape === GEShapeName.CIRCLE) {
       const int = intersectLineCircleCenter(
         sourceX,
         sourceY,
-        node.x,
-        node.y,
+        targetX,
+        targetY,
         shape.r,
         tmpPoint
       );
@@ -268,8 +266,8 @@ export class GEGraphRenderer {
       const int = intersectLineRectCenter(
         sourceX,
         sourceY,
-        node.x,
-        node.y,
+        targetX,
+        targetY,
         shape.width,
         shape.height,
         tmpPoint
@@ -280,8 +278,8 @@ export class GEGraphRenderer {
       const int = instersectLinePolygonCenter(
         sourceX,
         sourceY,
-        node.x,
-        node.y,
+        targetX,
+        targetY,
         shape.points,
         tmpPoint
       );
@@ -289,7 +287,7 @@ export class GEGraphRenderer {
       if (int) return tmpPoint;
     }
 
-    return [node.x, node.y];
+    return [targetX, targetY];
   };
 
   drawSubShapes = (shapes: GEShapes, x: number, y: number): void => {
@@ -329,7 +327,19 @@ export class GEGraphRenderer {
     if (this.isNodeOutOfView(node)) return;
 
     const { ctx } = this;
-    const { pointerCanvasX, pointerCanvasY, options } = this.state;
+    const {
+      pointerCanvasX,
+      pointerCanvasY,
+      options,
+      moveNodeX,
+      moveNodeY,
+      selectedNodeId
+    } = this.state;
+
+    const isMovingNode =
+      this.state.isMovingNode() && selectedNodeId === node.id;
+    const x = isMovingNode ? moveNodeX : node.x;
+    const y = isMovingNode ? moveNodeY : node.y;
 
     const shapes = options.nodeTypes[node.type];
 
@@ -337,7 +347,7 @@ export class GEGraphRenderer {
     ctx.lineWidth = options.nodeLineWidth;
 
     ctx.beginPath();
-    this.shapePath(node.x, node.y, shapes[0]);
+    this.shapePath(x, y, shapes[0]);
 
     if (ctx.isPointInPath(pointerCanvasX, pointerCanvasY)) {
       this.state.hoveredNodeId = node.id;
@@ -353,15 +363,10 @@ export class GEGraphRenderer {
     ctx.fill();
     ctx.stroke();
 
-    this.drawSubShapes(shapes, node.x, node.y);
+    this.drawSubShapes(shapes, x, y);
 
     if (selected) {
-      this.drawSelectedShape(
-        shapes[0],
-        node.x,
-        node.y,
-        options.nodeSelectedColor
-      );
+      this.drawSelectedShape(shapes[0], x, y, options.nodeSelectedColor);
     }
 
     if (selected) {
@@ -374,19 +379,40 @@ export class GEGraphRenderer {
     ctx.textAlign = TEXT_ALIGN;
     ctx.textBaseline = TEXT_BASELINE;
 
-    ctx.fillText(node.text, node.x, node.y);
+    ctx.fillText(node.text, x, y);
   };
 
   drawEdge = (edge: GEEdge): void => {
     if (this.isEdgeOutOfView(edge)) return;
 
     const { ctx } = this;
-    const { pointerCanvasX, pointerCanvasY, graph, options } = this.state;
+    const {
+      pointerCanvasX,
+      pointerCanvasY,
+      nodes,
+      options,
+      selectedNodeId,
+      moveNodeX,
+      moveNodeY
+    } = this.state;
 
-    const source = graph.nodes.get(edge.sourceNodeId);
-    const target = graph.nodes.get(edge.targetNodeId);
-    const dx = target.x - source.x;
-    const dy = target.y - source.y;
+    const source = nodes.get(edge.sourceNodeId);
+    const target = nodes.get(edge.targetNodeId);
+
+    const isMovingSourceNode =
+      this.state.isMovingNode() && source.id === selectedNodeId;
+
+    const sourceX = isMovingSourceNode ? moveNodeX : source.x;
+    const sourceY = isMovingSourceNode ? moveNodeY : source.y;
+
+    const isMovingTargetNode =
+      this.state.isMovingNode() && target.id === selectedNodeId;
+
+    const targetX = isMovingTargetNode ? moveNodeX : target.x;
+    const targetY = isMovingTargetNode ? moveNodeY : target.y;
+
+    const dx = targetX - sourceX;
+    const dy = targetY - sourceY;
 
     const rad = Math.atan2(dy, dx);
     const sinr = Math.sin(rad);
@@ -394,14 +420,18 @@ export class GEGraphRenderer {
 
     // calculate the start and end points of the line
     const [startX, startY] = this.getInstersectionPoint(
-      target.x,
-      target.y,
-      source
+      targetX,
+      targetY,
+      sourceX,
+      sourceY,
+      options.nodeTypes[source.type][0]
     );
     const [endX0, endY0] = this.getInstersectionPoint(
-      source.x,
-      source.y,
-      target
+      sourceX,
+      sourceY,
+      targetX,
+      targetY,
+      options.nodeTypes[target.type][0]
     );
 
     const endX = endX0 - cosr * 3;

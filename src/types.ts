@@ -81,16 +81,25 @@ export type GEViewOptions = {
   cursorGrab: string;
   cursorPointer: string;
   cursorCrosshair: string;
-  defaultNodeType: string;
-  defaultEdgeType: string;
   nodeTypes: GEShapeTypes;
   edgeTypes: GEShapeTypes;
   onViewMoved?: () => void;
   onViewZoom?: () => void;
-  onAddNode?: (node: GENode) => void;
+  onCreateNode?: (x: number, y: number, evt: MouseEvent) => void;
+  onMoveNode?: (node: GENode, newX: number, newY: number) => void;
   onDeleteNode?: (node: GENode) => void;
-  onAddEdge?: (edge: GEEdge) => void;
+  onSelectNode?: (node: GENode) => void;
+  onNodeMouseOver?: (node: GENode) => void;
+  onNodeMouseOut?: (node: GENode) => void;
+  onCreateEdge?: (
+    sourceNode: GENode,
+    targetNode: GENode,
+    evt: MouseEvent
+  ) => void;
   onDeleteEdge?: (edge: GEEdge, sourceNode: GENode, targetNode: GENode) => void;
+  onSelectEdge?: (edge: GEEdge) => void;
+  onEdgeMouseOver?: (edge: GEEdge) => void;
+  onEdgeMouseOut?: (edge: GEEdge) => void;
 };
 
 export type GEViewOptionsParams = {

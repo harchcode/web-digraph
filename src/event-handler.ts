@@ -26,7 +26,9 @@ export class GEEventHandler {
     });
     window.addEventListener("keydown", this.handleKeyDown, { passive: true });
     window.addEventListener("keyup", this.handleKeyUp, { passive: true });
-    this.canvas.addEventListener("wheel", this.handleCanvasWheel);
+    this.canvas.addEventListener("wheel", this.handleCanvasWheel, {
+      passive: false
+    });
   }
 
   destroy(): void {
@@ -46,16 +48,36 @@ export class GEEventHandler {
     this.state.selectedNodeId = this.state.hoveredNodeId;
     this.state.selectedEdgeId = this.state.hoveredEdgeId;
 
-    if (this.state.isShiftDown && this.state.selectedNodeId > 0) {
-      const node = this.state.graph.nodes.get(this.state.selectedNodeId);
+    if (this.state.selectedNodeId > 0) {
+      const node = this.state.nodes.get(this.state.selectedNodeId);
 
-      this.state.isCreatingEdge = true;
-      this.state.drageLineSourceNodeId = this.state.selectedNodeId;
-      this.state.dragLineTargetX = node.x;
-      this.state.dragLineTargetY = node.y;
+      if (this.state.isShiftDown) {
+        this.state.isCreatingEdge = true;
+        this.state.drageLineSourceNodeId = this.state.selectedNodeId;
+        this.state.dragLineTargetX = node.x;
+        this.state.dragLineTargetY = node.y;
+      } else {
+        this.state.moveNodeX = node.x;
+        this.state.moveNodeY = node.y;
+      }
     }
 
     this.renderer.requestDraw();
+  };
+
+  handleMouseMove = (evt: MouseEvent): void => {
+    this.state.setPointerPosition(evt.clientX, evt.clientY);
+
+    if (this.state.isMovingNode()) {
+      this.state.moveNodeX += evt.movementX / this.state.scale;
+      this.state.moveNodeY += evt.movementY / this.state.scale;
+    } else if (this.state.isMovingView()) {
+      this.state.translateX += evt.movementX;
+      this.state.translateY += evt.movementY;
+    }
+
+    this.renderer.requestDraw();
+    this.updateCursorStyle();
   };
 
   handleMouseUp = (evt: MouseEvent): void => {
@@ -66,26 +88,30 @@ export class GEEventHandler {
       this.state.hoveredNodeId > 0 &&
       this.state.hoveredNodeId !== this.state.drageLineSourceNodeId
     ) {
-      const newEdge = this.state.graph.addEdge(
-        this.state.drageLineSourceNodeId,
-        this.state.hoveredNodeId,
-        this.state.options.defaultEdgeType
-      );
+      const sourceNode = this.state.nodes.get(this.state.drageLineSourceNodeId);
 
-      this.state.options.onAddEdge?.(newEdge);
+      const targetNode = this.state.nodes.get(this.state.hoveredNodeId);
+
+      this.state.options.onCreateEdge?.(sourceNode, targetNode, evt);
     } else if (
       this.state.isShiftDown &&
       !this.state.isCreatingEdge &&
       this.state.hoveredNodeId <= 0 &&
       this.state.hoveredEdgeId <= 0
     ) {
-      const newNode = this.state.graph.addNode(
+      this.state.options.onCreateNode?.(
         this.state.pointerViewX,
         this.state.pointerViewY,
-        this.state.options.defaultNodeType
+        evt
       );
+    } else if (this.state.isMovingNode()) {
+      const node = this.state.nodes.get(this.state.selectedNodeId);
 
-      this.state.options.onAddNode?.(newNode);
+      this.state.options.onMoveNode?.(
+        node,
+        this.state.moveNodeX,
+        this.state.moveNodeY
+      );
     }
 
     this.state.isDragging = false;
@@ -106,31 +132,6 @@ export class GEEventHandler {
     }
   };
 
-  handleMouseMove = (evt: MouseEvent): void => {
-    this.state.setPointerPosition(evt.clientX, evt.clientY);
-
-    if (
-      this.state.isDragging &&
-      !this.state.isCreatingEdge &&
-      this.state.selectedNodeId > 0
-    ) {
-      const node = this.state.graph.nodes.get(this.state.selectedNodeId);
-
-      node.x += evt.movementX / this.state.scale;
-      node.y += evt.movementY / this.state.scale;
-    } else if (
-      !this.state.isShiftDown &&
-      this.state.isDragging &&
-      this.state.selectedNodeId <= 0
-    ) {
-      this.state.translateX += evt.movementX;
-      this.state.translateY += evt.movementY;
-    }
-
-    this.renderer.requestDraw();
-    this.updateCursorStyle();
-  };
-
   handleKeyDown = (evt: KeyboardEvent): void => {
     if (evt.key === "Shift" || evt.keyCode === 16) {
       this.state.isShiftDown = true;
@@ -144,23 +145,19 @@ export class GEEventHandler {
       evt.keyCode === 46
     ) {
       if (this.state.selectedNodeId > 0) {
-        const node = this.state.graph.nodes.get(this.state.selectedNodeId);
+        const node = this.state.nodes.get(this.state.selectedNodeId);
 
-        this.state.graph.deleteNode(this.state.selectedNodeId);
+        this.state.options.onDeleteNode?.(node);
         this.state.selectedNodeId = 0;
-
-        this.state.options.onDeleteNode(node);
       }
 
       if (this.state.selectedEdgeId > 0) {
-        const edge = this.state.graph.edges.get(this.state.selectedEdgeId);
-        const source = this.state.graph.nodes.get(edge.sourceNodeId);
-        const target = this.state.graph.nodes.get(edge.targetNodeId);
+        const edge = this.state.edges.get(this.state.selectedEdgeId);
+        const source = this.state.nodes.get(edge.sourceNodeId);
+        const target = this.state.nodes.get(edge.targetNodeId);
 
-        this.state.graph.deleteEdge(this.state.selectedEdgeId);
+        this.state.options.onDeleteEdge?.(edge, source, target);
         this.state.selectedEdgeId = 0;
-
-        this.state.options.onDeleteEdge(edge, source, target);
       }
 
       this.renderer.requestDraw();
