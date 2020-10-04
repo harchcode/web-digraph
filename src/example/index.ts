@@ -167,53 +167,61 @@ graphView.setOptions({
   onDeleteEdge: handleDeleteEdge
 });
 
-// function getRandomIntInclusive(minF: number, maxF: number): number {
-//   const min = Math.ceil(minF);
-//   const max = Math.floor(maxF);
-//   return Math.floor(Math.random() * (max - min + 1) + min); //The maximum is inclusive and the minimum is inclusive
-// }
+function getRandomIntInclusive(minF: number, maxF: number): number {
+  const min = Math.ceil(minF);
+  const max = Math.floor(maxF);
+  return Math.floor(Math.random() * (max - min + 1) + min); //The maximum is inclusive and the minimum is inclusive
+}
 
-// function randomize(nodeCount = 1000, cols = 40) {
-//   graphView.clearData();
+function randomize(nodeCount = 1000, cols = 40) {
+  nodes = [];
+  edges = [];
+  lastId = 0;
 
-//   let prevNode;
+  for (let i = 0; i < nodeCount; i++) {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
 
-//   for (let i = 0; i < nodeCount; i++) {
-//     const col = i % cols;
-//     const row = Math.floor(i / cols);
+    const tmp = getRandomIntInclusive(0, 3);
+    const nodeType =
+      tmp === 0
+        ? "empty"
+        : tmp === 1
+        ? "decision"
+        : tmp === 2
+        ? "unknown"
+        : "complex";
 
-//     const tmp = getRandomIntInclusive(0, 3);
-//     const nodeType =
-//       tmp === 0
-//         ? "empty"
-//         : tmp === 1
-//         ? "decision"
-//         : tmp === 2
-//         ? "unknown"
-//         : "complex";
+    const tmp2 = getRandomIntInclusive(0, 2);
+    const edgeType = tmp2 === 0 ? "normal" : tmp2 === 1 ? "round" : "double";
 
-//     const tmp2 = getRandomIntInclusive(0, 2);
-//     const edgeType = tmp2 === 0 ? "normal" : tmp2 === 1 ? "round" : "double";
+    lastId++;
+    const currNode: GENode = {
+      id: lastId,
+      x: col * 320,
+      y: row * 320,
+      type: nodeType,
+      text: `Node ID: ${lastId}`
+    };
 
-//     const currNode = graphView.addNode(
-//       col * 320,
-//       row * 320,
-//       nodeType,
-//       `Node ${i + 1}`
-//     );
+    nodes.push(currNode);
 
-//     if (prevNode) {
-//       graphView.addEdge(
-//         currNode.id,
-//         prevNode.id,
-//         edgeType,
-//         getRandomIntInclusive(1, 1000).toString()
-//       );
-//     }
+    if (i > 0) {
+      const prevNode = nodes[i - 1];
 
-//     prevNode = currNode;
-//   }
-// }
+      lastId++;
+      edges.push({
+        id: lastId,
+        sourceNodeId: prevNode.id,
+        targetNodeId: currNode.id,
+        type: edgeType,
+        text: lastId.toString()
+      });
+    }
+  }
+
+  graphView.setData(nodes, edges);
+}
 
 graphView.init(graphDiv);
 
@@ -231,7 +239,7 @@ generateButton.addEventListener("click", () => {
   const value = parseInt(generateTextbox.value, 10);
   const columns = Math.ceil(Math.sqrt(value));
 
-  // randomize(value, columns);
+  randomize(value, columns);
 
   updateNodeCount();
   updateEdgeCount();
