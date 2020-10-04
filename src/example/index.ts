@@ -153,6 +153,11 @@ function handleDeleteEdge(edge: GEEdge) {
   updateEdgeCount();
 }
 
+function handleMoveNode(node: GENode, newX: number, newY: number) {
+  node.x = newX;
+  node.y = newY;
+}
+
 graphView.setOptions({
   minScale: 0.2,
   maxScale: 3.0,
@@ -164,7 +169,8 @@ graphView.setOptions({
   onCreateNode: handleCreateNode,
   onCreateEdge: handleCreateEdge,
   onDeleteNode: handleDeleteNode,
-  onDeleteEdge: handleDeleteEdge
+  onDeleteEdge: handleDeleteEdge,
+  onMoveNode: handleMoveNode
 });
 
 function getRandomIntInclusive(minF: number, maxF: number): number {

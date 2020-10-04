@@ -17,6 +17,9 @@ export class GEState {
   isShiftDown = false;
   isDrawing = false;
 
+  moveNodeX = 0;
+  moveNodeY = 0;
+
   // transform
   translateX = 0;
   translateY = 0;
@@ -48,6 +51,14 @@ export class GEState {
     this.edges = new Map<number, GEEdge>();
 
     this.options = this.getDefaultOptions();
+  }
+
+  isMovingNode(): boolean {
+    return this.isDragging && !this.isCreatingEdge && this.selectedNodeId > 0;
+  }
+
+  isMovingView(): boolean {
+    return !this.isShiftDown && this.isDragging && this.selectedNodeId <= 0;
   }
 
   setData(nodes: GENode[], edges: GEEdge[]): void {

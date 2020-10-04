@@ -48,16 +48,41 @@ export class GEEventHandler {
     this.state.selectedNodeId = this.state.hoveredNodeId;
     this.state.selectedEdgeId = this.state.hoveredEdgeId;
 
-    if (this.state.isShiftDown && this.state.selectedNodeId > 0) {
+    if (this.state.selectedNodeId > 0) {
       const node = this.state.nodes.get(this.state.selectedNodeId);
 
-      this.state.isCreatingEdge = true;
-      this.state.drageLineSourceNodeId = this.state.selectedNodeId;
-      this.state.dragLineTargetX = node.x;
-      this.state.dragLineTargetY = node.y;
+      if (this.state.isShiftDown) {
+        this.state.isCreatingEdge = true;
+        this.state.drageLineSourceNodeId = this.state.selectedNodeId;
+        this.state.dragLineTargetX = node.x;
+        this.state.dragLineTargetY = node.y;
+      } else {
+        this.state.moveNodeX = node.x;
+        this.state.moveNodeY = node.y;
+      }
     }
 
     this.renderer.requestDraw();
+  };
+
+  handleMouseMove = (evt: MouseEvent): void => {
+    this.state.setPointerPosition(evt.clientX, evt.clientY);
+
+    if (this.state.isMovingNode()) {
+      // const node = this.state.nodes.get(this.state.selectedNodeId);
+
+      this.state.moveNodeX += evt.movementX / this.state.scale;
+      this.state.moveNodeY += evt.movementY / this.state.scale;
+
+      // node.x += evt.movementX / this.state.scale;
+      // node.y += evt.movementY / this.state.scale;
+    } else if (this.state.isMovingView()) {
+      this.state.translateX += evt.movementX;
+      this.state.translateY += evt.movementY;
+    }
+
+    this.renderer.requestDraw();
+    this.updateCursorStyle();
   };
 
   handleMouseUp = (evt: MouseEvent): void => {
@@ -84,6 +109,14 @@ export class GEEventHandler {
         this.state.pointerViewY,
         evt
       );
+    } else if (this.state.isMovingNode()) {
+      const node = this.state.nodes.get(this.state.selectedNodeId);
+
+      this.state.options.onMoveNode?.(
+        node,
+        this.state.moveNodeX,
+        this.state.moveNodeY
+      );
     }
 
     this.state.isDragging = false;
@@ -102,31 +135,6 @@ export class GEEventHandler {
     } else {
       this.canvas.style.cursor = options.cursorCrosshair;
     }
-  };
-
-  handleMouseMove = (evt: MouseEvent): void => {
-    this.state.setPointerPosition(evt.clientX, evt.clientY);
-
-    if (
-      this.state.isDragging &&
-      !this.state.isCreatingEdge &&
-      this.state.selectedNodeId > 0
-    ) {
-      const node = this.state.nodes.get(this.state.selectedNodeId);
-
-      node.x += evt.movementX / this.state.scale;
-      node.y += evt.movementY / this.state.scale;
-    } else if (
-      !this.state.isShiftDown &&
-      this.state.isDragging &&
-      this.state.selectedNodeId <= 0
-    ) {
-      this.state.translateX += evt.movementX;
-      this.state.translateY += evt.movementY;
-    }
-
-    this.renderer.requestDraw();
-    this.updateCursorStyle();
   };
 
   handleKeyDown = (evt: KeyboardEvent): void => {
