@@ -109,11 +109,11 @@ export class GEGraphRenderer {
   }
 
   drawGraph(): void {
-    this.state.graph.edges.forEach(this.drawEdge);
+    this.state.edges.forEach(this.drawEdge);
 
     this.drawDragLine();
 
-    this.state.graph.nodes.forEach(this.drawNode);
+    this.state.nodes.forEach(this.drawNode);
   }
 
   getShapeBound(shapes: GEShapes): number {
@@ -148,10 +148,10 @@ export class GEGraphRenderer {
 
   isEdgeOutOfView(edge: GEEdge): boolean {
     const { canvas } = this;
-    const { translateX, translateY, scale, graph, options } = this.state;
+    const { translateX, translateY, scale, nodes, options } = this.state;
 
-    const source = graph.nodes.get(edge.sourceNodeId);
-    const target = graph.nodes.get(edge.targetNodeId);
+    const source = nodes.get(edge.sourceNodeId);
+    const target = nodes.get(edge.targetNodeId);
 
     const sourceX = source.x * scale + translateX;
     const sourceY = source.y * scale + translateY;
@@ -197,12 +197,12 @@ export class GEGraphRenderer {
     if (!this.state.isCreatingEdge) return;
 
     const { ctx } = this;
-    const { pointerViewX, pointerViewY, graph, options } = this.state;
+    const { pointerViewX, pointerViewY, nodes, options } = this.state;
 
     const targetX = pointerViewX;
     const targetY = pointerViewY;
 
-    const source = graph.nodes.get(this.state.drageLineSourceNodeId);
+    const source = nodes.get(this.state.drageLineSourceNodeId);
     const dx = targetX - source.x;
     const dy = targetY - source.y;
 
@@ -381,10 +381,10 @@ export class GEGraphRenderer {
     if (this.isEdgeOutOfView(edge)) return;
 
     const { ctx } = this;
-    const { pointerCanvasX, pointerCanvasY, graph, options } = this.state;
+    const { pointerCanvasX, pointerCanvasY, nodes, options } = this.state;
 
-    const source = graph.nodes.get(edge.sourceNodeId);
-    const target = graph.nodes.get(edge.targetNodeId);
+    const source = nodes.get(edge.sourceNodeId);
+    const target = nodes.get(edge.targetNodeId);
     const dx = target.x - source.x;
     const dy = target.y - source.y;
 

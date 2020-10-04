@@ -74,7 +74,7 @@ export class GEView {
   }
 
   setData(nodes: GENode[], edges: GEEdge[]): void {
-    this._state.graph.setData(nodes, edges);
+    this._state.setData(nodes, edges);
     this.requestDraw();
   }
 

@@ -2,12 +2,14 @@ import {
   GEViewOptions,
   GEViewOptionsParams,
   GEGridType,
-  GEShapeName
+  GEShapeName,
+  GENode,
+  GEEdge
 } from "./types";
-import { GEGraph } from "./graph";
 
 export class GEState {
-  graph: GEGraph;
+  nodes: Map<number, GENode>;
+  edges: Map<number, GEEdge>;
 
   options: GEViewOptions;
 
@@ -42,9 +44,23 @@ export class GEState {
   dragLineTargetY = 0;
 
   constructor() {
-    this.graph = new GEGraph();
+    this.nodes = new Map<number, GENode>();
+    this.edges = new Map<number, GEEdge>();
 
     this.options = this.getDefaultOptions();
+  }
+
+  setData(nodes: GENode[], edges: GEEdge[]): void {
+    this.nodes.clear();
+    this.edges.clear();
+
+    nodes.forEach(node => {
+      this.nodes.set(node.id, node);
+    });
+
+    edges.forEach(edge => {
+      this.edges.set(edge.id, edge);
+    });
   }
 
   setOptions(options: GEViewOptionsParams): void {

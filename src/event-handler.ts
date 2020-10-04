@@ -49,7 +49,7 @@ export class GEEventHandler {
     this.state.selectedEdgeId = this.state.hoveredEdgeId;
 
     if (this.state.isShiftDown && this.state.selectedNodeId > 0) {
-      const node = this.state.graph.nodes.get(this.state.selectedNodeId);
+      const node = this.state.nodes.get(this.state.selectedNodeId);
 
       this.state.isCreatingEdge = true;
       this.state.drageLineSourceNodeId = this.state.selectedNodeId;
@@ -68,11 +68,9 @@ export class GEEventHandler {
       this.state.hoveredNodeId > 0 &&
       this.state.hoveredNodeId !== this.state.drageLineSourceNodeId
     ) {
-      const sourceNode = this.state.graph.nodes.get(
-        this.state.drageLineSourceNodeId
-      );
+      const sourceNode = this.state.nodes.get(this.state.drageLineSourceNodeId);
 
-      const targetNode = this.state.graph.nodes.get(this.state.hoveredNodeId);
+      const targetNode = this.state.nodes.get(this.state.hoveredNodeId);
 
       this.state.options.onCreateEdge?.(sourceNode, targetNode, evt);
     } else if (
@@ -114,7 +112,7 @@ export class GEEventHandler {
       !this.state.isCreatingEdge &&
       this.state.selectedNodeId > 0
     ) {
-      const node = this.state.graph.nodes.get(this.state.selectedNodeId);
+      const node = this.state.nodes.get(this.state.selectedNodeId);
 
       node.x += evt.movementX / this.state.scale;
       node.y += evt.movementY / this.state.scale;
@@ -144,16 +142,16 @@ export class GEEventHandler {
       evt.keyCode === 46
     ) {
       if (this.state.selectedNodeId > 0) {
-        const node = this.state.graph.nodes.get(this.state.selectedNodeId);
+        const node = this.state.nodes.get(this.state.selectedNodeId);
 
         this.state.options.onDeleteNode?.(node);
         this.state.selectedNodeId = 0;
       }
 
       if (this.state.selectedEdgeId > 0) {
-        const edge = this.state.graph.edges.get(this.state.selectedEdgeId);
-        const source = this.state.graph.nodes.get(edge.sourceNodeId);
-        const target = this.state.graph.nodes.get(edge.targetNodeId);
+        const edge = this.state.edges.get(this.state.selectedEdgeId);
+        const source = this.state.nodes.get(edge.sourceNodeId);
+        const target = this.state.nodes.get(edge.targetNodeId);
 
         this.state.options.onDeleteEdge?.(edge, source, target);
         this.state.selectedEdgeId = 0;
