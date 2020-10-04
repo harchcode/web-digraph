@@ -99,8 +99,6 @@ export class GEState {
       cursorGrab: "grab",
       cursorPointer: "pointer",
       cursorCrosshair: "crosshair",
-      defaultNodeType: "empty",
-      defaultEdgeType: "empty",
       nodeTypes: {
         empty: [
           {

@@ -158,8 +158,6 @@ graphView.setOptions({
   maxScale: 3.0,
   nodeTypes,
   edgeTypes,
-  defaultNodeType: "empty",
-  defaultEdgeType: "normal",
   onViewZoom: () => {
     zoomSlider.value = graphView.scale.toString();
   },

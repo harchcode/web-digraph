@@ -81,8 +81,6 @@ export type GEViewOptions = {
   cursorGrab: string;
   cursorPointer: string;
   cursorCrosshair: string;
-  defaultNodeType: string;
-  defaultEdgeType: string;
   nodeTypes: GEShapeTypes;
   edgeTypes: GEShapeTypes;
   onViewMoved?: () => void;
