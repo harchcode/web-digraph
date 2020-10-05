@@ -45,8 +45,18 @@ export class GEEventHandler {
 
     this.state.isDragging = true;
 
-    this.state.selectedNodeId = this.state.hoveredNodeId;
-    this.state.selectedEdgeId = this.state.hoveredEdgeId;
+    if (
+      this.state.selectedNodeId !== this.state.hoveredNodeId ||
+      this.state.selectedEdgeId !== this.state.hoveredEdgeId
+    ) {
+      this.state.selectedNodeId = this.state.hoveredNodeId;
+      this.state.selectedEdgeId = this.state.hoveredEdgeId;
+
+      this.state.options.onSelectionChange?.(
+        this.state.selectedNodeId,
+        this.state.selectedEdgeId
+      );
+    }
 
     if (this.state.selectedNodeId > 0) {
       const node = this.state.nodes.get(this.state.selectedNodeId);

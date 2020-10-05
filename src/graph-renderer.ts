@@ -41,8 +41,6 @@ export class GEGraphRenderer {
 
   draw = (): void => {
     this.state.isDrawing = false;
-    this.state.hoveredNodeId = 0;
-    this.state.hoveredEdgeId = 0;
 
     this.drawBackground();
 
@@ -109,11 +107,37 @@ export class GEGraphRenderer {
   }
 
   drawGraph(): void {
-    this.state.edges.forEach(this.drawEdge);
+    const { nodes, edges, options } = this.state;
 
+    const prevHoveredNodeId = this.state.hoveredNodeId;
+    const prevHoveredEdgeId = this.state.hoveredEdgeId;
+
+    this.state.hoveredNodeId = 0;
+    this.state.hoveredEdgeId = 0;
+
+    edges.forEach(this.drawEdge);
     this.drawDragLine();
+    nodes.forEach(this.drawNode);
 
-    this.state.nodes.forEach(this.drawNode);
+    // This event is done here because we are using canvas to check hover.
+    // Please let me know if there is a better way.
+    if (
+      !this.state.isMovingNode() &&
+      !this.state.isMovingView() &&
+      (this.state.hoveredNodeId !== prevHoveredNodeId ||
+        this.state.hoveredEdgeId !== prevHoveredEdgeId)
+    ) {
+      options.onHoverChange(
+        this.state.hoveredNodeId,
+        this.state.hoveredEdgeId,
+        this.state.pointerViewX,
+        this.state.pointerViewY,
+        this.state.pointerCanvasX,
+        this.state.pointerCanvasY,
+        this.state.pointerScreenX,
+        this.state.pointerScreenY
+      );
+    }
   }
 
   getShapeBound(shapes: GEShapes): number {

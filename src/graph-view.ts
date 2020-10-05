@@ -83,6 +83,15 @@ export class GEView {
     this.requestDraw();
   }
 
+  setSelection(nodeId: number, edgeId: number): void {
+    if (nodeId > 0 && edgeId > 0) return;
+
+    this._state.selectedNodeId = nodeId;
+    this._state.selectedEdgeId = edgeId;
+
+    this.requestDraw();
+  }
+
   setSelectedNode(id: number): void {
     this._state.selectedNodeId = id;
     this._state.selectedEdgeId = 0;
