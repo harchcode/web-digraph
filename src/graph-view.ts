@@ -87,38 +87,34 @@ export class GEView {
     this.requestDraw();
   }
 
-  setSelection(nodeId: number, edgeId: number): void {
-    if (nodeId > 0 && edgeId > 0) return;
+  setSelection(node: GENode | undefined, edge: GEEdge | undefined): void {
+    if (node && edge) return;
 
-    this._state.selectedNodeId = nodeId;
-    this._state.selectedEdgeId = edgeId;
+    this._state.selectedNode = node;
+    this._state.selectedEdge = edge;
 
     this.requestDraw();
   }
 
-  setSelectedNode(id: number): void {
-    this._state.selectedNodeId = id;
-    this._state.selectedEdgeId = 0;
+  setSelectedNode(node: GENode | undefined): void {
+    this._state.selectedNode = node;
+    this._state.selectedEdge = undefined;
 
     this.requestDraw();
   }
 
   getSelectedNode(): GENode | undefined {
-    if (this._state.selectedNodeId <= 0) return undefined;
-
-    return this._state.nodes.get(this._state.selectedNodeId);
+    return this._state.selectedNode;
   }
 
-  setSelectedEdge(id: number): void {
-    this._state.selectedNodeId = 0;
-    this._state.selectedEdgeId = id;
+  setSelectedEdge(edge: GEEdge | undefined): void {
+    this._state.selectedNode = undefined;
+    this._state.selectedEdge = edge;
 
     this.requestDraw();
   }
 
   getSelectedEdge(): GEEdge | undefined {
-    if (this._state.selectedEdgeId <= 0) return undefined;
-
-    return this._state.edges.get(this._state.selectedEdgeId);
+    return this._state.selectedEdge;
   }
 }
