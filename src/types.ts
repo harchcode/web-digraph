@@ -88,18 +88,23 @@ export type GEViewOptions = {
   onCreateNode?: (x: number, y: number, evt: MouseEvent) => void;
   onMoveNode?: (node: GENode, newX: number, newY: number) => void;
   onDeleteNode?: (node: GENode) => void;
-  onSelectNode?: (node: GENode) => void;
-  onNodeMouseOver?: (node: GENode) => void;
-  onNodeMouseOut?: (node: GENode) => void;
   onCreateEdge?: (
     sourceNode: GENode,
     targetNode: GENode,
     evt: MouseEvent
   ) => void;
   onDeleteEdge?: (edge: GEEdge, sourceNode: GENode, targetNode: GENode) => void;
-  onSelectEdge?: (edge: GEEdge) => void;
-  onEdgeMouseOver?: (edge: GEEdge) => void;
-  onEdgeMouseOut?: (edge: GEEdge) => void;
+  onSelectionChange?: (selectedNodeId: number, selectedEdgeId: number) => void;
+  onHoverChange?: (
+    hoveredNodeId: number,
+    hoveredEdgeId: number,
+    viewX: number,
+    viewY: number,
+    canvasX: number,
+    canvasY: number,
+    clientX: number,
+    clientY: number
+  ) => void;
 };
 
 export type GEViewOptionsParams = {
