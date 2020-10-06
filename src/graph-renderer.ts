@@ -127,7 +127,7 @@ export class GEGraphRenderer {
       (this.state.hoveredNodeId !== prevHoveredNodeId ||
         this.state.hoveredEdgeId !== prevHoveredEdgeId)
     ) {
-      options.onHoverChange(
+      options.onHoverChange?.(
         this.state.hoveredNodeId,
         this.state.hoveredEdgeId,
         this.state.pointerViewX,
