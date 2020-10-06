@@ -121,8 +121,8 @@ function handleCreateEdge(sourceNode: GENode, targetNode: GENode) {
 
   const newEdge: GEEdge = {
     id: lastId,
-    sourceNodeId: sourceNode.id,
-    targetNodeId: targetNode.id,
+    sourceNode,
+    targetNode,
     type: "normal",
     text: lastId.toString()
   };
@@ -134,10 +134,8 @@ function handleCreateEdge(sourceNode: GENode, targetNode: GENode) {
 }
 
 function handleDeleteNode(node: GENode) {
-  nodes = nodes.filter(n => n.id !== node.id);
-  edges = edges.filter(
-    e => e.sourceNodeId !== node.id && e.targetNodeId !== node.id
-  );
+  nodes = nodes.filter(n => n !== node);
+  edges = edges.filter(e => e.sourceNode !== node && e.targetNode !== node);
 
   graphView.setData(nodes, edges);
 
@@ -164,7 +162,7 @@ graphView.setOptions({
   nodeTypes,
   edgeTypes,
   onViewZoom: () => {
-    zoomSlider.value = graphView.scale.toString();
+    zoomSlider.value = graphView.getScale().toString();
   },
   onCreateNode: handleCreateNode,
   onCreateEdge: handleCreateEdge,
@@ -218,8 +216,8 @@ function randomize(nodeCount = 1000, cols = 40) {
       lastId++;
       edges.push({
         id: lastId,
-        sourceNodeId: prevNode.id,
-        targetNodeId: currNode.id,
+        sourceNode: prevNode,
+        targetNode: currNode,
         type: edgeType,
         text: lastId.toString()
       });

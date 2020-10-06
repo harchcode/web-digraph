@@ -8,8 +8,8 @@ import {
 } from "./types";
 
 export class GEState {
-  nodes: Map<number, GENode>;
-  edges: Map<number, GEEdge>;
+  nodes: GENode[];
+  edges: GEEdge[];
 
   options: GEViewOptions;
 
@@ -35,43 +35,35 @@ export class GEState {
   boundingClientRect: DOMRect;
 
   // selection
-  selectedNodeId = 0;
-  selectedEdgeId = 0;
-  hoveredNodeId = 0;
-  hoveredEdgeId = 0;
+  selectedNode: GENode | undefined = undefined;
+  selectedEdge: GEEdge | undefined = undefined;
+  hoveredNode: GENode | undefined = undefined;
+  hoveredEdge: GEEdge | undefined = undefined;
 
   // drag line when creating edge
   isCreatingEdge = false;
-  drageLineSourceNodeId = 0;
+  dragLineSourceNode: GENode | undefined = undefined;
   dragLineTargetX = 0;
   dragLineTargetY = 0;
 
   constructor() {
-    this.nodes = new Map<number, GENode>();
-    this.edges = new Map<number, GEEdge>();
+    this.nodes = [];
+    this.edges = [];
 
     this.options = this.getDefaultOptions();
   }
 
   isMovingNode(): boolean {
-    return this.isDragging && !this.isCreatingEdge && this.selectedNodeId > 0;
+    return this.isDragging && this.selectedNode && !this.isCreatingEdge;
   }
 
   isMovingView(): boolean {
-    return !this.isShiftDown && this.isDragging && this.selectedNodeId <= 0;
+    return !this.isShiftDown && this.isDragging && !this.selectedNode;
   }
 
   setData(nodes: GENode[], edges: GEEdge[]): void {
-    this.nodes.clear();
-    this.edges.clear();
-
-    nodes.forEach(node => {
-      this.nodes.set(node.id, node);
-    });
-
-    edges.forEach(edge => {
-      this.edges.set(edge.id, edge);
-    });
+    this.nodes = nodes;
+    this.edges = edges;
   }
 
   setOptions(options: GEViewOptionsParams): void {

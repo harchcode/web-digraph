@@ -46,24 +46,24 @@ export class GEEventHandler {
     this.state.isDragging = true;
 
     if (
-      this.state.selectedNodeId !== this.state.hoveredNodeId ||
-      this.state.selectedEdgeId !== this.state.hoveredEdgeId
+      this.state.selectedNode !== this.state.hoveredNode ||
+      this.state.selectedEdge !== this.state.hoveredEdge
     ) {
-      this.state.selectedNodeId = this.state.hoveredNodeId;
-      this.state.selectedEdgeId = this.state.hoveredEdgeId;
+      this.state.selectedNode = this.state.hoveredNode;
+      this.state.selectedEdge = this.state.hoveredEdge;
 
       this.state.options.onSelectionChange?.(
-        this.state.selectedNodeId,
-        this.state.selectedEdgeId
+        this.state.selectedNode,
+        this.state.selectedEdge
       );
     }
 
-    if (this.state.selectedNodeId > 0) {
-      const node = this.state.nodes.get(this.state.selectedNodeId);
+    if (this.state.selectedNode) {
+      const node = this.state.selectedNode;
 
       if (this.state.isShiftDown) {
         this.state.isCreatingEdge = true;
-        this.state.drageLineSourceNodeId = this.state.selectedNodeId;
+        this.state.dragLineSourceNode = node;
         this.state.dragLineTargetX = node.x;
         this.state.dragLineTargetY = node.y;
       } else {
@@ -95,19 +95,18 @@ export class GEEventHandler {
 
     if (
       this.state.isCreatingEdge &&
-      this.state.hoveredNodeId > 0 &&
-      this.state.hoveredNodeId !== this.state.drageLineSourceNodeId
+      this.state.hoveredNode &&
+      this.state.hoveredNode !== this.state.dragLineSourceNode
     ) {
-      const sourceNode = this.state.nodes.get(this.state.drageLineSourceNodeId);
-
-      const targetNode = this.state.nodes.get(this.state.hoveredNodeId);
+      const sourceNode = this.state.dragLineSourceNode;
+      const targetNode = this.state.hoveredNode;
 
       this.state.options.onCreateEdge?.(sourceNode, targetNode, evt);
     } else if (
       this.state.isShiftDown &&
       !this.state.isCreatingEdge &&
-      this.state.hoveredNodeId <= 0 &&
-      this.state.hoveredEdgeId <= 0
+      !this.state.hoveredNode &&
+      !this.state.hoveredEdge
     ) {
       this.state.options.onCreateNode?.(
         this.state.pointerViewX,
@@ -115,7 +114,7 @@ export class GEEventHandler {
         evt
       );
     } else if (this.state.isMovingNode()) {
-      const node = this.state.nodes.get(this.state.selectedNodeId);
+      const node = this.state.selectedNode;
 
       this.state.options.onMoveNode?.(
         node,
@@ -133,7 +132,7 @@ export class GEEventHandler {
   updateCursorStyle = (): void => {
     const { options } = this.state;
 
-    if (this.state.hoveredNodeId > 0 || this.state.hoveredEdgeId > 0) {
+    if (this.state.hoveredNode || this.state.hoveredEdge) {
       this.canvas.style.cursor = options.cursorPointer;
     } else if (!this.state.isShiftDown) {
       this.canvas.style.cursor = options.cursorGrab;
@@ -154,20 +153,20 @@ export class GEEventHandler {
       evt.key === "Delete" ||
       evt.keyCode === 46
     ) {
-      if (this.state.selectedNodeId > 0) {
-        const node = this.state.nodes.get(this.state.selectedNodeId);
+      if (this.state.selectedNode) {
+        const node = this.state.selectedNode;
 
         this.state.options.onDeleteNode?.(node);
-        this.state.selectedNodeId = 0;
+        this.state.selectedNode = undefined;
       }
 
-      if (this.state.selectedEdgeId > 0) {
-        const edge = this.state.edges.get(this.state.selectedEdgeId);
-        const source = this.state.nodes.get(edge.sourceNodeId);
-        const target = this.state.nodes.get(edge.targetNodeId);
+      if (this.state.selectedEdge) {
+        const edge = this.state.selectedEdge;
+        const source = edge.sourceNode;
+        const target = edge.targetNode;
 
         this.state.options.onDeleteEdge?.(edge, source, target);
-        this.state.selectedEdgeId = 0;
+        this.state.selectedEdge = undefined;
       }
 
       this.renderer.requestDraw();

@@ -109,11 +109,11 @@ export class GEGraphRenderer {
   drawGraph(): void {
     const { nodes, edges, options } = this.state;
 
-    const prevHoveredNodeId = this.state.hoveredNodeId;
-    const prevHoveredEdgeId = this.state.hoveredEdgeId;
+    const prevhoveredNode = this.state.hoveredNode;
+    const prevhoveredEdge = this.state.hoveredEdge;
 
-    this.state.hoveredNodeId = 0;
-    this.state.hoveredEdgeId = 0;
+    this.state.hoveredNode = undefined;
+    this.state.hoveredEdge = undefined;
 
     edges.forEach(this.drawEdge);
     this.drawDragLine();
@@ -124,12 +124,12 @@ export class GEGraphRenderer {
     if (
       !this.state.isMovingNode() &&
       !this.state.isMovingView() &&
-      (this.state.hoveredNodeId !== prevHoveredNodeId ||
-        this.state.hoveredEdgeId !== prevHoveredEdgeId)
+      (this.state.hoveredNode !== prevhoveredNode ||
+        this.state.hoveredEdge !== prevhoveredEdge)
     ) {
       options.onHoverChange?.(
-        this.state.hoveredNodeId,
-        this.state.hoveredEdgeId,
+        this.state.hoveredNode,
+        this.state.hoveredEdge,
         this.state.pointerViewX,
         this.state.pointerViewY,
         this.state.pointerCanvasX,
@@ -172,10 +172,10 @@ export class GEGraphRenderer {
 
   isEdgeOutOfView(edge: GEEdge): boolean {
     const { canvas } = this;
-    const { translateX, translateY, scale, nodes, options } = this.state;
+    const { translateX, translateY, scale, options } = this.state;
 
-    const source = nodes.get(edge.sourceNodeId);
-    const target = nodes.get(edge.targetNodeId);
+    const source = edge.sourceNode;
+    const target = edge.targetNode;
 
     const sourceX = source.x * scale + translateX;
     const sourceY = source.y * scale + translateY;
@@ -221,12 +221,12 @@ export class GEGraphRenderer {
     if (!this.state.isCreatingEdge) return;
 
     const { ctx } = this;
-    const { pointerViewX, pointerViewY, nodes, options } = this.state;
+    const { pointerViewX, pointerViewY, options } = this.state;
 
     const targetX = pointerViewX;
     const targetY = pointerViewY;
 
-    const source = nodes.get(this.state.drageLineSourceNodeId);
+    const source = this.state.dragLineSourceNode;
     const dx = targetX - source.x;
     const dy = targetY - source.y;
 
@@ -357,11 +357,10 @@ export class GEGraphRenderer {
       options,
       moveNodeX,
       moveNodeY,
-      selectedNodeId
+      selectedNode
     } = this.state;
 
-    const isMovingNode =
-      this.state.isMovingNode() && selectedNodeId === node.id;
+    const isMovingNode = this.state.isMovingNode() && selectedNode === node;
     const x = isMovingNode ? moveNodeX : node.x;
     const y = isMovingNode ? moveNodeY : node.y;
 
@@ -374,11 +373,11 @@ export class GEGraphRenderer {
     this.shapePath(x, y, shapes[0]);
 
     if (ctx.isPointInPath(pointerCanvasX, pointerCanvasY)) {
-      this.state.hoveredNodeId = node.id;
+      this.state.hoveredNode = node;
     }
 
-    const selected = node.id === this.state.selectedNodeId;
-    const hovered = node.id === this.state.hoveredNodeId;
+    const selected = node === this.state.selectedNode;
+    const hovered = node === this.state.hoveredNode;
 
     ctx.strokeStyle =
       selected || hovered ? options.nodeSelectedColor : options.nodeStrokeColor;
@@ -413,24 +412,23 @@ export class GEGraphRenderer {
     const {
       pointerCanvasX,
       pointerCanvasY,
-      nodes,
       options,
-      selectedNodeId,
+      selectedNode,
       moveNodeX,
       moveNodeY
     } = this.state;
 
-    const source = nodes.get(edge.sourceNodeId);
-    const target = nodes.get(edge.targetNodeId);
+    const source = edge.sourceNode;
+    const target = edge.targetNode;
 
     const isMovingSourceNode =
-      this.state.isMovingNode() && source.id === selectedNodeId;
+      this.state.isMovingNode() && source === selectedNode;
 
     const sourceX = isMovingSourceNode ? moveNodeX : source.x;
     const sourceY = isMovingSourceNode ? moveNodeY : source.y;
 
     const isMovingTargetNode =
-      this.state.isMovingNode() && target.id === selectedNodeId;
+      this.state.isMovingNode() && target === selectedNode;
 
     const targetX = isMovingTargetNode ? moveNodeX : target.x;
     const targetY = isMovingTargetNode ? moveNodeY : target.y;
@@ -478,7 +476,7 @@ export class GEGraphRenderer {
       ctx.isPointInPath(pointerCanvasX, pointerCanvasY) ||
       ctx.isPointInStroke(pointerCanvasX, pointerCanvasY)
     ) {
-      this.state.hoveredEdgeId = edge.id;
+      this.state.hoveredEdge = edge;
     }
 
     ctx.beginPath();
@@ -500,11 +498,11 @@ export class GEGraphRenderer {
       ctx.isPointInPath(pointerCanvasX, pointerCanvasY) ||
       ctx.isPointInStroke(pointerCanvasX, pointerCanvasY)
     ) {
-      this.state.hoveredEdgeId = edge.id;
+      this.state.hoveredEdge = edge;
     }
 
-    const selected = edge.id === this.state.selectedEdgeId;
-    const hovered = edge.id === this.state.hoveredEdgeId;
+    const selected = edge === this.state.selectedEdge;
+    const hovered = edge === this.state.hoveredEdge;
     const shapes = options.edgeTypes[edge.type];
 
     if (selected || hovered) {

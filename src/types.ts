@@ -42,8 +42,8 @@ export type GENode = {
 export type GEEdge = {
   id: number;
   text: string;
-  sourceNodeId: number;
-  targetNodeId: number;
+  sourceNode: GENode;
+  targetNode: GENode;
   type: string;
 };
 
@@ -94,10 +94,13 @@ export type GEViewOptions = {
     evt: MouseEvent
   ) => void;
   onDeleteEdge?: (edge: GEEdge, sourceNode: GENode, targetNode: GENode) => void;
-  onSelectionChange?: (selectedNodeId: number, selectedEdgeId: number) => void;
+  onSelectionChange?: (
+    selectedNode: GENode | undefined,
+    selectedEdge: GEEdge | undefined
+  ) => void;
   onHoverChange?: (
-    hoveredNodeId: number,
-    hoveredEdgeId: number,
+    hoveredNode: GENode | undefined,
+    hoveredEdge: GEEdge | undefined,
     viewX: number,
     viewY: number,
     canvasX: number,
