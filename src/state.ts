@@ -8,8 +8,8 @@ import {
 } from "./types";
 
 export class GEState {
-  nodes: { [id: number]: GENode };
-  edges: { [id: number]: GEEdge };
+  nodes: GENode[];
+  edges: GEEdge[];
 
   options: GEViewOptions;
 
@@ -47,8 +47,8 @@ export class GEState {
   dragLineTargetY = 0;
 
   constructor() {
-    this.nodes = Object.create(null);
-    this.edges = Object.create(null);
+    this.nodes = [];
+    this.edges = [];
 
     this.options = this.getDefaultOptions();
   }
@@ -62,16 +62,8 @@ export class GEState {
   }
 
   setData(nodes: GENode[], edges: GEEdge[]): void {
-    this.nodes = Object.create(null);
-    this.edges = Object.create(null);
-
-    nodes.forEach(node => {
-      this.nodes[node.id] = node;
-    });
-
-    edges.forEach(edge => {
-      this.edges[edge.id] = edge;
-    });
+    this.nodes = nodes;
+    this.edges = edges;
   }
 
   setOptions(options: GEViewOptionsParams): void {

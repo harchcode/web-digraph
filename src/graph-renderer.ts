@@ -115,15 +115,9 @@ export class GEGraphRenderer {
     this.state.hoveredNode = undefined;
     this.state.hoveredEdge = undefined;
 
-    for (const k in edges) {
-      this.drawEdge(edges[k]);
-    }
-
+    edges.forEach(this.drawEdge);
     this.drawDragLine();
-
-    for (const k in nodes) {
-      this.drawNode(nodes[k]);
-    }
+    nodes.forEach(this.drawNode);
 
     // This event is done here because we are using canvas to check hover.
     // Please let me know if there is a better way.
@@ -178,10 +172,10 @@ export class GEGraphRenderer {
 
   isEdgeOutOfView(edge: GEEdge): boolean {
     const { canvas } = this;
-    const { translateX, translateY, scale, nodes, options } = this.state;
+    const { translateX, translateY, scale, options } = this.state;
 
-    const source = nodes[edge.sourceNodeId];
-    const target = nodes[edge.targetNodeId];
+    const source = edge.sourceNode;
+    const target = edge.targetNode;
 
     const sourceX = source.x * scale + translateX;
     const sourceY = source.y * scale + translateY;
@@ -227,7 +221,7 @@ export class GEGraphRenderer {
     if (!this.state.isCreatingEdge) return;
 
     const { ctx } = this;
-    const { pointerViewX, pointerViewY, nodes, options } = this.state;
+    const { pointerViewX, pointerViewY, options } = this.state;
 
     const targetX = pointerViewX;
     const targetY = pointerViewY;
@@ -418,15 +412,14 @@ export class GEGraphRenderer {
     const {
       pointerCanvasX,
       pointerCanvasY,
-      nodes,
       options,
       selectedNode,
       moveNodeX,
       moveNodeY
     } = this.state;
 
-    const source = nodes[edge.sourceNodeId];
-    const target = nodes[edge.targetNodeId];
+    const source = edge.sourceNode;
+    const target = edge.targetNode;
 
     const isMovingSourceNode =
       this.state.isMovingNode() && source === selectedNode;

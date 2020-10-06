@@ -42,8 +42,8 @@ export type GENode = {
 export type GEEdge = {
   id: number;
   text: string;
-  sourceNodeId: number;
-  targetNodeId: number;
+  sourceNode: GENode;
+  targetNode: GENode;
   type: string;
 };
 

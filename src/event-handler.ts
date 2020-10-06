@@ -162,8 +162,8 @@ export class GEEventHandler {
 
       if (this.state.selectedEdge) {
         const edge = this.state.selectedEdge;
-        const source = this.state.nodes[edge.sourceNodeId];
-        const target = this.state.nodes[edge.targetNodeId];
+        const source = edge.sourceNode;
+        const target = edge.targetNode;
 
         this.state.options.onDeleteEdge?.(edge, source, target);
         this.state.selectedEdge = undefined;
