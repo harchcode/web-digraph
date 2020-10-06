@@ -164,7 +164,7 @@ graphView.setOptions({
   nodeTypes,
   edgeTypes,
   onViewZoom: () => {
-    zoomSlider.value = graphView.scale.toString();
+    zoomSlider.value = graphView.getScale().toString();
   },
   onCreateNode: handleCreateNode,
   onCreateEdge: handleCreateEdge,

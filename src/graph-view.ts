@@ -25,19 +25,23 @@ export class GEView {
     }
   }
 
-  get translateX(): number {
+  getTranslateX(): number {
     return this._state.translateX;
   }
-  get translateY(): number {
+
+  getTanslateY(): number {
     return this._state.translateY;
   }
-  get scale(): number {
+  getScale(): number {
     return this._state.scale;
   }
 
   zoomTo(value: number): void {
-    const centerX = (this.canvas.width * 0.5 - this.translateX) / this.scale;
-    const centerY = (this.canvas.height * 0.5 - this.translateY) / this.scale;
+    const { width, height } = this.canvas;
+    const { translateX, translateY, scale } = this._state;
+
+    const centerX = (width * 0.5 - translateX) / scale;
+    const centerY = (height * 0.5 - translateY) / scale;
 
     this._state.zoomTo(value, centerX, centerY);
 
