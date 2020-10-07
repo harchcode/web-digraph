@@ -20,6 +20,15 @@ html, body {
   position: relative;
 }
 
+#hints {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  margin: 1em;
+  font-size: 0.9em;
+  color: #718096
+}
+
 #buttons {
   position: absolute;
   top: 0;
