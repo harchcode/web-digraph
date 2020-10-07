@@ -1,13 +1,13 @@
 {
   "name": "web-digraph",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "A web component to create directed graph editor.",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
   "repository": {
     "url": "https://github.com/harchcode/web-digraph"
   },
-  "keywords": [],
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "keywords": ["graph", "digraph"],
   "license": "MIT",
   "scripts": {
     "dev:example": "parcel src/example/index.html --port 1234 --hmr-port 1235",
