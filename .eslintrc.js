@@ -16,7 +16,6 @@ module.exports = {
     "max-lines": ["error", 600],
     "no-console": ["error", { allow: ["warn", "error", "info"] }],
     "no-param-reassign": ["error", { props: false }],
-    "prefer-destructuring": ["error", { object: true, array: false }],
     "@typescript-eslint/no-use-before-define": ["error", { functions: false }]
   },
   overrides: [
