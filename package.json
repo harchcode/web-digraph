@@ -1,6 +1,6 @@
 {
   "name": "web-digraph",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A library to create directed graph editor on the web.",
   "repository": {
     "url": "https://github.com/harchcode/web-digraph"
