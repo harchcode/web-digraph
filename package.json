@@ -2,36 +2,78 @@
   "name": "web-digraph",
   "version": "0.1.1",
   "description": "A library to create directed graph editor on the web.",
+  "author": "Hartono Chandra",
   "repository": {
     "url": "https://github.com/harchcode/web-digraph"
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "keywords": ["graph", "digraph"],
+  "keywords": [
+    "graph",
+    "digraph"
+  ],
   "license": "MIT",
+  "module": "dist/web-digraph.esm.js",
+  "typings": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "src"
+  ],
+  "engines": {
+    "node": ">=12"
+  },
   "scripts": {
-    "dev:example": "parcel src/example/index.html --port 1234 --hmr-port 1235",
-    "build:example": "rm -rf dist-example && parcel build src/example/index.html --out-dir dist-example",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "rm -rf dist && tsc src/index.ts --outDir dist --declaration",
-    "format": "prettier --write \"src/**/*.ts\" \"src/**/*.js\"",
-    "lint": "eslint './{src,test}/**/*.{js,ts}'"
+    "start": "tsdx watch",
+    "build": "tsdx build",
+    "test": "tsdx test",
+    "test:clear": "tsdx test --clearCache",
+    "lint": "eslint src test",
+    "lint-staged": "lint-staged",
+    "prepare": "husky install",
+    "size": "size-limit",
+    "analyze": "size-limit --why",
+    "release": "standard-version",
+    "generate-docs": "typedoc --out docs src/index.ts"
   },
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^4.1.1",
-    "@typescript-eslint/parser": "^4.1.1",
-    "@webcomponents/custom-elements": "^1.4.2",
-    "eslint": "^7.9.0",
-    "eslint-config-prettier": "^6.11.0",
-    "eslint-plugin-prettier": "^3.1.4",
-    "husky": "^4.3.0",
-    "parcel-bundler": "^1.12.4",
-    "prettier": "^2.1.2",
-    "typescript": "^4.0.3"
+    "@size-limit/preset-small-lib": "^7.0.8",
+    "@typescript-eslint/eslint-plugin": "^5.17.0",
+    "@typescript-eslint/parser": "^5.17.0",
+    "eslint": "^8.12.0",
+    "eslint-config-prettier": "^8.5.0",
+    "eslint-plugin-prettier": "^4.0.0",
+    "husky": "^7.0.4",
+    "lint-staged": "^12.3.7",
+    "prettier": "^2.6.1",
+    "size-limit": "^7.0.8",
+    "standard-version": "^9.3.2",
+    "tsdx": "^0.14.1",
+    "tslib": "^2.3.1",
+    "typescript": "^4.6.3"
   },
-  "husky": {
-    "hooks": {
-      "pre-commit": "npm run lint"
+  "lint-staged": {
+    "{src,test}/**/*.{js,ts}": [
+      "eslint"
+    ]
+  },
+  "size-limit": [
+    {
+      "path": "dist/web-digraph.cjs.production.min.js",
+      "limit": "10 KB"
+    },
+    {
+      "path": "dist/web-digraph.esm.js",
+      "limit": "10 KB"
+    }
+  ],
+  "jest": {
+    "coverageThreshold": {
+      "global": {
+        "branches": 0,
+        "functions": 0,
+        "lines": 0,
+        "statements": 0
+      }
     }
   }
 }
