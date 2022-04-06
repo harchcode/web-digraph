@@ -1,0 +1,3 @@
+type GraphState = {
+  isDrawing: boolean;
+};

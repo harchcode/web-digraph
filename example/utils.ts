@@ -1,4 +1,4 @@
-import { GENode, GEEdge } from "../types";
+import { GENode, GEEdge } from "../src/types";
 
 export function getRandomIntInclusive(minF: number, maxF: number): number {
   const min = Math.ceil(minF);

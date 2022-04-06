@@ -1,4 +1,4 @@
-import { GEView, GENode, GEEdge } from "../index";
+import { GEView, GENode, GEEdge } from "../src/index";
 import { nodeTypes, edgeTypes } from "./node-types";
 import { randomize } from "./utils";
 

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <meta
+      name="description"
+      content="Library to create a directed graph editor."
+    />
+
+    <title>web-digraph example</title>
+
+    <link rel="stylesheet" href="./index.css" />
+  </head>
+
+  <body>
+    <div id="container">
+      <div id="graph"></div>
+
+      <div id="buttons">
+        <div class="zoom-input">
+          <input
+            id="zoom-slider"
+            type="range"
+            title="Zoom range slider"
+            min="0.2"
+            max="3.0"
+            step="0.01"
+            value="1.0"
+          />
+        </div>
+
+        <div class="generate-input">
+          <input
+            id="generate-textbox"
+            type="text"
+            title="Type number nodes to generate"
+            placeholder="Total nodes"
+            maxlength="4"
+            value="100"
+          />
+
+          <button id="generate-button" type="button">Go</button>
+        </div>
+
+        <div class="info">
+          <div>
+            Node count:
+            <span id="node-count-span">0</span>
+          </div>
+
+          <div>
+            Edge count:
+            <span id="edge-count-span">0</span>
+          </div>
+        </div>
+      </div>
+
+      <div id="hints">
+        <div>
+          Press and hold shift, and then click on empty place to create a new
+          node.
+        </div>
+
+        <div>
+          Press and hold shift, and then click and drag a node to another node
+          to create a new edge.
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="./index.ts"></script>
+  </body>
+</html>

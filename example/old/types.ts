@@ -52,38 +52,6 @@ export enum GEGridType {
   DOTS
 }
 
-export type GraphViewOptions = {
-  edgeArrowLength: number;
-  edgeArrowRadian: number;
-  backgroundColor: string;
-  showGrid: boolean;
-  gridColor: string;
-  gridLineWidth: number;
-  gridGap: number;
-  defaultSubShapeColor: string;
-  nodeLineWidth: number;
-  nodeColor: string;
-  nodeSelectedColor: string;
-  nodeStrokeColor: string;
-  nodeTextColor: string;
-  nodeSelectedTextColor: string;
-  nodeTextStyle: string;
-  edgeLineWidth: number;
-  edgeLineColor: string;
-  edgeLineSelectedColor: string;
-  edgeShapeFillColor: string;
-  edgeTextColor: string;
-  edgeSelectedTextColor: string;
-  edgeTextStyle: string;
-  minScale: number;
-  maxScale: number;
-  cursorGrab: string;
-  cursorPointer: string;
-  cursorCrosshair: string;
-  nodeTypes: GEShapeTypes;
-  edgeTypes: GEShapeTypes;
-};
-
 export type GEViewOptions = {
   edgeArrowLength: number;
   edgeArrowRadian: number;

@@ -1,4 +1,4 @@
-import { GEShapeTypes, GEShapeName } from "../types";
+import { GEShapeTypes, GEShapeName } from "../src/types";
 
 export const nodeTypes: GEShapeTypes = {
   empty: [

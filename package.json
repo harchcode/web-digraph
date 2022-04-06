@@ -33,7 +33,9 @@
     "size": "size-limit",
     "analyze": "size-limit --why",
     "release": "standard-version",
-    "generate-docs": "typedoc --out docs src/index.ts"
+    "example:dev": "vite",
+    "example:build": "tsc && vite build",
+    "example:preview:": "vite preview"
   },
   "devDependencies": {
     "@size-limit/preset-small-lib": "^7.0.8",
@@ -49,7 +51,8 @@
     "standard-version": "^9.3.2",
     "tsdx": "^0.14.1",
     "tslib": "^2.3.1",
-    "typescript": "^4.6.3"
+    "typescript": "^4.6.3",
+    "vite": "^2.9.1"
   },
   "lint-staged": {
     "{src,test}/**/*.{js,ts}": [
