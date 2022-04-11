@@ -6,6 +6,7 @@ import {
   initDefaultGraphEvents,
   createGraphView
 } from "../src";
+import { normalEdgeShape, normalNodeShape } from "./node-types";
 
 const graphDiv = document.getElementById("graph") as HTMLDivElement;
 const nodeCountSpan = document.getElementById("node-count-span");
@@ -16,26 +17,99 @@ const generateTextbox = document.getElementById(
 ) as HTMLInputElement;
 const generateButton = document.getElementById("generate-button");
 
-const nodes: GraphNode[] = [];
-const edges: GraphEdge[] = [];
-const lastId = 0;
+let nodes: GraphNode[] = [
+  {
+    x: 300,
+    y: 200,
+    shape: normalNodeShape
+  },
+  {
+    x: 200,
+    y: 700,
+    shape: normalNodeShape
+  },
+  {
+    x: 600,
+    y: 100,
+    shape: normalNodeShape
+  }
+];
+let edges: GraphEdge[] = [
+  {
+    source: nodes[1],
+    target: nodes[0],
+    shape: normalEdgeShape
+  }
+];
+// const lastId = 0;
+let isDragging = false;
+const pos: [number, number] = [0, 0];
+const startPos: [number, number] = [0, 0];
 
-const graphView = createGraphView(graphDiv);
-initDefaultGraphEvents(graphView);
+const graphView = createGraphView(graphDiv, nodes, edges);
+
+graphView.canvas.addEventListener(
+  "mousedown",
+  e => {
+    isDragging = true;
+
+    startPos[0] = e.x;
+    startPos[1] = e.y;
+  },
+  {
+    passive: true
+  }
+);
+window.addEventListener(
+  "mouseup",
+  () => {
+    isDragging = false;
+  },
+  { passive: true }
+);
+window.addEventListener(
+  "mousemove",
+  e => {
+    if (!isDragging) return;
+
+    const dx = e.x - startPos[0];
+    const dy = e.y - startPos[1];
+
+    graphView.moveBy(dx, dy);
+
+    startPos[0] = e.x;
+    startPos[1] = e.y;
+  },
+  {
+    passive: true
+  }
+);
+graphView.canvas.addEventListener(
+  "wheel",
+  e => {
+    e.preventDefault();
+    graphView.setViewPosFromWindowPos(pos, e.x, e.y);
+
+    graphView.zoomBy(-e.deltaY * 0.001, pos[0], pos[1]);
+  },
+  {
+    passive: false
+  }
+);
 
 // graphView.requestDraw();
 
-// function updateNodeCount(): void {
-//   if (!nodeCountSpan) return;
+function updateNodeCount(): void {
+  if (!nodeCountSpan) return;
 
-//   nodeCountSpan.innerHTML = nodes.length.toString();
-// }
+  nodeCountSpan.innerHTML = nodes.length.toString();
+}
 
-// function updateEdgeCount(): void {
-//   if (!edgeCountSpan) return;
+function updateEdgeCount(): void {
+  if (!edgeCountSpan) return;
 
-//   edgeCountSpan.innerHTML = edges.length.toString();
-// }
+  edgeCountSpan.innerHTML = edges.length.toString();
+}
 
 // function handleCreateNode(x: number, y: number) {
 //   lastId += 1;
@@ -108,20 +182,21 @@ initDefaultGraphEvents(graphView);
 //   graphView.zoomTo(Number(target.value));
 // });
 
-// if (generateButton) {
-//   generateButton.addEventListener("click", () => {
-//     const value = parseInt(generateTextbox.value, 10);
-//     const columns = Math.ceil(Math.sqrt(value));
+if (generateButton) {
+  generateButton.addEventListener("click", () => {
+    const value = parseInt(generateTextbox.value, 10);
+    const columns = Math.ceil(Math.sqrt(value));
 
-//     const r = randomize(value, columns);
+    const r = randomize(value, columns);
 
-//     lastId = r.lastId;
-//     nodes = r.nodes;
-//     edges = r.edges;
+    // lastId = r.lastId;
+    nodes = r.nodes;
+    edges = r.edges;
 
-//     graphView.setData(r.nodes, r.edges);
+    graphView.nodes = nodes;
+    graphView.edges = edges;
 
-//     updateNodeCount();
-//     updateEdgeCount();
-//   });
-// }
+    updateNodeCount();
+    updateEdgeCount();
+  });
+}

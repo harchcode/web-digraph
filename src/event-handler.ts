@@ -28,6 +28,10 @@ export class DefaultGraphEventHandler<
     const { view } = this;
 
     this.isDragging = true;
+    this.startPos[0] = e.x;
+    this.startPos[1] = e.y;
+    this.startA[0] = view.transform[1];
+    this.startA[1] = view.transform[2];
 
     view.requestDraw();
   };
@@ -40,14 +44,26 @@ export class DefaultGraphEventHandler<
     view.requestDraw();
   };
 
+  count = 0;
+  startPos: [number, number] = [0, 0];
+  startA: [number, number] = [0, 0];
+
   handleMouseMove = (e: MouseEvent) => {
     const { view } = this;
 
     if (!this.isDragging) return;
 
+    // console.log(this.count++);
+
     if (this.isMovingView()) {
-      view.transform[1] += e.movementX;
-      view.transform[2] += e.movementY;
+      const deltaX = e.x - this.startPos[0];
+      const deltaY = e.y - this.startPos[1];
+      view.moveTo(this.startA[0] + deltaX, this.startA[1] + deltaY);
+      // const a = view.getViewPosFromWindowPos(e.clientX, e.clientY);
+      // view.moveTo(a[0], a[1]);
+      // view.moveBy(e.movementX, e.movementY);
+      // view.transform[1] += e.movementX / 2;
+      // view.transform[2] += e.movementY / 2;
     }
 
     view.requestDraw();

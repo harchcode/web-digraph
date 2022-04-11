@@ -33,6 +33,7 @@
     "size": "size-limit",
     "analyze": "size-limit --why",
     "release": "standard-version",
+    "release:beta": "standard-version -- --prerelease beta",
     "example:dev": "vite",
     "example:build": "tsc && vite build",
     "example:preview:": "vite preview"

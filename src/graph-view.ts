@@ -1,33 +1,54 @@
-import { drawBackground } from "./graph-renderer";
+import { GraphRenderer } from "./graph-renderer";
 
 export type NodeShape = {
-  render: (ctx: CanvasRenderingContext2D) => void;
-  intersectionPoints: [number, number][];
+  paths?: Path2D[];
+  render?: <Node extends GraphNode>(
+    ctx: CanvasRenderingContext2D,
+    node: Node,
+    isHovered: boolean
+  ) => void;
+  intersectionPoints?: [number, number][];
+  setIntersectionPoint?: <Node extends GraphNode>(
+    out: [number, number],
+    self: Node,
+    other: Node
+  ) => void;
+  size?: number;
 };
 
 export type EdgeShape = {
-  render: (ctx: CanvasRenderingContext2D) => void;
+  paths?: Path2D[];
+  render?: <Edge extends GraphEdge>(
+    ctx: CanvasRenderingContext2D,
+    edge: Edge,
+    isHovered: boolean
+  ) => void;
+  size?: number;
 };
 
 export type GraphNode = {
   x: number;
   y: number;
-  shape: EdgeShape;
+  shape: NodeShape;
 };
 
 export type GraphEdge = {
   source: GraphNode;
   target: GraphNode;
-  shape: NodeShape;
+  shape: EdgeShape;
 };
+
+// const FPS = 60;
+// const MPF = 1000 / FPS;
+// const SPF = MPF * 0.001;
 
 export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
   readonly canvas: HTMLCanvasElement;
   readonly ctx: CanvasRenderingContext2D;
 
   transform: [number, number, number] = [1, 0, 0]; // [scale, tx, ty]
-  nodes: Node[] = [];
-  edges: Edge[] = [];
+  nodes: Node[];
+  edges: Edge[];
   hoveredNode: Node | undefined = undefined;
   hoveredEdge: Edge | undefined = undefined;
   pointerPos: [number, number] = [0, 0];
@@ -39,8 +60,17 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
 
   private isDrawing = false;
   private boundingRect: DOMRect;
+  private renderer: GraphRenderer<Node, Edge>;
+  // private viewMoveTarget: [number, number] = [0, 0];
 
-  constructor(container: HTMLElement) {
+  // private startTime = 0;
+  // private lastTime = 0;
+  // private counter = 0;
+
+  constructor(container: HTMLElement, nodes: Node[], edges: Edge[]) {
+    this.nodes = nodes;
+    this.edges = edges;
+
     this.canvas = document.createElement("canvas");
 
     const ctx = this.canvas.getContext("2d", { alpha: false });
@@ -58,25 +88,89 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
 
     container.appendChild(this.canvas);
 
-    this.requestDraw();
+    window.addEventListener("mousemove", this.handleMouseMove, {
+      passive: true
+    });
+
+    this.renderer = new GraphRenderer(this);
+    this.startDraw();
   }
 
-  destroy(): void {
-    // this._eventHandler.destroy();
-  }
+  destroy = () => {
+    window.removeEventListener("mousemove", this.handleMouseMove);
+  };
 
-  requestDraw(): void {
+  private handleMouseMove = (e: MouseEvent) => {
+    this.pointerPos[0] = e.x;
+    this.pointerPos[1] = e.y;
+  };
+
+  private requestDrawHandler = () => {
+    this.isDrawing = false;
+    this.draw();
+  };
+
+  requestDraw() {
     if (!this.isDrawing) {
-      requestAnimationFrame(this.draw);
+      requestAnimationFrame(this.requestDrawHandler);
     }
 
     this.isDrawing = true;
   }
 
-  draw = () => {
-    this.isDrawing = false;
+  // private update = (dt: number) => {
+  //   const sx = this.viewMoveTarget[0] - this.transform[1];
+  //   const sy = this.viewMoveTarget[1] - this.transform[2];
 
-    drawBackground(this);
+  //   const vx = sx;
+  //   const vy = sy;
+
+  //   this.transform[1] += vx * dt;
+  //   this.transform[2] += vy * dt;
+
+  //   if (
+  //     this.transform[1] >= this.viewMoveTarget[0] &&
+  //     this.transform[2] >= this.viewMoveTarget[1]
+  //   ) {
+  //     this.isMovingView = false;
+  //   }
+  // };
+
+  // private run = (timestamp: number) => {
+  //   const current = timestamp;
+  //   const dt = current - this.lastTime;
+
+  //   this.counter += dt;
+  //   this.lastTime = current;
+
+  //   while (this.counter > MPF) {
+  //     this.update(SPF);
+
+  //     this.counter -= MPF;
+  //   }
+
+  //   this.draw();
+
+  //   requestAnimationFrame(this.run);
+  // };
+
+  // startDraw = () => {
+  //   requestAnimationFrame(timestamp => {
+  //     this.startTime = timestamp;
+  //     this.lastTime = this.startTime;
+
+  //     requestAnimationFrame(this.run);
+  //   });
+  // };
+
+  startDraw = () => {
+    requestAnimationFrame(this.startDraw);
+
+    this.draw();
+  };
+
+  draw = () => {
+    this.renderer.draw();
   };
 
   resize(width: number, height: number): void {
@@ -84,11 +178,26 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     this.canvas.height = height;
 
     this.boundingRect = this.canvas.getBoundingClientRect();
-
-    this.requestDraw();
   }
 
-  zoomTo(value: number, viewX?: number, viewY?: number): void {
+  moveBy(x: number, y: number) {
+    this.moveTo(this.transform[1] + x, this.transform[2] + y);
+    // this.viewMoveTarget[0] += x;
+    // this.viewMoveTarget[1] += y;
+  }
+
+  moveTo(x: number, y: number) {
+    this.transform[1] = x;
+    this.transform[2] = y;
+    // this.viewMoveTarget[0] = x;
+    // this.viewMoveTarget[1] = y;
+  }
+
+  zoomBy(value: number, viewX?: number, viewY?: number) {
+    this.zoomTo(this.transform[0] + value, viewX, viewY);
+  }
+
+  zoomTo(value: number, viewX?: number, viewY?: number) {
     const { width, height } = this.canvas;
     const [scale, translateX, translateY] = this.transform;
 
@@ -104,8 +213,6 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     this.transform[0] += deltaScale;
     this.transform[1] += offsetX;
     this.transform[2] += offsetY;
-
-    this.requestDraw();
   }
 
   setViewPosFromWindowPos(
@@ -130,10 +237,45 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     out[0] = (canvasX - translateX) / scale;
     out[1] = (canvasY - translateY) / scale;
   }
+
+  getViewPosFromWindowPos(windowX: number, windowY: number) {
+    const { left, top } = this.boundingRect;
+    const [scale, translateX, translateY] = this.transform;
+
+    return [
+      (windowX - left - translateX) / scale,
+      (windowY - top - translateY) / scale
+    ];
+  }
+
+  getViewPosFromCanvasPos(canvasX: number, canvasY: number) {
+    const [scale, translateX, translateY] = this.transform;
+
+    return [(canvasX - translateX) / scale, (canvasY - translateY) / scale];
+  }
+
+  setCanvasPosFromWindowPos(
+    out: [number, number],
+    windowX: number,
+    windowY: number
+  ) {
+    const { left, top } = this.boundingRect;
+
+    out[0] = windowX - left;
+    out[1] = windowY - top;
+  }
+
+  getCanvasPosFromWindowPos(windowX: number, windowY: number) {
+    const { left, top } = this.boundingRect;
+
+    return [windowX - left, windowY - top];
+  }
 }
 
 export function createGraphView<Node extends GraphNode, Edge extends GraphEdge>(
-  container: HTMLElement
+  container: HTMLElement,
+  nodes: Node[],
+  edges: Edge[]
 ) {
-  return new GraphView<Node, Edge>(container);
+  return new GraphView<Node, Edge>(container, nodes, edges);
 }
