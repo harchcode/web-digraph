@@ -1,5 +1,5 @@
 import { GraphEdge, GraphNode } from "../src";
-import { normalNodeShape, rectNodeShape } from "./node-types";
+import { normalEdgeShape, normalNodeShape, rectNodeShape } from "./node-types";
 
 export function getRandomIntInclusive(minF: number, maxF: number): number {
   const min = Math.ceil(minF);
@@ -15,8 +15,8 @@ export function randomize(
   edges: GraphEdge[];
   lastId: number;
 } {
-  const nodes = [];
-  const edges = [];
+  const nodes: GraphNode[] = [];
+  const edges: GraphEdge[] = [];
   let lastId = 0;
 
   for (let i = 0; i < nodeCount; i++) {
@@ -26,8 +26,9 @@ export function randomize(
     const tmp = getRandomIntInclusive(0, 1);
     const nodeShape = tmp === 0 ? normalNodeShape : rectNodeShape;
 
-    const tmp2 = getRandomIntInclusive(0, 2);
-    const edgeType = tmp2 === 0 ? "normal" : tmp2 === 1 ? "round" : "double";
+    // const tmp2 = getRandomIntInclusive(0, 2);
+    // const edgeType = tmp2 === 0 ? "normal" : tmp2 === 1 ? "round" : "double";
+    const edgeShape = normalEdgeShape;
 
     lastId++;
     const currNode: GraphNode = {
@@ -41,23 +42,21 @@ export function randomize(
 
     nodes.push(currNode);
 
-    // if (i > 0) {
-    //   const prevNode = nodes[i - 1];
+    if (i > 0) {
+      const prevNode = nodes[i - 1];
 
-    //   lastId++;
-    //   edges.push({
-    //     id: lastId,
-    //     sourceNode: prevNode,
-    //     targetNode: currNode,
-    //     type: edgeType,
-    //     text: lastId.toString()
-    //   });
-    // }
+      lastId++;
+      edges.push({
+        source: prevNode,
+        target: currNode,
+        shape: edgeShape
+      });
+    }
   }
 
   return {
     nodes,
-    edges: [],
+    edges,
     lastId
   };
 }

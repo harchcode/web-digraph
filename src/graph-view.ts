@@ -1,5 +1,15 @@
 import { GraphRenderer } from "./graph-renderer";
 
+export type GraphShape = {
+  paths?: Path2D[];
+  render?: <Node extends GraphNode, Edge extends GraphEdge>(
+    ctx: CanvasRenderingContext2D,
+    nodeOrEdge: Node | Edge,
+    isHovered: boolean
+  ) => void;
+  size?: [number, number];
+};
+
 export type NodeShape = {
   paths?: Path2D[];
   render?: <Node extends GraphNode>(
@@ -7,13 +17,12 @@ export type NodeShape = {
     node: Node,
     isHovered: boolean
   ) => void;
-  intersectionPoints?: [number, number][];
   setIntersectionPoint?: <Node extends GraphNode>(
     out: [number, number],
     self: Node,
     other: Node
   ) => void;
-  size?: number;
+  size?: [number, number];
 };
 
 export type EdgeShape = {
@@ -23,7 +32,7 @@ export type EdgeShape = {
     edge: Edge,
     isHovered: boolean
   ) => void;
-  size?: number;
+  size?: [number, number];
 };
 
 export type GraphNode = {
@@ -55,8 +64,7 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
   movingNode: Node | undefined = undefined;
   moveNodePos: [number, number] = [0, 0];
   isCreatingEdge = false;
-  dragLineSourceNode: Node | undefined = undefined;
-  dragLineTargetPos: [number, number] = [0, 0];
+  dragLineSourcePos: [number, number] = [0, 0];
 
   private isDrawing = false;
   private boundingRect: DOMRect;
@@ -213,6 +221,16 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     this.transform[0] += deltaScale;
     this.transform[1] += offsetX;
     this.transform[2] += offsetY;
+  }
+
+  beginDragLine(x: number, y: number) {
+    this.isCreatingEdge = true;
+    this.dragLineSourcePos[0] = x;
+    this.dragLineSourcePos[1] = y;
+  }
+
+  endDragLine() {
+    this.isCreatingEdge = false;
   }
 
   setViewPosFromWindowPos(

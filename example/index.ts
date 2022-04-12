@@ -15,34 +15,48 @@ const zoomSlider = document.getElementById("zoom-slider") as HTMLInputElement;
 const generateTextbox = document.getElementById(
   "generate-textbox"
 ) as HTMLInputElement;
-const generateButton = document.getElementById("generate-button");
+const generateButton = document.getElementById(
+  "generate-button"
+) as HTMLButtonElement;
+const moveButton = document.getElementById("move-tool") as HTMLButtonElement;
+const createButton = document.getElementById(
+  "create-tool"
+) as HTMLButtonElement;
 
-let nodes: GraphNode[] = [
-  {
-    x: 300,
-    y: 200,
-    shape: normalNodeShape
-  },
-  {
-    x: 200,
-    y: 700,
-    shape: normalNodeShape
-  },
-  {
-    x: 600,
-    y: 100,
-    shape: normalNodeShape
+type Action = "move" | "create";
+let action: Action = "move";
+
+function setAction(newAction: Action) {
+  action = newAction;
+
+  moveButton.classList.remove("active");
+  createButton.classList.remove("active");
+
+  switch (action) {
+    case "move":
+      moveButton.classList.add("active");
+      break;
+    case "create":
+      createButton.classList.add("active");
+      break;
   }
-];
-let edges: GraphEdge[] = [
-  {
-    source: nodes[1],
-    target: nodes[0],
-    shape: normalEdgeShape
-  }
-];
+}
+
+moveButton.addEventListener("click", e => {
+  e.stopPropagation();
+  setAction("move");
+});
+createButton.addEventListener("click", e => {
+  e.stopPropagation();
+  setAction("create");
+});
+
+let nodes: GraphNode[] = [];
+let edges: GraphEdge[] = [];
 // const lastId = 0;
 let isDragging = false;
+let movingNode: GraphNode | undefined;
+let dragSourceNode: GraphNode | undefined;
 const pos: [number, number] = [0, 0];
 const startPos: [number, number] = [0, 0];
 
@@ -55,27 +69,72 @@ graphView.canvas.addEventListener(
 
     startPos[0] = e.x;
     startPos[1] = e.y;
+
+    if (action === "move") {
+      movingNode = graphView.hoveredNode;
+    }
+
+    if (action === "create") {
+      if (graphView.hoveredNode) {
+        dragSourceNode = graphView.hoveredNode;
+
+        graphView.beginDragLine(
+          graphView.hoveredNode.x,
+          graphView.hoveredNode.y
+        );
+      }
+    }
   },
   {
     passive: true
   }
 );
-window.addEventListener(
+graphView.canvas.addEventListener(
   "mouseup",
-  () => {
+  e => {
+    if (isDragging && action === "create" && dragSourceNode) {
+      graphView.endDragLine();
+
+      if (graphView.hoveredNode && graphView.hoveredNode !== dragSourceNode) {
+        edges.push({
+          source: dragSourceNode,
+          target: graphView.hoveredNode,
+          shape: normalEdgeShape
+        });
+      }
+    }
+
+    if (action === "create" && !dragSourceNode && !graphView.hoveredNode) {
+      graphView.setViewPosFromWindowPos(pos, e.x, e.y);
+
+      nodes.push({
+        x: pos[0],
+        y: pos[1],
+        shape: normalNodeShape
+      });
+    }
+
     isDragging = false;
+    movingNode = undefined;
+    dragSourceNode = undefined;
   },
   { passive: true }
 );
-window.addEventListener(
+graphView.canvas.addEventListener(
   "mousemove",
   e => {
     if (!isDragging) return;
+    if (action === "create") return;
 
     const dx = e.x - startPos[0];
     const dy = e.y - startPos[1];
 
-    graphView.moveBy(dx, dy);
+    if (movingNode) {
+      movingNode.x += dx / graphView.transform[0];
+      movingNode.y += dy / graphView.transform[0];
+    } else {
+      graphView.moveBy(dx, dy);
+    }
 
     startPos[0] = e.x;
     startPos[1] = e.y;
@@ -172,9 +231,9 @@ function updateEdgeCount(): void {
 //   zoomSlider.value = graphView.getScale().toString();
 // }
 
-// window.addEventListener("resize", () => {
-//   graphView.resize(window.innerWidth, window.innerHeight);
-// });
+window.addEventListener("resize", () => {
+  graphView.resize(window.innerWidth, window.innerHeight);
+});
 
 // zoomSlider.addEventListener("input", e => {
 //   const target = e.target as HTMLInputElement;
@@ -195,6 +254,7 @@ if (generateButton) {
 
     graphView.nodes = nodes;
     graphView.edges = edges;
+    // console.log({ nodes, edges });
 
     updateNodeCount();
     updateEdgeCount();

@@ -1,4 +1,11 @@
-import { GraphEdge, GraphNode, GraphView } from "./graph-view";
+import {
+  EdgeShape,
+  GraphEdge,
+  GraphNode,
+  GraphShape,
+  GraphView,
+  NodeShape
+} from "./graph-view";
 import { circleIntersection } from "./utils";
 
 const LINE_CAP_ROUND = "round";
@@ -8,12 +15,10 @@ const GRID_COLOR = "#CBD5E0";
 
 const NODE_COLOR = "#fff";
 const LINE_COLOR = "#000";
+const HOVER_LINE_COLOR = "#4299E1";
 const NODE_SIZE = 100;
 const EDGE_SIZE = 16;
 const NODE_STROKE_WIDTH = 2;
-
-const EDGE_ARROW_LENGTH = 16;
-const EDGE_ARROW_RADIAN = Math.PI / 6;
 
 const linePath = new Path2D();
 linePath.rect(0, 0, 1, 1);
@@ -29,7 +34,8 @@ lineArrowPath.closePath();
 export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
   view: GraphView<Node, Edge>;
   canvasPos: [number, number] = [0, 0];
-  pos: [number, number] = [0, 0];
+  viewPos: [number, number] = [0, 0];
+  out: [number, number] = [0, 0];
 
   constructor(view: GraphView<Node, Edge>) {
     this.view = view;
@@ -50,6 +56,12 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
       pointerPos[0],
       pointerPos[1]
     );
+    this.view.setViewPosFromWindowPos(
+      this.viewPos,
+      this.canvasPos[0],
+      this.canvasPos[1]
+    );
+
     this.view.hoveredNode = undefined;
     this.view.hoveredEdge = undefined;
 
@@ -57,15 +69,33 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
 
     this.setToViewTransform();
 
+    for (const edge of edges) {
+      if (this.isEdgeOutOfView(edge)) continue;
+
+      this.drawEdge(edge);
+    }
+
     for (const node of nodes) {
       if (this.isNodeOutOfView(node)) continue;
 
       this.drawNode(node);
     }
-    for (const edge of edges) {
-      if (this.isEdgeOutOfView(edge)) continue;
 
-      this.drawEdge(edge);
+    if (this.view.hoveredEdge) {
+      this.drawEdge(this.view.hoveredEdge, true);
+    }
+
+    if (this.view.hoveredNode) {
+      this.drawNode(this.view.hoveredNode, true);
+    }
+
+    if (this.view.isCreatingEdge) {
+      this.drawEdgeLine(
+        this.view.dragLineSourcePos[0],
+        this.view.dragLineSourcePos[1],
+        this.viewPos[0],
+        this.viewPos[1]
+      );
     }
 
     ctx.resetTransform();
@@ -104,26 +134,36 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
   isEdgeOutOfView(edge: Edge): boolean {
     const { canvas } = this.view;
     const [scale, translateX, translateY] = this.view.transform;
+    const { size } = edge.shape;
 
     const source = edge.source;
     const target = edge.target;
+
+    const rx = (size ? size[0] : EDGE_SIZE) * 0.5 * scale;
+    const ry = (size ? size[1] : EDGE_SIZE) * 0.5 * scale;
 
     const sourceX = source.x * scale + translateX;
     const sourceY = source.y * scale + translateY;
     const targetX = target.x * scale + translateX;
     const targetY = target.y * scale + translateY;
 
-    const r = (edge.shape.size || EDGE_SIZE) * 0.5;
-
     return (
-      (sourceX < -r && targetX < -r) ||
-      (sourceY < -r && targetY < -r) ||
-      (sourceX > canvas.width + r && targetX > canvas.width + r) ||
-      (sourceY > canvas.height + r && targetY > canvas.height + r)
+      (sourceX < -rx && targetX < -rx) ||
+      (sourceY < -ry && targetY < -ry) ||
+      (sourceX > canvas.width + rx && targetX > canvas.width + rx) ||
+      (sourceY > canvas.height + ry && targetY > canvas.height + ry)
     );
   }
 
-  drawEdgeLine(startX: number, startY: number, endX: number, endY: number) {
+  drawEdgeLine(
+    startX: number,
+    startY: number,
+    endX: number,
+    endY: number,
+    edge?: Edge,
+    hovered = false
+  ) {
+    const { canvasPos } = this;
     const { ctx } = this.view;
     const [scale, translateX, translateY] = this.view.transform;
 
@@ -134,17 +174,24 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
     const sinr = Math.sin(rad);
     const cosr = Math.cos(rad);
 
-    const lineLen = Math.abs(dy / sinr);
+    const lineLen = dy === 0 ? dx : Math.abs(dy / sinr);
     const halfWidth = NODE_STROKE_WIDTH * 0.5;
 
-    ctx.strokeStyle = LINE_COLOR;
-    ctx.fillStyle = LINE_COLOR;
+    ctx.fillStyle = hovered ? HOVER_LINE_COLOR : LINE_COLOR;
 
     ctx.translate(startX + halfWidth * sinr, startY - halfWidth * cosr);
     ctx.rotate(rad);
     ctx.scale(lineLen - EDGE_SIZE, NODE_STROKE_WIDTH);
 
     ctx.fill(linePath);
+
+    if (
+      edge &&
+      !hovered &&
+      ctx.isPointInPath(linePath, canvasPos[0], canvasPos[1])
+    ) {
+      this.view.hoveredEdge = edge;
+    }
 
     const offset = EDGE_SIZE * twoOver3 + 1;
 
@@ -160,50 +207,27 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
     ctx.rotate(rad);
 
     ctx.fill(lineArrowPath);
+
+    if (
+      edge &&
+      !hovered &&
+      ctx.isPointInPath(lineArrowPath, canvasPos[0], canvasPos[1])
+    ) {
+      this.view.hoveredEdge = edge;
+    }
   }
 
-  drawEdge(edge: Edge) {
-    if (this.isEdgeOutOfView(edge)) return;
-
-    const { ctx, pointerPos } = this.view;
-    const [scale, translateX, translateY] = this.view.transform;
-    const { paths, render, size = NODE_SIZE } = edge.shape;
-
-    const source = edge.source;
-    const target = edge.target;
-
-    source.shape.setIntersectionPoint?.(this.pos, source, target) ||
-      circleIntersection(this.pos, source, target);
-
-    const [startX, startY] = this.pos;
-
-    source.shape.setIntersectionPoint?.(this.pos, target, source) ||
-      circleIntersection(this.pos, target, source);
-
-    const [endX, endY] = this.pos;
-
-    this.drawEdgeLine(startX, startY, endX, endY);
-
-    const midX = (startX + endX) * 0.5;
-    const midY = (startY + endY) * 0.5;
-
-    const rsize = size * 0.01;
-    const halfSize = size * 0.5;
-
-    ctx.setTransform(
-      scale * rsize,
-      0,
-      0,
-      scale * rsize,
-      translateX + (midX - halfSize) * scale,
-      translateY + (midY - halfSize) * scale
-    );
+  drawShape(nodeOrEdge: Node | Edge, shape: GraphShape, hovered = false) {
+    const { canvasPos } = this;
+    const { ctx } = this.view;
+    const { paths, render } = shape;
 
     ctx.fillStyle = NODE_COLOR;
-    ctx.lineWidth = NODE_STROKE_WIDTH / rsize;
+    ctx.strokeStyle = hovered ? HOVER_LINE_COLOR : LINE_COLOR;
+    ctx.lineWidth = NODE_STROKE_WIDTH;
 
     if (render) {
-      render(ctx, edge, false);
+      render(ctx, nodeOrEdge, false);
     } else if (paths) {
       for (const path of paths) {
         ctx.fill(path);
@@ -211,71 +235,111 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
       }
     }
 
+    if (hovered) return;
+
     if (paths) {
       for (const path of paths) {
-        if (ctx.isPointInPath(path, pointerPos[0], pointerPos[1])) {
-          this.view.hoveredEdge = edge;
+        if (ctx.isPointInPath(path, canvasPos[0], canvasPos[1])) {
+          if ("x" in nodeOrEdge) {
+            this.view.hoveredEdge = undefined;
+            this.view.hoveredNode = nodeOrEdge;
+          } else {
+            this.view.hoveredEdge = nodeOrEdge;
+          }
         }
       }
     } else if (render) {
-      if (ctx.isPointInPath(pointerPos[0], pointerPos[1])) {
-        this.view.hoveredEdge = edge;
+      if (ctx.isPointInPath(canvasPos[0], canvasPos[1])) {
+        if ("x" in nodeOrEdge) {
+          this.view.hoveredEdge = undefined;
+          this.view.hoveredNode = nodeOrEdge;
+        } else {
+          this.view.hoveredEdge = nodeOrEdge;
+        }
       }
     }
+  }
+
+  drawEdge(edge: Edge, hovered = false) {
+    const { ctx } = this.view;
+    const [scale, translateX, translateY] = this.view.transform;
+    const { size } = edge.shape;
+
+    const source = edge.source;
+    const target = edge.target;
+
+    source.shape.setIntersectionPoint?.(this.out, source, target) ||
+      circleIntersection(this.out, source, target);
+
+    const [startX, startY] = this.out;
+
+    source.shape.setIntersectionPoint?.(this.out, target, source) ||
+      circleIntersection(this.out, target, source);
+
+    const [endX, endY] = this.out;
+
+    this.drawEdgeLine(startX, startY, endX, endY, edge, hovered);
+
+    const midX = (startX + endX) * 0.5;
+    const midY = (startY + endY) * 0.5;
+
+    const rx = (size ? size[0] : NODE_SIZE) * 0.5;
+    const ry = (size ? size[1] : NODE_SIZE) * 0.5;
+
+    ctx.setTransform(
+      scale,
+      0,
+      0,
+      scale,
+      translateX + (midX - rx) * scale,
+      translateY + (midY - ry) * scale
+    );
+
+    this.drawShape(edge, edge.shape as GraphShape, hovered);
 
     this.setToViewTransform();
+  }
+
+  setShapeSize(out: [number, number], shape: NodeShape | EdgeShape) {
+    const { size } = shape;
+
+    if (Array.isArray(size)) {
+      out[0] = size[0];
+      out[1] = size[1];
+
+      return;
+    }
+
+    out[0] = size || NODE_SIZE;
+    out[1] = size || NODE_SIZE;
   }
 
   isNodeOutOfView(node: GraphNode) {
     const { canvas } = this.view;
     const [scale, translateX, translateY] = this.view.transform;
+    const { size } = node.shape;
 
-    const r = (node.shape.size || NODE_SIZE) * 0.5;
+    const rx = (size ? size[0] : NODE_SIZE) * 0.5;
+    const ry = (size ? size[1] : NODE_SIZE) * 0.5;
 
     return (
-      (node.x + r) * scale + translateX < 0 ||
-      (node.y + r) * scale + translateY < 0 ||
-      (node.x - r) * scale + translateX > canvas.width ||
-      (node.y - r) * scale + translateY > canvas.height
+      (node.x + rx) * scale + translateX < 0 ||
+      (node.y + ry) * scale + translateY < 0 ||
+      (node.x - rx) * scale + translateX > canvas.width ||
+      (node.y - ry) * scale + translateY > canvas.height
     );
   }
 
-  drawNode(node: Node) {
-    const { canvasPos } = this;
+  drawNode(node: Node, hovered = false) {
     const { ctx } = this.view;
-    const { paths, render, size = NODE_SIZE } = node.shape;
+    const { size } = node.shape;
 
-    const rsize = size * 0.01;
-    const halfSize = size * 0.5;
+    const rx = (size ? size[0] : NODE_SIZE) * 0.5;
+    const ry = (size ? size[1] : NODE_SIZE) * 0.5;
 
-    ctx.transform(rsize, 0, 0, rsize, node.x - halfSize, node.y - halfSize);
+    ctx.translate(node.x - rx, node.y - ry);
 
-    ctx.fillStyle = NODE_COLOR;
-    ctx.strokeStyle = LINE_COLOR;
-    ctx.lineWidth = NODE_STROKE_WIDTH / rsize;
-
-    if (render) {
-      render(ctx, node, false);
-    } else if (paths) {
-      for (const path of paths) {
-        ctx.fill(path);
-        ctx.stroke(path);
-      }
-    }
-
-    if (paths) {
-      for (const path of paths) {
-        if (ctx.isPointInPath(path, canvasPos[0], canvasPos[1])) {
-          this.view.hoveredEdge = undefined;
-          this.view.hoveredNode = node;
-        }
-      }
-    } else if (render) {
-      if (ctx.isPointInPath(canvasPos[0], canvasPos[1])) {
-        this.view.hoveredEdge = undefined;
-        this.view.hoveredNode = node;
-      }
-    }
+    this.drawShape(node, node.shape as GraphShape, hovered);
 
     this.setToViewTransform();
   }

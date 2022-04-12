@@ -7,7 +7,7 @@ export function circleIntersection<Node extends GraphNode>(
 ) {
   const dx = other.x - self.x;
   const dy = other.y - self.y;
-  const r = (self.shape.size || 100) * 0.5;
+  const r = (self.shape.size ? self.shape.size[0] : 100) * 0.5;
 
   const rad = Math.atan2(dy, dx);
   const sinr = Math.sin(rad);

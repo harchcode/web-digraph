@@ -19,7 +19,13 @@
       <div id="graph"></div>
 
       <div id="buttons">
-        <div class="zoom-input">
+        <div class="actions">
+          <button type="button" id="move-tool" class="active">Move</button>
+
+          <button type="button" id="create-tool">Create</button>
+        </div>
+
+        <div class="zoom-input" style="margin-top: 1rem">
           <input
             id="zoom-slider"
             type="range"
@@ -29,6 +35,20 @@
             step="0.01"
             value="1.0"
           />
+        </div>
+      </div>
+
+      <div id="hints">
+        <div class="info">
+          <div>
+            Node count:
+            <span id="node-count-span">0</span>
+          </div>
+
+          <div>
+            Edge count:
+            <span id="edge-count-span">0</span>
+          </div>
         </div>
 
         <div class="generate-input">
@@ -42,30 +62,6 @@
           />
 
           <button id="generate-button" type="button">Go</button>
-        </div>
-
-        <div class="info">
-          <div>
-            Node count:
-            <span id="node-count-span">0</span>
-          </div>
-
-          <div>
-            Edge count:
-            <span id="edge-count-span">0</span>
-          </div>
-        </div>
-      </div>
-
-      <div id="hints">
-        <div>
-          Press and hold shift, and then click on empty place to create a new
-          node.
-        </div>
-
-        <div>
-          Press and hold shift, and then click and drag a node to another node
-          to create a new edge.
         </div>
       </div>
     </div>

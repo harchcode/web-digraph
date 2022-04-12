@@ -1,24 +1,27 @@
 import { NodeShape, EdgeShape } from "../src";
 
-const circlePath = new Path2D();
-circlePath.arc(50, 50, 50, 0, Math.PI * 2);
-
-const rectPath = new Path2D();
-rectPath.rect(0, 20, 100, 60);
+const normalNodePath = new Path2D();
+normalNodePath.arc(100, 100, 100, 0, Math.PI * 2);
 
 export const normalNodeShape: NodeShape = {
-  paths: [circlePath],
-  size: 200
+  paths: [normalNodePath],
+  size: [200, 200]
 };
+
+const rectNodePath = new Path2D();
+rectNodePath.rect(0, 0, 200, 120);
 
 export const rectNodeShape: NodeShape = {
-  paths: [rectPath],
-  size: 200
+  paths: [rectNodePath],
+  size: [200, 120]
 };
 
+const normalEdgePath = new Path2D();
+normalEdgePath.arc(25, 25, 25, 0, Math.PI * 2);
+
 export const normalEdgeShape: EdgeShape = {
-  paths: [circlePath],
-  size: 50
+  paths: [normalEdgePath],
+  size: [50, 50]
 };
 
 // export const nodeTypes: GEShapeTypes = {
