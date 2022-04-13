@@ -70,8 +70,10 @@ graphView.canvas.addEventListener(
     startPos[0] = e.x;
     startPos[1] = e.y;
 
-    if (action === "move") {
+    if (action === "move" && graphView.hoveredNode) {
       movingNode = graphView.hoveredNode;
+
+      graphView.beginMoveNode(graphView.hoveredNode);
     }
 
     if (action === "create") {
@@ -92,6 +94,13 @@ graphView.canvas.addEventListener(
 graphView.canvas.addEventListener(
   "mouseup",
   e => {
+    if (isDragging && action === "move" && movingNode) {
+      graphView.endMoveNode(pos);
+
+      movingNode.x = pos[0];
+      movingNode.y = pos[1];
+    }
+
     if (isDragging && action === "create" && dragSourceNode) {
       graphView.endDragLine();
 
@@ -129,10 +138,7 @@ graphView.canvas.addEventListener(
     const dx = e.x - startPos[0];
     const dy = e.y - startPos[1];
 
-    if (movingNode) {
-      movingNode.x += dx / graphView.transform[0];
-      movingNode.y += dy / graphView.transform[0];
-    } else {
+    if (!movingNode) {
       graphView.moveBy(dx, dy);
     }
 

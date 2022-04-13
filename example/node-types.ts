@@ -1,10 +1,18 @@
-import { NodeShape, EdgeShape } from "../src";
+import {
+  NodeShape,
+  EdgeShape,
+  circleIntersection,
+  rectIntersection,
+  createPathFromPoints,
+  polygonIntersection
+} from "../src";
 
 const normalNodePath = new Path2D();
 normalNodePath.arc(100, 100, 100, 0, Math.PI * 2);
 
 export const normalNodeShape: NodeShape = {
   paths: [normalNodePath],
+  setIntersectionPoint: circleIntersection,
   size: [200, 200]
 };
 
@@ -13,7 +21,22 @@ rectNodePath.rect(0, 0, 200, 120);
 
 export const rectNodeShape: NodeShape = {
   paths: [rectNodePath],
+  setIntersectionPoint: rectIntersection,
   size: [200, 120]
+};
+
+const randomNodePoints: [number, number][] = [
+  [0, 10],
+  [15, 200],
+  [175, 180],
+  [200, 120],
+  [140, 0]
+];
+
+export const randomNodeShape: NodeShape = {
+  paths: [createPathFromPoints(randomNodePoints)],
+  setIntersectionPoint: polygonIntersection(randomNodePoints),
+  size: [200, 200]
 };
 
 const normalEdgePath = new Path2D();

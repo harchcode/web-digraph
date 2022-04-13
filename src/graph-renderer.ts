@@ -1,12 +1,4 @@
-import {
-  EdgeShape,
-  GraphEdge,
-  GraphNode,
-  GraphShape,
-  GraphView,
-  NodeShape
-} from "./graph-view";
-import { circleIntersection } from "./utils";
+import { GraphEdge, GraphNode, GraphShape, GraphView } from "./graph-view";
 
 const LINE_CAP_ROUND = "round";
 const LINE_CAP_SQUARE = "square";
@@ -16,7 +8,6 @@ const GRID_COLOR = "#CBD5E0";
 const NODE_COLOR = "#fff";
 const LINE_COLOR = "#000";
 const HOVER_LINE_COLOR = "#4299E1";
-const NODE_SIZE = 100;
 const EDGE_SIZE = 16;
 const NODE_STROKE_WIDTH = 2;
 
@@ -49,7 +40,7 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
   }
 
   draw() {
-    const { nodes, edges, pointerPos, ctx } = this.view;
+    const { nodes, edges, pointerPos, ctx, movingNode } = this.view;
 
     this.view.setCanvasPosFromWindowPos(
       this.canvasPos,
@@ -62,7 +53,7 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
       this.canvasPos[1]
     );
 
-    this.view.hoveredNode = undefined;
+    this.view.hoveredNode = movingNode;
     this.view.hoveredEdge = undefined;
 
     this.drawBackground();
@@ -139,8 +130,8 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
     const source = edge.source;
     const target = edge.target;
 
-    const rx = (size ? size[0] : EDGE_SIZE) * 0.5 * scale;
-    const ry = (size ? size[1] : EDGE_SIZE) * 0.5 * scale;
+    const rx = size[0] * 0.5 * scale;
+    const ry = size[1] * 0.5 * scale;
 
     const sourceX = source.x * scale + translateX;
     const sourceY = source.y * scale + translateY;
@@ -164,7 +155,7 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
     hovered = false
   ) {
     const { canvasPos } = this;
-    const { ctx } = this.view;
+    const { ctx, movingNode } = this.view;
     const [scale, translateX, translateY] = this.view.transform;
 
     const dx = endX - startX;
@@ -186,6 +177,7 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
     ctx.fill(linePath);
 
     if (
+      !movingNode &&
       edge &&
       !hovered &&
       ctx.isPointInPath(linePath, canvasPos[0], canvasPos[1])
@@ -209,6 +201,7 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
     ctx.fill(lineArrowPath);
 
     if (
+      !movingNode &&
       edge &&
       !hovered &&
       ctx.isPointInPath(lineArrowPath, canvasPos[0], canvasPos[1])
@@ -219,7 +212,7 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
 
   drawShape(nodeOrEdge: Node | Edge, shape: GraphShape, hovered = false) {
     const { canvasPos } = this;
-    const { ctx } = this.view;
+    const { ctx, movingNode } = this.view;
     const { paths, render } = shape;
 
     ctx.fillStyle = NODE_COLOR;
@@ -235,7 +228,7 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
       }
     }
 
-    if (hovered) return;
+    if (movingNode || hovered) return;
 
     if (paths) {
       for (const path of paths) {
@@ -268,13 +261,11 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
     const source = edge.source;
     const target = edge.target;
 
-    source.shape.setIntersectionPoint?.(this.out, source, target) ||
-      circleIntersection(this.out, source, target);
+    source.shape.setIntersectionPoint(this.out, source, target);
 
     const [startX, startY] = this.out;
 
-    source.shape.setIntersectionPoint?.(this.out, target, source) ||
-      circleIntersection(this.out, target, source);
+    target.shape.setIntersectionPoint(this.out, target, source);
 
     const [endX, endY] = this.out;
 
@@ -283,8 +274,8 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
     const midX = (startX + endX) * 0.5;
     const midY = (startY + endY) * 0.5;
 
-    const rx = (size ? size[0] : NODE_SIZE) * 0.5;
-    const ry = (size ? size[1] : NODE_SIZE) * 0.5;
+    const rx = size[0] * 0.5;
+    const ry = size[1] * 0.5;
 
     ctx.setTransform(
       scale,
@@ -300,27 +291,13 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
     this.setToViewTransform();
   }
 
-  setShapeSize(out: [number, number], shape: NodeShape | EdgeShape) {
-    const { size } = shape;
-
-    if (Array.isArray(size)) {
-      out[0] = size[0];
-      out[1] = size[1];
-
-      return;
-    }
-
-    out[0] = size || NODE_SIZE;
-    out[1] = size || NODE_SIZE;
-  }
-
   isNodeOutOfView(node: GraphNode) {
     const { canvas } = this.view;
     const [scale, translateX, translateY] = this.view.transform;
     const { size } = node.shape;
 
-    const rx = (size ? size[0] : NODE_SIZE) * 0.5;
-    const ry = (size ? size[1] : NODE_SIZE) * 0.5;
+    const rx = size[0] * 0.5;
+    const ry = size[1] * 0.5;
 
     return (
       (node.x + rx) * scale + translateX < 0 ||
@@ -331,13 +308,20 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
   }
 
   drawNode(node: Node, hovered = false) {
-    const { ctx } = this.view;
+    const { ctx, movingNode, moveNodeOffset } = this.view;
     const { size } = node.shape;
 
-    const rx = (size ? size[0] : NODE_SIZE) * 0.5;
-    const ry = (size ? size[1] : NODE_SIZE) * 0.5;
+    const rx = size[0] * 0.5;
+    const ry = size[1] * 0.5;
 
-    ctx.translate(node.x - rx, node.y - ry);
+    if (movingNode === node) {
+      ctx.translate(
+        this.viewPos[0] - moveNodeOffset[0] - rx,
+        this.viewPos[1] - moveNodeOffset[1] - ry
+      );
+    } else {
+      ctx.translate(node.x - rx, node.y - ry);
+    }
 
     this.drawShape(node, node.shape as GraphShape, hovered);
 

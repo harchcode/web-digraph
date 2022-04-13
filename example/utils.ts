@@ -1,5 +1,10 @@
 import { GraphEdge, GraphNode } from "../src";
-import { normalEdgeShape, normalNodeShape, rectNodeShape } from "./node-types";
+import {
+  normalEdgeShape,
+  normalNodeShape,
+  randomNodeShape,
+  rectNodeShape
+} from "./node-types";
 
 export function getRandomIntInclusive(minF: number, maxF: number): number {
   const min = Math.ceil(minF);
@@ -23,8 +28,9 @@ export function randomize(
     const col = i % cols;
     const row = Math.floor(i / cols);
 
-    const tmp = getRandomIntInclusive(0, 1);
-    const nodeShape = tmp === 0 ? normalNodeShape : rectNodeShape;
+    const tmp = getRandomIntInclusive(0, 2);
+    const nodeShape =
+      tmp === 0 ? normalNodeShape : tmp === 1 ? rectNodeShape : randomNodeShape;
 
     // const tmp2 = getRandomIntInclusive(0, 2);
     // const edgeType = tmp2 === 0 ? "normal" : tmp2 === 1 ? "round" : "double";
