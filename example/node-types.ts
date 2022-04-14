@@ -27,6 +27,7 @@ export const rectNodeShape: NodeShape = {
 
 const randomNodePoints: [number, number][] = [
   [0, 10],
+  [20, 15],
   [15, 200],
   [175, 180],
   [200, 120],

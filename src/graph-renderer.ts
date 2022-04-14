@@ -1,4 +1,5 @@
 import { GraphEdge, GraphNode, GraphShape, GraphView } from "./graph-view";
+import { getIntersectionsOfLineAndRect } from "./utils";
 
 const LINE_CAP_ROUND = "round";
 const LINE_CAP_SQUARE = "square";
@@ -27,6 +28,10 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
   canvasPos: [number, number] = [0, 0];
   viewPos: [number, number] = [0, 0];
   out: [number, number] = [0, 0];
+  int: [[number, number], [number, number]] = [
+    [0, 0],
+    [0, 0]
+  ];
 
   constructor(view: GraphView<Node, Edge>) {
     this.view = view;
@@ -61,14 +66,10 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
     this.setToViewTransform();
 
     for (const edge of edges) {
-      if (this.isEdgeOutOfView(edge)) continue;
-
       this.drawEdge(edge);
     }
 
     for (const node of nodes) {
-      if (this.isNodeOutOfView(node)) continue;
-
       this.drawNode(node);
     }
 
@@ -122,37 +123,15 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
     ctx.lineCap = LINE_CAP_SQUARE;
   }
 
-  isEdgeOutOfView(edge: Edge): boolean {
-    const { canvas } = this.view;
-    const [scale, translateX, translateY] = this.view.transform;
-    const { size } = edge.shape;
-
-    const source = edge.source;
-    const target = edge.target;
-
-    const rx = size[0] * 0.5 * scale;
-    const ry = size[1] * 0.5 * scale;
-
-    const sourceX = source.x * scale + translateX;
-    const sourceY = source.y * scale + translateY;
-    const targetX = target.x * scale + translateX;
-    const targetY = target.y * scale + translateY;
-
-    return (
-      (sourceX < -rx && targetX < -rx) ||
-      (sourceY < -ry && targetY < -ry) ||
-      (sourceX > canvas.width + rx && targetX > canvas.width + rx) ||
-      (sourceY > canvas.height + ry && targetY > canvas.height + ry)
-    );
-  }
-
   drawEdgeLine(
     startX: number,
     startY: number,
     endX: number,
     endY: number,
     edge?: Edge,
-    hovered = false
+    hovered = false,
+    arrowX = endX,
+    arrowY = endY
   ) {
     const { canvasPos } = this;
     const { ctx, movingNode } = this.view;
@@ -172,7 +151,10 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
 
     ctx.translate(startX + halfWidth * sinr, startY - halfWidth * cosr);
     ctx.rotate(rad);
-    ctx.scale(lineLen - EDGE_SIZE, NODE_STROKE_WIDTH);
+    ctx.scale(
+      lineLen - (endX === arrowX && endY === arrowY ? EDGE_SIZE : 0),
+      NODE_STROKE_WIDTH
+    );
 
     ctx.fill(linePath);
 
@@ -192,8 +174,8 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
       0,
       0,
       scale * EDGE_SIZE,
-      translateX + (endX - offset * cosr) * scale,
-      translateY + (endY - offset * sinr) * scale
+      translateX + (arrowX - offset * cosr) * scale,
+      translateY + (arrowY - offset * sinr) * scale
     );
 
     ctx.rotate(rad);
@@ -253,26 +235,137 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
     }
   }
 
+  getCloserPoint(
+    x: number,
+    y: number,
+    p1: [number, number],
+    p2: [number, number]
+  ) {
+    const l1x = x - p1[0];
+    const l1y = y - p1[1];
+    const l1 = l1x * l1x + l1y * l1y;
+
+    const l2x = x - p2[0];
+    const l2y = y - p2[1];
+    const l2 = l2x * l2x + l2y * l2y;
+
+    if (l1 > l2) return p2;
+    else return p1;
+  }
+
   drawEdge(edge: Edge, hovered = false) {
-    const { ctx } = this.view;
+    const { ctx, canvas } = this.view;
     const [scale, translateX, translateY] = this.view.transform;
     const { size } = edge.shape;
 
     const source = edge.source;
     const target = edge.target;
 
-    source.shape.setIntersectionPoint(this.out, source, target);
+    const viewWidth = canvas.width / scale;
+    const viewHeight = canvas.height / scale;
+    const viewLeft = -translateX / scale;
+    const viewTop = -translateY / scale;
+    const viewRight = viewLeft + viewWidth;
+    const viewBottom = viewTop + viewHeight;
 
+    // First get the intersection of line and the view rect
+    const count = getIntersectionsOfLineAndRect(
+      this.int,
+      source.x,
+      source.y,
+      target.x,
+      target.y,
+      viewLeft + viewWidth * 0.5,
+      viewTop + viewHeight * 0.5,
+      viewWidth,
+      viewHeight
+    );
+
+    // Do not render if it is out of view
+    if (
+      count === 0 &&
+      (source.x < viewLeft ||
+        source.x > viewRight ||
+        source.y < viewTop ||
+        source.y > viewBottom)
+    ) {
+      return;
+    }
+
+    source.shape.setIntersectionPoint(this.out, source, target);
     const [startX, startY] = this.out;
 
     target.shape.setIntersectionPoint(this.out, target, source);
-
     const [endX, endY] = this.out;
 
-    this.drawEdgeLine(startX, startY, endX, endY, edge, hovered);
+    let lineStartX = startX;
+    let lineStartY = startY;
+    let lineEndX = endX;
+    let lineEndY = endY;
+
+    if (count > 0) {
+      if (
+        this.isOutOfView(
+          source.x,
+          source.y,
+          source.shape.size[0],
+          source.shape.size[1]
+        )
+      ) {
+        if (count === 1) {
+          lineStartX = this.int[0][0];
+          lineStartY = this.int[0][1];
+        } else {
+          const p = this.getCloserPoint(
+            startX,
+            startY,
+            this.int[0],
+            this.int[1]
+          );
+
+          lineStartX = p[0];
+          lineStartY = p[1];
+        }
+      }
+
+      if (
+        this.isOutOfView(
+          target.x,
+          target.y,
+          target.shape.size[0],
+          target.shape.size[1]
+        )
+      ) {
+        if (count === 1) {
+          lineEndX = this.int[0][0];
+          lineEndY = this.int[0][1];
+        } else {
+          const p = this.getCloserPoint(endX, endY, this.int[0], this.int[1]);
+
+          lineEndX = p[0];
+          lineEndY = p[1];
+        }
+      }
+    }
+
+    this.drawEdgeLine(
+      lineStartX,
+      lineStartY,
+      lineEndX,
+      lineEndY,
+      edge,
+      hovered,
+      endX,
+      endY
+    );
 
     const midX = (startX + endX) * 0.5;
     const midY = (startY + endY) * 0.5;
+
+    if (this.isOutOfView(midX, midY, edge.shape.size[0], edge.shape.size[1])) {
+      this.setToViewTransform();
+      return;
+    }
 
     const rx = size[0] * 0.5;
     const ry = size[1] * 0.5;
@@ -291,37 +384,31 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
     this.setToViewTransform();
   }
 
-  isNodeOutOfView(node: GraphNode) {
+  isOutOfView(x: number, y: number, w: number, h: number) {
     const { canvas } = this.view;
     const [scale, translateX, translateY] = this.view.transform;
-    const { size } = node.shape;
 
-    const rx = size[0] * 0.5;
-    const ry = size[1] * 0.5;
+    const rx = w * 0.5;
+    const ry = h * 0.5;
 
     return (
-      (node.x + rx) * scale + translateX < 0 ||
-      (node.y + ry) * scale + translateY < 0 ||
-      (node.x - rx) * scale + translateX > canvas.width ||
-      (node.y - ry) * scale + translateY > canvas.height
+      (x + rx) * scale + translateX < 0 ||
+      (y + ry) * scale + translateY < 0 ||
+      (x - rx) * scale + translateX > canvas.width ||
+      (y - ry) * scale + translateY > canvas.height
     );
   }
 
   drawNode(node: Node, hovered = false) {
-    const { ctx, movingNode, moveNodeOffset } = this.view;
+    const { ctx } = this.view;
     const { size } = node.shape;
+
+    if (this.isOutOfView(node.x, node.y, size[0], size[1])) return;
 
     const rx = size[0] * 0.5;
     const ry = size[1] * 0.5;
 
-    if (movingNode === node) {
-      ctx.translate(
-        this.viewPos[0] - moveNodeOffset[0] - rx,
-        this.viewPos[1] - moveNodeOffset[1] - ry
-      );
-    } else {
-      ctx.translate(node.x - rx, node.y - ry);
-    }
+    ctx.translate(node.x - rx, node.y - ry);
 
     this.drawShape(node, node.shape as GraphShape, hovered);
 

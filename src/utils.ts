@@ -2,6 +2,7 @@ import { GraphNode } from "./graph-view";
 
 // http://paulbourke.net/geometry/pointlineplane/javascript.txt
 export function intersect(
+  out: [number, number],
   x1: number,
   y1: number,
   x2: number,
@@ -9,8 +10,7 @@ export function intersect(
   x3: number,
   y3: number,
   x4: number,
-  y4: number,
-  outPoint: [number, number]
+  y4: number
 ): boolean {
   // Check if none of the lines are of length 0
   if ((x1 === x2 && y1 === y2) || (x3 === x4 && y3 === y4)) return false;
@@ -27,10 +27,59 @@ export function intersect(
   if (ua < 0 || ua > 1 || ub < 0 || ub > 1) return false;
 
   // Return a object with the x and y coordinates of the intersection
-  outPoint[0] = x1 + ua * (x2 - x1);
-  outPoint[1] = y1 + ua * (y2 - y1);
+  out[0] = x1 + ua * (x2 - x1);
+  out[1] = y1 + ua * (y2 - y1);
 
   return true;
+}
+
+// return number of intersection points, max of 2
+export function getIntersectionsOfLineAndRect(
+  out: [[number, number], [number, number]],
+  lineX1: number,
+  lineY1: number,
+  lineX2: number,
+  lineY2: number,
+  rectX: number,
+  rectY: number,
+  rectW: number,
+  rectH: number
+): number {
+  const wh = rectW * 0.5;
+  const hh = rectH * 0.5;
+
+  const x1 = lineX1;
+  const y1 = lineY1;
+  const x2 = lineX2;
+  const y2 = lineY2;
+  const left = rectX - wh;
+  const top = rectY - hh;
+  const right = rectX + wh;
+  const bottom = rectY + hh;
+
+  let i = 0;
+
+  if (intersect(out[i], x1, y1, x2, y2, left + 1, top, right, top)) {
+    i++;
+  }
+
+  if (intersect(out[i], x1, y1, x2, y2, right, top + 1, right, bottom)) {
+    i++;
+
+    if (i === 2) return i;
+  }
+
+  if (intersect(out[i], x1, y1, x2, y2, right - 1, bottom, left, bottom)) {
+    i++;
+
+    if (i === 2) return i;
+  }
+
+  if (intersect(out[i], x1, y1, x2, y2, left, bottom - 1, left, top)) {
+    i++;
+  }
+
+  return i;
 }
 
 export function circleIntersection<Node extends GraphNode>(
@@ -63,16 +112,16 @@ export function rectIntersection<Node extends GraphNode>(
   const x2 = self.x;
   const y2 = self.y;
 
-  const i1 = intersect(x1, y1, x2, y2, x2 - wh, y2 - hh, x2 + wh, y2 - hh, out);
-  if (i1) return;
+  if (intersect(out, x1, y1, x2, y2, x2 - wh, y2 - hh, x2 + wh, y2 - hh))
+    return;
 
-  const i2 = intersect(x1, y1, x2, y2, x2 + wh, y2 - hh, x2 + wh, y2 + hh, out);
-  if (i2) return;
+  if (intersect(out, x1, y1, x2, y2, x2 + wh, y2 - hh, x2 + wh, y2 + hh))
+    return;
 
-  const i3 = intersect(x1, y1, x2, y2, x2 + wh, y2 + hh, x2 - wh, y2 + hh, out);
-  if (i3) return;
+  if (intersect(out, x1, y1, x2, y2, x2 + wh, y2 + hh, x2 - wh, y2 + hh))
+    return;
 
-  intersect(x1, y1, x2, y2, x2 - wh, y2 + hh, x2 - wh, y2 - hh, out);
+  intersect(out, x1, y1, x2, y2, x2 - wh, y2 + hh, x2 - wh, y2 - hh);
 }
 
 export function polygonIntersection<Node extends GraphNode>(
@@ -97,7 +146,7 @@ export function polygonIntersection<Node extends GraphNode>(
       const x4 = x2 - wh + points[nextIndex][0];
       const y4 = y2 - hh + points[nextIndex][1];
 
-      const int = intersect(x1, y1, x2, y2, x3, y3, x4, y4, out);
+      const int = intersect(out, x1, y1, x2, y2, x3, y3, x4, y4);
 
       if (int) return;
     }

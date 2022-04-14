@@ -51,8 +51,25 @@ createButton.addEventListener("click", e => {
   setAction("create");
 });
 
-let nodes: GraphNode[] = [];
-let edges: GraphEdge[] = [];
+let nodes: GraphNode[] = [
+  {
+    x: 0,
+    y: 0,
+    shape: normalNodeShape
+  },
+  {
+    x: 192841,
+    y: 389284,
+    shape: normalNodeShape
+  }
+];
+let edges: GraphEdge[] = [
+  {
+    source: nodes[0],
+    target: nodes[1],
+    shape: normalEdgeShape
+  }
+];
 // const lastId = 0;
 let isDragging = false;
 let movingNode: GraphNode | undefined;
@@ -95,10 +112,7 @@ graphView.canvas.addEventListener(
   "mouseup",
   e => {
     if (isDragging && action === "move" && movingNode) {
-      graphView.endMoveNode(pos);
-
-      movingNode.x = pos[0];
-      movingNode.y = pos[1];
+      graphView.endMoveNode();
     }
 
     if (isDragging && action === "create" && dragSourceNode) {
@@ -138,7 +152,10 @@ graphView.canvas.addEventListener(
     const dx = e.x - startPos[0];
     const dy = e.y - startPos[1];
 
-    if (!movingNode) {
+    if (movingNode) {
+      movingNode.x += dx / graphView.transform[0];
+      movingNode.y += dy / graphView.transform[0];
+    } else {
       graphView.moveBy(dx, dy);
     }
 

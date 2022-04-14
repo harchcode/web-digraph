@@ -51,8 +51,6 @@ export type GraphEdge = {
 // const MPF = 1000 / FPS;
 // const SPF = MPF * 0.001;
 
-const out: [number, number] = [0, 0];
-
 export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
   readonly canvas: HTMLCanvasElement;
   readonly ctx: CanvasRenderingContext2D;
@@ -64,7 +62,6 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
   hoveredEdge: Edge | undefined = undefined;
   pointerPos: [number, number] = [0, 0];
   movingNode: Node | undefined = undefined;
-  moveNodeOffset: [number, number] = [0, 0];
   isCreatingEdge = false;
   dragLineSourcePos: [number, number] = [0, 0];
 
@@ -236,22 +233,11 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
   }
 
   beginMoveNode(node: Node) {
-    this.setViewPosFromWindowPos(out, this.pointerPos[0], this.pointerPos[1]);
-
     this.movingNode = node;
-    this.moveNodeOffset[0] = out[0] - node.x;
-    this.moveNodeOffset[1] = out[1] - node.y;
   }
 
-  endMoveNode(out?: [number, number]) {
+  endMoveNode() {
     this.movingNode = undefined;
-
-    if (out) {
-      this.setViewPosFromWindowPos(out, this.pointerPos[0], this.pointerPos[1]);
-
-      out[0] -= this.moveNodeOffset[0];
-      out[1] -= this.moveNodeOffset[1];
-    }
   }
 
   setViewPosFromWindowPos(
