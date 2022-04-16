@@ -59,23 +59,23 @@ export function getIntersectionsOfLineAndRect(
 
   let i = 0;
 
-  if (intersect(out[i], x1, y1, x2, y2, left + 1, top, right, top)) {
+  if (intersect(out[i], x1, y1, x2, y2, left, top, right, top)) {
     i++;
   }
 
-  if (intersect(out[i], x1, y1, x2, y2, right, top + 1, right, bottom)) {
-    i++;
-
-    if (i === 2) return i;
-  }
-
-  if (intersect(out[i], x1, y1, x2, y2, right - 1, bottom, left, bottom)) {
+  if (intersect(out[i], x1, y1, x2, y2, right, top, right, bottom)) {
     i++;
 
     if (i === 2) return i;
   }
 
-  if (intersect(out[i], x1, y1, x2, y2, left, bottom - 1, left, top)) {
+  if (intersect(out[i], x1, y1, x2, y2, right, bottom, left, bottom)) {
+    i++;
+
+    if (i === 2) return i;
+  }
+
+  if (intersect(out[i], x1, y1, x2, y2, left, bottom, left, top)) {
     i++;
   }
 

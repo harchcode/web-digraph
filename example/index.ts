@@ -54,7 +54,7 @@ createButton.addEventListener("click", e => {
 let nodes: GraphNode[] = [
   {
     x: 0,
-    y: 0,
+    y: -500,
     shape: normalNodeShape
   },
   {
