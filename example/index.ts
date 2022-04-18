@@ -7,6 +7,7 @@ import {
   createGraphView
 } from "../src";
 import { normalEdgeShape, normalNodeShape } from "./node-types";
+import { ExampleEdge, ExampleNode } from "./types";
 
 const graphDiv = document.getElementById("graph") as HTMLDivElement;
 const nodeCountSpan = document.getElementById("node-count-span");
@@ -51,26 +52,35 @@ createButton.addEventListener("click", e => {
   setAction("create");
 });
 
-let nodes: GraphNode[] = [
-  {
-    x: 0,
-    y: -500,
-    shape: normalNodeShape
-  },
-  {
-    x: 192841,
-    y: 389284,
-    shape: normalNodeShape
-  }
+let lastNodeId = 0;
+let lastEdgeId = 0;
+
+let nodes: ExampleNode[] = [
+  // {
+  //   id: 1,
+  //   x: 0,
+  //   y: 0,
+  //   shape: normalNodeShape,
+  //   label: "Node 1"
+  // },
+  // {
+  //   id: 2,
+  //   x: 500,
+  //   y: 0,
+  //   shape: normalNodeShape,
+  //   label: "Node 2"
+  // }
 ];
-let edges: GraphEdge[] = [
-  {
-    source: nodes[0],
-    target: nodes[1],
-    shape: normalEdgeShape
-  }
+let edges: ExampleEdge[] = [
+  // {
+  //   id: 1,
+  //   source: nodes[0],
+  //   target: nodes[1],
+  //   shape: normalEdgeShape,
+  //   label: "1"
+  // }
 ];
-// const lastId = 0;
+
 let isDragging = false;
 let movingNode: GraphNode | undefined;
 let dragSourceNode: GraphNode | undefined;
@@ -118,11 +128,23 @@ graphView.canvas.addEventListener(
     if (isDragging && action === "create" && dragSourceNode) {
       graphView.endDragLine();
 
-      if (graphView.hoveredNode && graphView.hoveredNode !== dragSourceNode) {
+      if (
+        graphView.hoveredNode &&
+        graphView.hoveredNode !== dragSourceNode &&
+        !edges.find(
+          edge =>
+            edge.source === dragSourceNode &&
+            edge.target === graphView.hoveredNode
+        )
+      ) {
+        lastEdgeId++;
+
         edges.push({
+          id: lastEdgeId,
           source: dragSourceNode,
           target: graphView.hoveredNode,
-          shape: normalEdgeShape
+          shape: normalEdgeShape,
+          label: lastEdgeId.toString()
         });
       }
     }
@@ -130,10 +152,14 @@ graphView.canvas.addEventListener(
     if (action === "create" && !dragSourceNode && !graphView.hoveredNode) {
       graphView.setViewPosFromWindowPos(pos, e.x, e.y);
 
+      lastNodeId++;
+
       nodes.push({
+        id: lastNodeId,
         x: pos[0],
         y: pos[1],
-        shape: normalNodeShape
+        shape: normalNodeShape,
+        label: `Node ${lastNodeId}`
       });
     }
 
@@ -271,7 +297,8 @@ if (generateButton) {
 
     const r = randomize(value, columns);
 
-    // lastId = r.lastId;
+    lastNodeId = r.lastNodeId;
+    lastEdgeId = r.lastEdgeId;
     nodes = r.nodes;
     edges = r.edges;
 

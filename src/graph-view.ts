@@ -7,12 +7,22 @@ export type GraphShape = {
     nodeOrEdge: Node | Edge,
     isHovered: boolean
   ) => void;
+  renderContent?: <Node extends GraphNode, Edge extends GraphEdge>(
+    ctx: CanvasRenderingContext2D,
+    nodeOrEdge: Node | Edge,
+    isHovered: boolean
+  ) => void;
   size: [number, number];
 };
 
 export type NodeShape = {
   paths?: Path2D[];
   render?: <Node extends GraphNode>(
+    ctx: CanvasRenderingContext2D,
+    node: Node,
+    isHovered: boolean
+  ) => void;
+  renderContent?: <Node extends GraphNode>(
     ctx: CanvasRenderingContext2D,
     node: Node,
     isHovered: boolean
@@ -30,6 +40,11 @@ export type EdgeShape = {
   render?: <Edge extends GraphEdge>(
     ctx: CanvasRenderingContext2D,
     edge: Edge,
+    isHovered: boolean
+  ) => void;
+  renderContent?: <Edge extends GraphEdge>(
+    ctx: CanvasRenderingContext2D,
+    node: Edge,
     isHovered: boolean
   ) => void;
   size: [number, number];

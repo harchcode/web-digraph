@@ -1,4 +1,4 @@
-import { GraphNode } from "./graph-view";
+import { GraphEdge, GraphNode } from "./graph-view";
 
 // http://paulbourke.net/geometry/pointlineplane/javascript.txt
 export function intersect(
@@ -165,4 +165,30 @@ export function createPathFromPoints(points: [number, number][]) {
   r.closePath();
 
   return r;
+}
+
+export function renderNodeContentFromField<Node extends GraphNode>(
+  field: keyof Node,
+  size: [number, number]
+) {
+  return <Node>(ctx: CanvasRenderingContext2D, node: Node) => {
+    ctx.fillText(
+      node[field as keyof Node] as unknown as string,
+      size[0] * 0.5,
+      size[1] * 0.5
+    );
+  };
+}
+
+export function renderEdgeContentFromField<Edge extends GraphEdge>(
+  field: keyof Edge,
+  size: [number, number]
+) {
+  return <Edge>(ctx: CanvasRenderingContext2D, edge: Edge) => {
+    ctx.fillText(
+      edge[field as keyof Edge] as unknown as string,
+      size[0] * 0.5,
+      size[1] * 0.5
+    );
+  };
 }

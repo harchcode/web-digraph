@@ -1,5 +1,5 @@
 import { GraphEdge, GraphNode, GraphShape, GraphView } from "./graph-view";
-import { getIntersectionsOfLineAndRect, intersect } from "./utils";
+import { getIntersectionsOfLineAndRect } from "./utils";
 
 const LINE_CAP_ROUND = "round";
 const LINE_CAP_SQUARE = "square";
@@ -11,6 +11,10 @@ const LINE_COLOR = "#000";
 const HOVER_LINE_COLOR = "#4299E1";
 const EDGE_SIZE = 16;
 const NODE_STROKE_WIDTH = 2;
+const TEXT_COLOR = "#000";
+const TEXT_FONT = "16px sans-serif";
+const TEXT_ALIGN = "center";
+const TEXT_BASELINE = "middle";
 
 const linePath = new Path2D();
 linePath.rect(0, 0, 1, 1);
@@ -128,13 +132,11 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
     startY: number,
     endX: number,
     endY: number,
-    edge?: Edge,
     hovered = false,
     arrowX = endX,
     arrowY = endY
   ) {
-    const { canvasPos } = this;
-    const { ctx, movingNode } = this.view;
+    const { ctx } = this.view;
     const [scale, translateX, translateY] = this.view.transform;
 
     const dx = endX - startX;
@@ -158,15 +160,6 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
 
     ctx.fill(linePath);
 
-    if (
-      !movingNode &&
-      edge &&
-      !hovered &&
-      ctx.isPointInPath(linePath, canvasPos[0], canvasPos[1])
-    ) {
-      this.view.hoveredEdge = edge;
-    }
-
     const offset = EDGE_SIZE * twoOver3 + 1;
 
     ctx.setTransform(
@@ -181,33 +174,33 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
     ctx.rotate(rad);
 
     ctx.fill(lineArrowPath);
-
-    if (
-      !movingNode &&
-      edge &&
-      !hovered &&
-      ctx.isPointInPath(lineArrowPath, canvasPos[0], canvasPos[1])
-    ) {
-      this.view.hoveredEdge = edge;
-    }
   }
 
   drawShape(nodeOrEdge: Node | Edge, shape: GraphShape, hovered = false) {
     const { canvasPos } = this;
     const { ctx, movingNode } = this.view;
-    const { paths, render } = shape;
+    const { paths, render, renderContent } = shape;
 
     ctx.fillStyle = NODE_COLOR;
     ctx.strokeStyle = hovered ? HOVER_LINE_COLOR : LINE_COLOR;
     ctx.lineWidth = NODE_STROKE_WIDTH;
 
     if (render) {
-      render(ctx, nodeOrEdge, false);
+      render(ctx, nodeOrEdge, hovered);
     } else if (paths) {
       for (const path of paths) {
         ctx.fill(path);
         ctx.stroke(path);
       }
+    }
+
+    if (renderContent) {
+      ctx.fillStyle = TEXT_COLOR;
+      ctx.font = TEXT_FONT;
+      ctx.textAlign = TEXT_ALIGN;
+      ctx.textBaseline = TEXT_BASELINE;
+
+      renderContent(ctx, nodeOrEdge, hovered);
     }
 
     if (movingNode || hovered) return;
@@ -255,7 +248,7 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
   }
 
   drawEdge(edge: Edge, hovered = false) {
-    const { canvasPos, out } = this;
+    const { canvasPos } = this;
     const { ctx, canvas, movingNode } = this.view;
     const [scale, translateX, translateY] = this.view.transform;
     const { size } = edge.shape;
@@ -338,7 +331,7 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
       const dx = endX - startX;
       const dy = endY - startY;
 
-      const lineLen = dy === 0 ? dx : Math.abs(dy / sinr);
+      const lineLen = Math.abs(dy) < 0.00001 ? dx : Math.abs(dy / sinr);
       const halfWidth = NODE_STROKE_WIDTH * 0.5;
 
       ctx.fillStyle = hovered ? HOVER_LINE_COLOR : LINE_COLOR;
@@ -355,7 +348,6 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
 
       if (
         !movingNode &&
-        edge &&
         !hovered &&
         ctx.isPointInPath(linePath, canvasPos[0], canvasPos[1])
       ) {
@@ -365,7 +357,9 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
       this.setToViewTransform();
     }
 
-    if (!this.isOutOfView(initialEndX, initialEndY, EDGE_SIZE, EDGE_SIZE)) {
+    if (
+      !this.isOutOfView(initialEndX, initialEndY, EDGE_SIZE * 2, EDGE_SIZE * 2)
+    ) {
       const offset = EDGE_SIZE * twoOver3 + 1;
 
       ctx.transform(
@@ -378,6 +372,8 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
       );
 
       ctx.rotate(rad);
+
+      ctx.fillStyle = hovered ? HOVER_LINE_COLOR : LINE_COLOR;
 
       ctx.fill(lineArrowPath);
 

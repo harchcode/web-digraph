@@ -4,8 +4,10 @@ import {
   circleIntersection,
   rectIntersection,
   createPathFromPoints,
-  polygonIntersection
+  polygonIntersection,
+  renderNodeContentFromField
 } from "../src";
+import { ExampleNode } from "./types";
 
 const normalNodePath = new Path2D();
 normalNodePath.arc(100, 100, 100, 0, Math.PI * 2);
@@ -13,7 +15,8 @@ normalNodePath.arc(100, 100, 100, 0, Math.PI * 2);
 export const normalNodeShape: NodeShape = {
   paths: [normalNodePath],
   setIntersectionPoint: circleIntersection,
-  size: [200, 200]
+  size: [200, 200],
+  renderContent: renderNodeContentFromField<ExampleNode>("label", [200, 200])
 };
 
 const rectNodePath = new Path2D();
@@ -22,7 +25,8 @@ rectNodePath.rect(0, 0, 200, 120);
 export const rectNodeShape: NodeShape = {
   paths: [rectNodePath],
   setIntersectionPoint: rectIntersection,
-  size: [200, 120]
+  size: [200, 120],
+  renderContent: renderNodeContentFromField<ExampleNode>("label", [200, 120])
 };
 
 const randomNodePoints: [number, number][] = [
@@ -37,7 +41,8 @@ const randomNodePoints: [number, number][] = [
 export const randomNodeShape: NodeShape = {
   paths: [createPathFromPoints(randomNodePoints)],
   setIntersectionPoint: polygonIntersection(randomNodePoints),
-  size: [200, 200]
+  size: [200, 200],
+  renderContent: renderNodeContentFromField<ExampleNode>("label", [200, 200])
 };
 
 const normalEdgePath = new Path2D();
@@ -45,7 +50,8 @@ normalEdgePath.arc(25, 25, 25, 0, Math.PI * 2);
 
 export const normalEdgeShape: EdgeShape = {
   paths: [normalEdgePath],
-  size: [50, 50]
+  size: [50, 50],
+  renderContent: renderNodeContentFromField<ExampleNode>("label", [50, 50])
 };
 
 // export const nodeTypes: GEShapeTypes = {
