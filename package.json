@@ -6,78 +6,69 @@
   "repository": {
     "url": "https://github.com/harchcode/web-digraph"
   },
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "keywords": [
-    "graph",
-    "digraph"
-  ],
+  "main": "dist/web-digraph.umd.cjs",
+  "module": "dist/web-digraph.js",
   "license": "MIT",
-  "module": "dist/web-digraph.esm.js",
   "typings": "dist/index.d.ts",
   "files": [
-    "dist",
-    "src"
+    "dist"
   ],
-  "engines": {
-    "node": ">=12"
+  "exports": {
+    ".": {
+      "import": "./dist/web-digraph.js",
+      "require": "./dist/web-digraph.umd.cjs"
+    }
   },
+  "engines": {
+    "node": ">=14"
+  },
+  "type": "module",
+  "sideEffects": false,
   "scripts": {
-    "start": "tsdx watch",
-    "build": "tsdx build",
-    "test": "tsdx test",
-    "test:clear": "tsdx test --clearCache",
-    "lint": "eslint src test",
+    "start": "vite",
+    "dev": "vite",
+    "build": "vite build && npm run build-typedef",
+    "build-typedef": "tsc ./src/vite-env.d.ts ./src/index.ts --declaration --emitDeclarationOnly --target ESNext --esModuleInterop --outDir dist",
+    "test": "vitest --coverage",
+    "lint": "eslint src test example",
     "lint-staged": "lint-staged",
     "prepare": "husky install",
     "size": "size-limit",
     "analyze": "size-limit --why",
-    "release": "standard-version",
-    "release:beta": "standard-version -- --prerelease beta",
-    "example:dev": "vite",
-    "example:build": "tsc && vite build",
-    "example:preview:": "vite preview"
+    "release": "standard-version"
   },
   "devDependencies": {
-    "@size-limit/preset-small-lib": "^7.0.8",
-    "@typescript-eslint/eslint-plugin": "^5.17.0",
-    "@typescript-eslint/parser": "^5.17.0",
-    "eslint": "^8.12.0",
+    "@size-limit/preset-small-lib": "^8.1.0",
+    "@types/node": "^18.11.7",
+    "@typescript-eslint/eslint-plugin": "^5.40.1",
+    "@typescript-eslint/parser": "^5.40.1",
+    "@vitest/coverage-c8": "^0.24.3",
+    "eslint": "^8.26.0",
     "eslint-config-prettier": "^8.5.0",
-    "eslint-plugin-prettier": "^4.0.0",
-    "husky": "^7.0.4",
-    "lint-staged": "^12.3.7",
-    "prettier": "^2.6.1",
-    "size-limit": "^7.0.8",
-    "standard-version": "^9.3.2",
-    "tsdx": "^0.14.1",
-    "tslib": "^2.3.1",
-    "typescript": "^4.6.3",
-    "vite": "^2.9.1"
+    "eslint-plugin-prettier": "^4.2.1",
+    "husky": "^8.0.1",
+    "jsdom": "^20.0.1",
+    "lint-staged": "^13.0.3",
+    "prettier": "^2.7.1",
+    "size-limit": "^8.1.0",
+    "standard-version": "^9.5.0",
+    "typescript": "^4.8.4",
+    "vite": "^3.2.1",
+    "vitest": "^0.24.3"
   },
   "lint-staged": {
-    "{src,test}/**/*.{js,ts}": [
+    "{src,test,example}/**/*.{js,ts}": [
       "eslint"
     ]
   },
   "size-limit": [
     {
-      "path": "dist/web-digraph.cjs.production.min.js",
+      "path": "dist/web-digraph.umd.cjs",
       "limit": "10 KB"
     },
     {
-      "path": "dist/web-digraph.esm.js",
+      "path": "dist/web-digraph.js",
       "limit": "10 KB"
     }
-  ],
-  "jest": {
-    "coverageThreshold": {
-      "global": {
-        "branches": 0,
-        "functions": 0,
-        "lines": 0,
-        "statements": 0
-      }
-    }
-  }
+  ]
 }

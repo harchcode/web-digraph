@@ -1,10 +1,10 @@
-module.exports =  {
+module.exports = {
   printWidth: 80,
   semi: true,
   singleQuote: false,
-  trailingComma: 'none',
+  trailingComma: "none",
   useTabs: false,
   bracketSpacing: true,
-  arrowParens: 'avoid',
+  arrowParens: "avoid",
   endOfLine: "auto"
-}
+};
