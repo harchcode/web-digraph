@@ -23,9 +23,9 @@ export default defineConfig({
     lib: {
       // Could also be a dictionary or array of multiple entry points
       entry: resolve(__dirname, "src/index.ts"),
-      name: "Gaguna",
+      name: "Web Digraph",
       // the proper extensions will be added
-      fileName: "gaguna"
+      fileName: "web-digraph"
     }
   }
 });
