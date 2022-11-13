@@ -36,8 +36,8 @@ function generate(nodeCount = 100) {
     graphView.addNode(
       {
         id,
-        x: col * 200,
-        y: row * 200
+        x: col * 320,
+        y: row * 320
       },
       nodeShape
     );
@@ -62,7 +62,7 @@ function generate(nodeCount = 100) {
 function main() {
   graphView = createGraphView(graphDiv);
 
-  generate(2);
+  generate(100);
 
   generateButton.addEventListener("click", () => {
     const len = parseInt(nodeCountInput.value, 10);

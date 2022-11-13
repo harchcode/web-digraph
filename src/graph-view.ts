@@ -34,10 +34,10 @@ export type GraphEdge = {
 };
 
 const defaultNodeShape: GraphShape = {
-  width: 100,
-  height: 100,
-  drawContent: () => {
-    // noop
+  width: 160,
+  height: 160,
+  drawContent: (ctx, x, y, w, _h, id) => {
+    ctx.fillText(`Node ID: ${id}`, x, y, w);
   },
   drawPath: (p, x, y, w) => {
     p.arc(x, y, w * 0.5, 0, Math.PI * 2);
@@ -46,10 +46,10 @@ const defaultNodeShape: GraphShape = {
 };
 
 const defaultEdgeShape: GraphShape = {
-  width: 32,
-  height: 32,
-  drawContent: () => {
-    // noop
+  width: 48,
+  height: 48,
+  drawContent: (ctx, x, y, w, _h, id) => {
+    ctx.fillText(id.toString(), x, y, w);
   },
   drawPath: (p, x, y, w, h) => {
     const wh = w * 0.5;
@@ -88,6 +88,7 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
   private pathMap: Record<number, Path2D> = {};
   private linePathMap: Record<number, Path2D> = {};
   private arrowPathMap: Record<number, Path2D> = {};
+  private edgeContentPosMap: Record<number, [number, number]> = {};
 
   private translateX = 0;
   private translateY = 0;
@@ -145,7 +146,7 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
   addEdge(edge: Edge, shape: GraphShape) {
     if (this.idMap[edge.id]) return;
 
-    const { idMap } = this;
+    const { idMap, options } = this;
 
     this.edges.push(edge);
     this.idMap[edge.id] = edge;
@@ -159,21 +160,38 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     const dx = target.x - source.x;
     const dy = target.y - source.y;
 
-    const midx = (source.x + target.x) * 0.5;
-    const midy = (source.y + target.y) * 0.5;
-
     const rad = Math.atan2(dy, dx);
     const sinr = Math.sin(rad);
     const cosr = Math.cos(rad);
 
-    const ip = this.getIntersectionPoint(source, target);
-    const ix = source.x + ip * dx;
-    const iy = source.y + ip * dy;
+    const sip = this.getIntersectionPoint(
+      target.x,
+      target.y,
+      source.x,
+      source.y,
+      this.pathMap[source.id]
+    );
+    const sipx = target.x - sip * dx;
+    const sipy = target.y - sip * dy;
+
+    const tip = this.getIntersectionPoint(
+      source.x,
+      source.y,
+      target.x,
+      target.y,
+      this.pathMap[target.id]
+    );
+    const tipx = source.x + tip * dx;
+    const tipy = source.y + tip * dy;
+
+    const midx = (sipx + tipx - options.edgeArrowHeight * cosr) * 0.5;
+    const midy = (sipy + tipy - options.edgeArrowHeight * sinr) * 0.5;
 
     const path = new Path2D();
     shape.drawPath(path, midx, midy, shape.width, shape.height, edge.id);
 
     this.pathMap[edge.id] = path;
+    this.edgeContentPosMap[edge.id] = [midx, midy];
 
     const linePath = this.createEdgeLinePath(
       source.x,
@@ -183,7 +201,7 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     );
     this.linePathMap[edge.id] = linePath;
 
-    const arrowPath = this.createEdgeArrowPath(ix, iy, sinr, cosr);
+    const arrowPath = this.createEdgeArrowPath(tipx, tipy, sinr, cosr);
     this.arrowPathMap[edge.id] = arrowPath;
 
     this.requestDraw();
@@ -261,6 +279,9 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     this.idMap = {};
     this.shapeMap = {};
     this.pathMap = {};
+    this.edgeContentPosMap = {};
+    this.linePathMap = {};
+    this.arrowPathMap = {};
 
     this.requestDraw();
   }
@@ -413,15 +434,17 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
   }
 
-  private getIntersectionPoint(source: GraphNode, target: GraphNode) {
+  private getIntersectionPoint(
+    sx: number,
+    sy: number,
+    tx: number,
+    ty: number,
+    path: Path2D
+  ) {
     const { ctx } = this;
 
-    const dx = target.x - source.x;
-    const dy = target.y - source.y;
-
-    ctx.beginPath();
-    ctx.arc(target.x, target.y, 50, 0, 2 * Math.PI);
-    ctx.closePath();
+    const dx = tx - sx;
+    const dy = ty - sy;
 
     let start = 0;
     let end = 10000;
@@ -429,12 +452,12 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     while (start <= end) {
       const mid = ((start + end) / 2) | 0;
 
-      const x = source.x + (mid / 10000) * dx;
-      const y = source.y + (mid / 10000) * dy;
+      const x = sx + (mid / 10000) * dx;
+      const y = sy + (mid / 10000) * dy;
 
-      const [vx, vy] = this.getCanvasPosFromViewPos(x, y);
+      // const [vx, vy] = this.getCanvasPosFromViewPos(x, y);
 
-      if (ctx.isPointInPath(vx, vy)) {
+      if (ctx.isPointInPath(path, x, y)) {
         end = mid - 1;
       } else {
         start = mid + 1;
@@ -446,6 +469,8 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
 
   private drawEdge(edge: Edge) {
     const { ctx, options } = this;
+
+    ctx.lineWidth = options.edgeLineWidth;
 
     // draw edge line
     const linePath = this.linePathMap[edge.id];
@@ -463,11 +488,23 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     ctx.fillStyle = options.edgeShapeColor;
     ctx.fill(path);
     ctx.stroke(path);
+
+    // draw content
+    const [x, y] = this.edgeContentPosMap[edge.id];
+    const shape = this.shapeMap[edge.id];
+
+    ctx.fillStyle = options.edgeContentColor;
+    ctx.textAlign = options.edgeTextAlign;
+    ctx.textBaseline = options.edgeTextBaseline;
+    ctx.font = options.edgeFont;
+
+    shape.drawContent(ctx, x, y, shape.width, shape.height, edge.id);
   }
 
   private drawNode(node: Node) {
     const { ctx, options } = this;
 
+    // draw shape
     const path = this.pathMap[node.id];
 
     ctx.strokeStyle = options.nodeLineColor;
@@ -476,6 +513,16 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
 
     ctx.fill(path);
     ctx.stroke(path);
+
+    // draw content
+    const shape = this.shapeMap[node.id];
+
+    ctx.fillStyle = options.nodeContentColor;
+    ctx.textAlign = options.nodeTextAlign;
+    ctx.textBaseline = options.nodeTextBaseline;
+    ctx.font = options.nodeFont;
+
+    shape.drawContent(ctx, node.x, node.y, shape.width, shape.height, node.id);
   }
 
   private drawBackground() {
