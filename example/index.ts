@@ -1,29 +1,64 @@
-import { createGraphView, GraphEdge, GraphNode } from "../src";
+import {
+  createGraphView,
+  createShape,
+  GraphEdge,
+  GraphNode,
+  GraphView
+} from "../src";
 
 const graphDiv = document.getElementById("graph") as HTMLDivElement;
+const nodeCountInput = document.getElementById(
+  "node-count-input"
+) as HTMLInputElement;
+const generateButton = document.getElementById(
+  "generate-button"
+) as HTMLButtonElement;
+
+let graphView: GraphView<GraphNode, GraphEdge>;
 
 let isDragging = false;
 
-const nodes: GraphNode[] = [
-  {
-    x: 400,
-    y: 400
-  },
-  {
-    x: 150,
-    y: 150
+const nodes: GraphNode[] = [];
+const edges: GraphEdge[] = [];
+
+function generate(nodeCount = 100) {
+  nodes.length = 0;
+  edges.length = 0;
+
+  const columns = Math.ceil(Math.sqrt(nodeCount));
+
+  for (let i = 0; i < nodeCount; i++) {
+    const row = (i / columns) | 0;
+    const col = i % columns;
+
+    nodes.push({
+      x: col * 200,
+      y: row * 200,
+      shape: createShape()
+    });
+
+    if (i > 0) {
+      edges.push({
+        source: nodes[i - 1],
+        target: nodes[i],
+        shape: createShape()
+      });
+    }
   }
-];
-const edges: GraphEdge[] = [
-  {
-    source: nodes[0],
-    target: nodes[1]
-  }
-];
+
+  graphView.setData(nodes, edges);
+}
 
 function main() {
-  const graphView = createGraphView(graphDiv);
-  graphView.setData(nodes, edges);
+  graphView = createGraphView(graphDiv);
+
+  generate(2);
+
+  generateButton.addEventListener("click", () => {
+    const len = parseInt(nodeCountInput.value, 10);
+
+    generate(len);
+  });
 
   window.addEventListener("resize", () => {
     graphView.resize(graphDiv.clientWidth, graphDiv.clientHeight);
