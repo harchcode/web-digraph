@@ -1,67 +1,12 @@
-import { defaultGraphOptions, GraphOptions } from "./utils";
-
-export type GraphShape = {
-  width: number;
-  height: number;
-  drawContent: (
-    ctx: CanvasRenderingContext2D,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    id: number
-  ) => void;
-  drawPath: (
-    path: Path2D,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    id: number
-  ) => void;
-};
-
-export type GraphNode = {
-  id: number;
-  x: number;
-  y: number;
-};
-
-export type GraphEdge = {
-  id: number;
-  sourceId: number;
-  targetId: number;
-};
-
-const defaultNodeShape: GraphShape = {
-  width: 160,
-  height: 160,
-  drawContent: (ctx, x, y, w, _h, id) => {
-    ctx.fillText(`Node ID: ${id}`, x, y, w);
-  },
-  drawPath: (p, x, y, w) => {
-    p.arc(x, y, w * 0.5, 0, Math.PI * 2);
-    p.closePath();
-  }
-};
-
-const defaultEdgeShape: GraphShape = {
-  width: 48,
-  height: 48,
-  drawContent: (ctx, x, y, w, _h, id) => {
-    ctx.fillText(id.toString(), x, y, w);
-  },
-  drawPath: (p, x, y, w, h) => {
-    const wh = w * 0.5;
-    const hh = h * 0.5;
-
-    p.moveTo(x - wh, y);
-    p.lineTo(x, y + wh);
-    p.lineTo(x + wh, y);
-    p.lineTo(x, y - hh);
-    p.closePath();
-  }
-};
+import { GraphState } from "./graph-state";
+import {
+  defaultEdgeShape,
+  defaultNodeShape,
+  GraphEdge,
+  GraphNode,
+  GraphShape,
+  GraphOptions
+} from "./types";
 
 export function createNodeShape(shape?: Partial<GraphShape>): GraphShape {
   return {
@@ -78,79 +23,101 @@ export function createEdgeShape(shape?: Partial<GraphShape>): GraphShape {
 }
 
 export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
-  readonly canvas: HTMLCanvasElement;
-  readonly ctx: CanvasRenderingContext2D;
-
-  private nodes: Node[] = [];
-  private edges: Edge[] = [];
-  private idMap: Record<number, Node | Edge> = {};
-  private shapeMap: Record<number, GraphShape> = {};
-  private pathMap: Record<number, Path2D> = {};
-  private linePathMap: Record<number, Path2D> = {};
-  private arrowPathMap: Record<number, Path2D> = {};
-  private edgeContentPosMap: Record<number, [number, number]> = {};
-
-  private translateX = 0;
-  private translateY = 0;
-  private scale = 1;
-
-  private viewX = 0;
-  private viewY = 0;
-  private viewW = 0;
-  private viewH = 0;
-  private boundingRect: DOMRect;
-
-  private isDrawing = false;
-  private options = defaultGraphOptions;
+  private state: GraphState<Node, Edge>;
 
   constructor(container: HTMLElement, options: Partial<GraphOptions> = {}) {
-    this.options = {
-      ...this.options,
-      ...options
-    };
-
-    this.canvas = document.createElement("canvas");
-    this.canvas.textContent = "Canvas is not supported in your browser.";
-    this.canvas.width = container.clientWidth;
-    this.canvas.height = container.clientHeight;
-    this.boundingRect = this.canvas.getBoundingClientRect();
-
-    const ctx = this.canvas.getContext("2d", { alpha: false });
-    if (!ctx) {
-      throw "Canvas is not supported in your browser.";
-    }
-
-    this.ctx = ctx;
-    ctx.miterLimit;
+    this.state = new GraphState(container, options);
 
     this.requestDraw();
 
-    container.appendChild(this.canvas);
+    container.appendChild(this.state.canvas);
+
+    this.state.canvas.addEventListener("mousemove", e => {
+      const { ctx, scale, translateX, translateY, nodes, edges, idMap } =
+        this.state;
+      const [vx, vy] = this.getViewPosFromWindowPos(e.x, e.y);
+
+      const prevId = this.state.hoveredId;
+      this.state.hoveredId = 0;
+
+      for (const node of nodes) {
+        if (this.isNodeHovered(vx, vy, node)) {
+          this.state.hoveredId = node.id;
+        }
+      }
+
+      for (const edge of edges) {
+        if (this.isEdgeHovered(vx, vy, edge)) {
+          this.state.hoveredId = edge.id;
+        }
+      }
+
+      if (this.state.hoveredId === prevId) return;
+
+      const prev = idMap[prevId] as Node | Edge | undefined;
+      const curr = idMap[this.state.hoveredId] as Node | Edge | undefined;
+
+      ctx.setTransform(scale, 0, 0, scale, translateX, translateY);
+      this.setView();
+
+      if (prev) {
+        if ("x" in prev) {
+          this.drawNode(prev, false);
+        } else {
+          this.drawEdge(prev, false);
+        }
+      }
+
+      if (curr) {
+        if ("x" in curr) {
+          this.drawNode(curr, true);
+        } else {
+          this.drawEdge(curr, true);
+        }
+      }
+
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+    });
+  }
+
+  destroy() {
+    //
   }
 
   addNode(node: Node, shape: GraphShape) {
-    if (this.idMap[node.id]) return;
+    const { idMap, nodes, shapeMap, pathMap } = this.state;
 
-    this.nodes.push(node);
-    this.idMap[node.id] = node;
+    if (idMap[node.id]) return;
+
+    nodes.push(node);
+    idMap[node.id] = node;
 
     const path = new Path2D();
     shape.drawPath(path, node.x, node.y, shape.width, shape.height, node.id);
 
-    this.shapeMap[node.id] = shape;
-    this.pathMap[node.id] = path;
+    shapeMap[node.id] = shape;
+    pathMap[node.id] = path;
 
     this.requestDraw();
   }
 
   addEdge(edge: Edge, shape: GraphShape) {
-    if (this.idMap[edge.id]) return;
+    if (this.state.idMap[edge.id]) return;
 
-    const { idMap, options } = this;
+    const {
+      idMap,
+      options,
+      edges,
+      shapeMap,
+      pathMap,
+      edgeContentPosMap,
+      arrowPathMap,
+      linePathMap
+    } = this.state;
 
-    this.edges.push(edge);
-    this.idMap[edge.id] = edge;
-    this.shapeMap[edge.id] = shape;
+    edges.push(edge);
+    idMap[edge.id] = edge;
+    shapeMap[edge.id] = shape;
 
     const { sourceId, targetId } = edge;
 
@@ -169,20 +136,20 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
       target.y,
       source.x,
       source.y,
-      this.pathMap[source.id]
+      pathMap[source.id]
     );
-    const sipx = target.x - sip * dx;
-    const sipy = target.y - sip * dy;
+    const sipx = target.x - sip * dx + options.nodeLineWidth * cosr * 0.5;
+    const sipy = target.y - sip * dy + options.nodeLineWidth * sinr * 0.5;
 
     const tip = this.getIntersectionPoint(
       source.x,
       source.y,
       target.x,
       target.y,
-      this.pathMap[target.id]
+      pathMap[target.id]
     );
-    const tipx = source.x + tip * dx;
-    const tipy = source.y + tip * dy;
+    const tipx = source.x + tip * dx - options.nodeLineWidth * cosr * 0.5;
+    const tipy = source.y + tip * dy - options.nodeLineWidth * sinr * 0.5;
 
     const midx = (sipx + tipx - options.edgeArrowHeight * cosr) * 0.5;
     const midy = (sipy + tipy - options.edgeArrowHeight * sinr) * 0.5;
@@ -190,19 +157,19 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     const path = new Path2D();
     shape.drawPath(path, midx, midy, shape.width, shape.height, edge.id);
 
-    this.pathMap[edge.id] = path;
-    this.edgeContentPosMap[edge.id] = [midx, midy];
+    pathMap[edge.id] = path;
+    edgeContentPosMap[edge.id] = [midx, midy];
 
     const linePath = this.createEdgeLinePath(
-      source.x,
-      source.y,
-      target.x,
-      target.y
+      sipx,
+      sipy,
+      tipx - options.edgeArrowHeight * cosr,
+      tipy - options.edgeArrowHeight * sinr
     );
-    this.linePathMap[edge.id] = linePath;
+    linePathMap[edge.id] = linePath;
 
     const arrowPath = this.createEdgeArrowPath(tipx, tipy, sinr, cosr);
-    this.arrowPathMap[edge.id] = arrowPath;
+    arrowPathMap[edge.id] = arrowPath;
 
     this.requestDraw();
   }
@@ -222,7 +189,7 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     sinr: number,
     cosr: number
   ) {
-    const { options } = this;
+    const { options } = this.state;
 
     const ll = options.edgeArrowWidth * 0.5;
     const lsx = ix - options.edgeArrowHeight * cosr;
@@ -242,119 +209,112 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     return p;
   }
 
-  updateNode(id: number, node: Partial<Node>) {
-    //
-  }
+  // updateNode(id: number, node: Partial<Node>) {
+  //   //
+  // }
 
-  updateEdge(id: number, edge: Partial<Edge>) {
-    //
-  }
+  // updateEdge(id: number, edge: Partial<Edge>) {
+  //   //
+  // }
 
-  removeNode(id: number) {
-    //
-  }
+  // removeNode(id: number) {
+  //   //
+  // }
 
-  removeEdge(id: number) {
-    //
-  }
+  // removeEdge(id: number) {
+  //   //
+  // }
 
   getNode(id: number): Node {
-    return this.idMap[id] as Node;
+    return this.state.idMap[id] as Node;
   }
 
   getEdge(id: number): Edge {
-    return this.idMap[id] as Edge;
+    return this.state.idMap[id] as Edge;
   }
 
   getData() {
     return {
-      nodes: this.nodes,
-      edges: this.edges
+      nodes: this.state.nodes,
+      edges: this.state.edges
     };
   }
 
   clear() {
-    this.nodes = [];
-    this.edges = [];
-    this.idMap = {};
-    this.shapeMap = {};
-    this.pathMap = {};
-    this.edgeContentPosMap = {};
-    this.linePathMap = {};
-    this.arrowPathMap = {};
+    this.state.nodes = [];
+    this.state.edges = [];
+    this.state.idMap = {};
+    this.state.shapeMap = {};
+    this.state.pathMap = {};
+    this.state.edgeContentPosMap = {};
+    this.state.linePathMap = {};
+    this.state.arrowPathMap = {};
 
     this.requestDraw();
   }
 
-  // setData(nodes: Node[], edges: Edge[]) {
-  //   this.nodes = nodes;
-  //   this.edges = edges;
-
-  //   this.requestDraw();
-  // }
-
   getTranslateX() {
-    return this.translateX;
+    return this.state.translateX;
   }
 
   setTranslateX(v: number) {
-    if (v === this.translateX) return;
+    if (v === this.state.translateX) return;
 
-    this.translateX = v;
+    this.state.translateX = v;
     this.requestDraw();
   }
 
   getTranslateY() {
-    return this.translateY;
+    return this.state.translateY;
   }
 
   setTranslateY(v: number) {
-    if (v === this.translateY) return;
+    if (v === this.state.translateY) return;
 
-    this.translateY = v;
+    this.state.translateY = v;
     this.requestDraw();
   }
 
   getScale() {
-    return this.scale;
+    return this.state.scale;
   }
 
   setScale(v: number) {
-    if (v === this.scale) return;
+    if (v === this.state.scale) return;
 
-    this.scale = v;
+    this.state.scale = v;
     this.requestDraw();
   }
 
   setTransform(translateX: number, translateY: number, scale: number) {
     if (
-      translateX === this.translateX &&
-      translateY === this.translateY &&
-      scale === this.scale
+      translateX === this.state.translateX &&
+      translateY === this.state.translateY &&
+      scale === this.state.scale
     )
       return;
 
-    this.translateX = translateX;
-    this.translateY = translateY;
-    this.scale = scale;
+    this.state.translateX = translateX;
+    this.state.translateY = translateY;
+    this.state.scale = scale;
 
     this.requestDraw();
   }
 
   moveBy(x: number, y: number) {
-    this.translateX += x;
-    this.translateY += y;
+    this.state.translateX += x;
+    this.state.translateY += y;
 
     this.requestDraw();
   }
 
   zoomBy(value: number, targetX?: number, targetY?: number) {
-    this.zoomTo(this.scale + value, targetX, targetY);
+    this.zoomTo(this.state.scale + value, targetX, targetY);
   }
 
   zoomTo(value: number, targetX?: number, targetY?: number) {
-    const { scale, translateX, translateY, options } = this;
-    const { width, height } = this.canvas;
+    const { scale, translateX, translateY, options } = this.state;
+    const { width, height } = this.state.canvas;
 
     targetX = targetX || (width * 0.5 - translateX) / scale;
     targetY = targetY || (height * 0.5 - translateY) / scale;
@@ -368,42 +328,42 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     const offsetX = -(targetX * deltaScale);
     const offsetY = -(targetY * deltaScale);
 
-    this.scale += deltaScale;
-    this.translateX += offsetX;
-    this.translateY += offsetY;
+    this.state.scale += deltaScale;
+    this.state.translateX += offsetX;
+    this.state.translateY += offsetY;
 
     this.requestDraw();
   }
 
   resize(width: number, height: number): void {
-    this.canvas.width = width;
-    this.canvas.height = height;
+    this.state.canvas.width = width;
+    this.state.canvas.height = height;
 
-    this.boundingRect = this.canvas.getBoundingClientRect();
+    this.state.boundingRect = this.state.canvas.getBoundingClientRect();
 
     this.requestDraw();
   }
 
   private requestDraw() {
-    if (!this.isDrawing) {
+    if (!this.state.isDrawing) {
       requestAnimationFrame(this.requestDrawHandler);
     }
 
-    this.isDrawing = true;
+    this.state.isDrawing = true;
   }
 
   private requestDrawHandler = () => {
-    this.isDrawing = false;
+    this.state.isDrawing = false;
     this.draw();
   };
 
   private setView() {
-    const { canvas, translateX, translateY, scale } = this;
+    const { canvas, translateX, translateY, scale } = this.state;
 
-    this.viewX = -translateX / scale;
-    this.viewY = -translateY / scale;
-    this.viewW = canvas.width / scale;
-    this.viewH = canvas.height / scale;
+    this.state.viewX = -translateX / scale;
+    this.state.viewY = -translateY / scale;
+    this.state.viewW = canvas.width / scale;
+    this.state.viewH = canvas.height / scale;
   }
 
   private draw() {
@@ -415,8 +375,9 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
       translateY,
       options,
       nodes,
-      edges
-    } = this;
+      edges,
+      hoveredId
+    } = this.state;
 
     ctx.fillStyle = options.bgColor;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -427,9 +388,8 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
 
     if (options.bgShowDots) this.drawBackground();
 
-    for (const edge of edges) this.drawEdge(edge);
-
-    for (const node of nodes) this.drawNode(node);
+    for (const edge of edges) this.drawEdge(edge, hoveredId === edge.id);
+    for (const node of nodes) this.drawNode(node, hoveredId === node.id);
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
   }
@@ -441,7 +401,7 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     ty: number,
     path: Path2D
   ) {
-    const { ctx } = this;
+    const { ctx } = this.state;
 
     const dx = tx - sx;
     const dy = ty - sy;
@@ -467,31 +427,53 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     return start / 10000;
   }
 
-  private drawEdge(edge: Edge) {
-    const { ctx, options } = this;
+  private isEdgeHovered(x: number, y: number, edge: Edge) {
+    const { ctx, pathMap, linePathMap, arrowPathMap } = this.state;
+
+    return (
+      ctx.isPointInPath(pathMap[edge.id], x, y) ||
+      ctx.isPointInStroke(linePathMap[edge.id], x, y) ||
+      ctx.isPointInPath(arrowPathMap[edge.id], x, y)
+    );
+  }
+
+  private drawEdge(edge: Edge, hovered = false) {
+    const {
+      ctx,
+      options,
+      linePathMap,
+      arrowPathMap,
+      pathMap,
+      edgeContentPosMap,
+      shapeMap
+    } = this.state;
 
     ctx.lineWidth = options.edgeLineWidth;
+    ctx.strokeStyle = hovered
+      ? options.edgeHoveredLineColor
+      : options.edgeLineColor;
 
     // draw edge line
-    const linePath = this.linePathMap[edge.id];
-    ctx.strokeStyle = options.edgeLineColor;
+    const linePath = linePathMap[edge.id];
     ctx.stroke(linePath);
 
     // draw edge arrow
-    const arrowPath = this.arrowPathMap[edge.id];
-    ctx.fillStyle = options.edgeLineColor;
+    const arrowPath = arrowPathMap[edge.id];
+    ctx.fillStyle = hovered
+      ? options.edgeHoveredLineColor
+      : options.edgeLineColor;
     ctx.fill(arrowPath);
 
     // draw shape
-    const path = this.pathMap[edge.id];
+    const path = pathMap[edge.id];
 
     ctx.fillStyle = options.edgeShapeColor;
     ctx.fill(path);
     ctx.stroke(path);
 
     // draw content
-    const [x, y] = this.edgeContentPosMap[edge.id];
-    const shape = this.shapeMap[edge.id];
+    const [x, y] = edgeContentPosMap[edge.id];
+    const shape = shapeMap[edge.id];
 
     ctx.fillStyle = options.edgeContentColor;
     ctx.textAlign = options.edgeTextAlign;
@@ -501,13 +483,21 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     shape.drawContent(ctx, x, y, shape.width, shape.height, edge.id);
   }
 
-  private drawNode(node: Node) {
-    const { ctx, options } = this;
+  private isNodeHovered(x: number, y: number, node: Node) {
+    const { ctx, pathMap } = this.state;
+
+    return ctx.isPointInPath(pathMap[node.id], x, y);
+  }
+
+  private drawNode(node: Node, hovered = false) {
+    const { ctx, options, pathMap, shapeMap } = this.state;
 
     // draw shape
-    const path = this.pathMap[node.id];
+    const path = pathMap[node.id];
 
-    ctx.strokeStyle = options.nodeLineColor;
+    ctx.strokeStyle = hovered
+      ? options.nodeHoveredLineColor
+      : options.nodeLineColor;
     ctx.fillStyle = options.nodeColor;
     ctx.lineWidth = options.nodeLineWidth;
 
@@ -515,7 +505,7 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     ctx.stroke(path);
 
     // draw content
-    const shape = this.shapeMap[node.id];
+    const shape = shapeMap[node.id];
 
     ctx.fillStyle = options.nodeContentColor;
     ctx.textAlign = options.nodeTextAlign;
@@ -526,7 +516,7 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
   }
 
   private drawBackground() {
-    const { ctx, viewX, viewY, viewW, viewH, options } = this;
+    const { ctx, viewX, viewY, viewW, viewH, options } = this.state;
 
     const lw = options.bgLineWidth;
     const gap = options.bgLineGap;
@@ -563,8 +553,8 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     windowX: number,
     windowY: number
   ) {
-    const { left, top } = this.boundingRect;
-    const { scale, translateX, translateY } = this;
+    const { left, top } = this.state.boundingRect;
+    const { scale, translateX, translateY } = this.state;
 
     out[0] = (windowX - left - translateX) / scale;
     out[1] = (windowY - top - translateY) / scale;
@@ -575,15 +565,15 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     canvasX: number,
     canvasY: number
   ) {
-    const { scale, translateX, translateY } = this;
+    const { scale, translateX, translateY } = this.state;
 
     out[0] = (canvasX - translateX) / scale;
     out[1] = (canvasY - translateY) / scale;
   }
 
   getViewPosFromWindowPos(windowX: number, windowY: number) {
-    const { left, top } = this.boundingRect;
-    const { scale, translateX, translateY } = this;
+    const { left, top } = this.state.boundingRect;
+    const { scale, translateX, translateY } = this.state;
 
     return [
       (windowX - left - translateX) / scale,
@@ -592,13 +582,13 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
   }
 
   getViewPosFromCanvasPos(canvasX: number, canvasY: number) {
-    const { scale, translateX, translateY } = this;
+    const { scale, translateX, translateY } = this.state;
 
     return [(canvasX - translateX) / scale, (canvasY - translateY) / scale];
   }
 
   getCanvasPosFromViewPos(viewX: number, viewY: number) {
-    const { scale, translateX, translateY } = this;
+    const { scale, translateX, translateY } = this.state;
 
     return [viewX * scale + translateX, viewY * scale + translateY];
   }
@@ -608,14 +598,14 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     windowX: number,
     windowY: number
   ) {
-    const { left, top } = this.boundingRect;
+    const { left, top } = this.state.boundingRect;
 
     out[0] = windowX - left;
     out[1] = windowY - top;
   }
 
   getCanvasPosFromWindowPos(windowX: number, windowY: number) {
-    const { left, top } = this.boundingRect;
+    const { left, top } = this.state.boundingRect;
 
     return [windowX - left, windowY - top];
   }

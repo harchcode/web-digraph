@@ -74,21 +74,21 @@ function main() {
     graphView.resize(graphDiv.clientWidth, graphDiv.clientHeight);
   });
 
-  graphView.canvas.addEventListener("mousedown", () => {
+  graphDiv.addEventListener("mousedown", () => {
     isDragging = true;
   });
 
-  graphView.canvas.addEventListener("mousemove", e => {
+  graphDiv.addEventListener("mousemove", e => {
     if (!isDragging) return;
 
     graphView.moveBy(e.movementX, e.movementY);
   });
 
-  graphView.canvas.addEventListener("mouseup", () => {
+  graphDiv.addEventListener("mouseup", () => {
     isDragging = false;
   });
 
-  graphView.canvas.addEventListener(
+  graphDiv.addEventListener(
     "wheel",
     e => {
       e.preventDefault();
