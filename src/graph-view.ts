@@ -3,37 +3,37 @@ import { defaultGraphOptions, GraphOptions } from "./utils";
 export type GraphShape = {
   width: number;
   height: number;
-  drawContent: <T>(
+  drawContent: (
     ctx: CanvasRenderingContext2D,
     x: number,
     y: number,
     w: number,
     h: number,
-    data: T
+    id: number
   ) => void;
-  drawPath: <T>(
+  drawPath: (
     path: Path2D,
     x: number,
     y: number,
     w: number,
     h: number,
-    data: T
+    id: number
   ) => void;
 };
 
 export type GraphNode = {
+  id: number;
   x: number;
   y: number;
-  shape: GraphShape;
 };
 
 export type GraphEdge = {
-  source: GraphNode;
-  target: GraphNode;
-  shape: GraphShape;
+  id: number;
+  sourceId: number;
+  targetId: number;
 };
 
-const defaultGraphShape: GraphShape = {
+const defaultNodeShape: GraphShape = {
   width: 100,
   height: 100,
   drawContent: () => {
@@ -45,9 +45,34 @@ const defaultGraphShape: GraphShape = {
   }
 };
 
-export function createShape(shape?: Partial<GraphShape>): GraphShape {
+const defaultEdgeShape: GraphShape = {
+  width: 32,
+  height: 32,
+  drawContent: () => {
+    // noop
+  },
+  drawPath: (p, x, y, w, h) => {
+    const wh = w * 0.5;
+    const hh = h * 0.5;
+
+    p.moveTo(x - wh, y);
+    p.lineTo(x, y + wh);
+    p.lineTo(x + wh, y);
+    p.lineTo(x, y - hh);
+    p.closePath();
+  }
+};
+
+export function createNodeShape(shape?: Partial<GraphShape>): GraphShape {
   return {
-    ...defaultGraphShape,
+    ...defaultNodeShape,
+    ...shape
+  };
+}
+
+export function createEdgeShape(shape?: Partial<GraphShape>): GraphShape {
+  return {
+    ...defaultEdgeShape,
     ...shape
   };
 }
@@ -58,6 +83,11 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
 
   private nodes: Node[] = [];
   private edges: Edge[] = [];
+  private idMap: Record<number, Node | Edge> = {};
+  private shapeMap: Record<number, GraphShape> = {};
+  private pathMap: Record<number, Path2D> = {};
+  private linePathMap: Record<number, Path2D> = {};
+  private arrowPathMap: Record<number, Path2D> = {};
 
   private translateX = 0;
   private translateY = 0;
@@ -97,12 +127,150 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     container.appendChild(this.canvas);
   }
 
-  setData(nodes: Node[], edges: Edge[]) {
-    this.nodes = nodes;
-    this.edges = edges;
+  addNode(node: Node, shape: GraphShape) {
+    if (this.idMap[node.id]) return;
+
+    this.nodes.push(node);
+    this.idMap[node.id] = node;
+
+    const path = new Path2D();
+    shape.drawPath(path, node.x, node.y, shape.width, shape.height, node.id);
+
+    this.shapeMap[node.id] = shape;
+    this.pathMap[node.id] = path;
 
     this.requestDraw();
   }
+
+  addEdge(edge: Edge, shape: GraphShape) {
+    if (this.idMap[edge.id]) return;
+
+    const { idMap } = this;
+
+    this.edges.push(edge);
+    this.idMap[edge.id] = edge;
+    this.shapeMap[edge.id] = shape;
+
+    const { sourceId, targetId } = edge;
+
+    const source = idMap[sourceId] as Node;
+    const target = idMap[targetId] as Node;
+
+    const dx = target.x - source.x;
+    const dy = target.y - source.y;
+
+    const midx = (source.x + target.x) * 0.5;
+    const midy = (source.y + target.y) * 0.5;
+
+    const rad = Math.atan2(dy, dx);
+    const sinr = Math.sin(rad);
+    const cosr = Math.cos(rad);
+
+    const ip = this.getIntersectionPoint(source, target);
+    const ix = source.x + ip * dx;
+    const iy = source.y + ip * dy;
+
+    const path = new Path2D();
+    shape.drawPath(path, midx, midy, shape.width, shape.height, edge.id);
+
+    this.pathMap[edge.id] = path;
+
+    const linePath = this.createEdgeLinePath(
+      source.x,
+      source.y,
+      target.x,
+      target.y
+    );
+    this.linePathMap[edge.id] = linePath;
+
+    const arrowPath = this.createEdgeArrowPath(ix, iy, sinr, cosr);
+    this.arrowPathMap[edge.id] = arrowPath;
+
+    this.requestDraw();
+  }
+
+  private createEdgeLinePath(sx: number, sy: number, tx: number, ty: number) {
+    const p = new Path2D();
+
+    p.moveTo(sx, sy);
+    p.lineTo(tx, ty);
+
+    return p;
+  }
+
+  private createEdgeArrowPath(
+    ix: number,
+    iy: number,
+    sinr: number,
+    cosr: number
+  ) {
+    const { options } = this;
+
+    const ll = options.edgeArrowWidth * 0.5;
+    const lsx = ix - options.edgeArrowHeight * cosr;
+    const lsy = iy - options.edgeArrowHeight * sinr;
+    const lp1x = lsx + ll * sinr;
+    const lp1y = lsy - ll * cosr;
+    const lp2x = lsx - ll * sinr;
+    const lp2y = lsy + ll * cosr;
+
+    const p = new Path2D();
+
+    p.moveTo(ix, iy);
+    p.lineTo(lp1x, lp1y);
+    p.lineTo(lp2x, lp2y);
+    p.closePath();
+
+    return p;
+  }
+
+  updateNode(id: number, node: Partial<Node>) {
+    //
+  }
+
+  updateEdge(id: number, edge: Partial<Edge>) {
+    //
+  }
+
+  removeNode(id: number) {
+    //
+  }
+
+  removeEdge(id: number) {
+    //
+  }
+
+  getNode(id: number): Node {
+    return this.idMap[id] as Node;
+  }
+
+  getEdge(id: number): Edge {
+    return this.idMap[id] as Edge;
+  }
+
+  getData() {
+    return {
+      nodes: this.nodes,
+      edges: this.edges
+    };
+  }
+
+  clear() {
+    this.nodes = [];
+    this.edges = [];
+    this.idMap = {};
+    this.shapeMap = {};
+    this.pathMap = {};
+
+    this.requestDraw();
+  }
+
+  // setData(nodes: Node[], edges: Edge[]) {
+  //   this.nodes = nodes;
+  //   this.edges = edges;
+
+  //   this.requestDraw();
+  // }
 
   getTranslateX() {
     return this.translateX;
@@ -238,28 +406,11 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
 
     if (options.bgShowDots) this.drawBackground();
 
-    ctx.strokeStyle = options.edgeLineColor;
-    ctx.fillStyle = options.edgeLineColor;
-    ctx.lineWidth = options.edgeLineWidth;
-
     for (const edge of edges) this.drawEdge(edge);
 
-    ctx.strokeStyle = options.nodeLineColor;
-    ctx.fillStyle = options.nodeColor;
-    ctx.lineWidth = options.nodeLineWidth;
     for (const node of nodes) this.drawNode(node);
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-  }
-
-  private drawEdgeLine(edge: Edge) {
-    const { ctx } = this;
-    const { source, target } = edge;
-
-    ctx.beginPath();
-    ctx.moveTo(source.x, source.y);
-    ctx.lineTo(target.x, target.y);
-    ctx.stroke();
   }
 
   private getIntersectionPoint(source: GraphNode, target: GraphNode) {
@@ -293,53 +444,35 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     return start / 10000;
   }
 
-  private drawEdgeArrow(edge: Edge) {
-    const { ctx, options } = this;
-    const { source, target } = edge;
-
-    const dx = target.x - source.x;
-    const dy = target.y - source.y;
-
-    const rad = Math.atan2(dy, dx);
-    const sinr = Math.sin(rad);
-    const cosr = Math.cos(rad);
-
-    const ll = options.edgeArrowWidth * 0.5;
-
-    const ip = this.getIntersectionPoint(source, target);
-    const midx = source.x + ip * dx;
-    const midy = source.y + ip * dy;
-    const lsx = midx - options.edgeArrowHeight * cosr;
-    const lsy = midy - options.edgeArrowHeight * sinr;
-    const lp1x = lsx + ll * sinr;
-    const lp1y = lsy - ll * cosr;
-    const lp2x = lsx - ll * sinr;
-    const lp2y = lsy + ll * cosr;
-
-    ctx.beginPath();
-    ctx.moveTo(midx, midy);
-    ctx.lineTo(lp1x, lp1y);
-    ctx.lineTo(lp2x, lp2y);
-    ctx.closePath();
-    ctx.fill();
-  }
-
   private drawEdge(edge: Edge) {
-    this.drawEdgeLine(edge);
-    this.drawEdgeArrow(edge);
+    const { ctx, options } = this;
+
+    // draw edge line
+    const linePath = this.linePathMap[edge.id];
+    ctx.strokeStyle = options.edgeLineColor;
+    ctx.stroke(linePath);
+
+    // draw edge arrow
+    const arrowPath = this.arrowPathMap[edge.id];
+    ctx.fillStyle = options.edgeLineColor;
+    ctx.fill(arrowPath);
+
+    // draw shape
+    const path = this.pathMap[edge.id];
+
+    ctx.fillStyle = options.edgeShapeColor;
+    ctx.fill(path);
+    ctx.stroke(path);
   }
 
   private drawNode(node: Node) {
-    this.drawShape(node.shape, node.x, node.y, node);
-  }
+    const { ctx, options } = this;
 
-  private drawShape<T>(shape: GraphShape, x: number, y: number, data: T) {
-    const { ctx } = this;
+    const path = this.pathMap[node.id];
 
-    ctx.beginPath();
-
-    const path = new Path2D();
-    shape.drawPath(path, x, y, shape.width, shape.height, data);
+    ctx.strokeStyle = options.nodeLineColor;
+    ctx.fillStyle = options.nodeColor;
+    ctx.lineWidth = options.nodeLineWidth;
 
     ctx.fill(path);
     ctx.stroke(path);

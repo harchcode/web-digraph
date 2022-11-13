@@ -1,6 +1,7 @@
 import {
+  createEdgeShape,
   createGraphView,
-  createShape,
+  createNodeShape,
   GraphEdge,
   GraphNode,
   GraphView
@@ -18,12 +19,13 @@ let graphView: GraphView<GraphNode, GraphEdge>;
 
 let isDragging = false;
 
-const nodes: GraphNode[] = [];
-const edges: GraphEdge[] = [];
+const nodeShape = createNodeShape();
+const edgeShape = createEdgeShape();
 
 function generate(nodeCount = 100) {
-  nodes.length = 0;
-  edges.length = 0;
+  let id = 1;
+
+  graphView.clear();
 
   const columns = Math.ceil(Math.sqrt(nodeCount));
 
@@ -31,22 +33,30 @@ function generate(nodeCount = 100) {
     const row = (i / columns) | 0;
     const col = i % columns;
 
-    nodes.push({
-      x: col * 200,
-      y: row * 200,
-      shape: createShape()
-    });
+    graphView.addNode(
+      {
+        id,
+        x: col * 200,
+        y: row * 200
+      },
+      nodeShape
+    );
+
+    id++;
 
     if (i > 0) {
-      edges.push({
-        source: nodes[i - 1],
-        target: nodes[i],
-        shape: createShape()
-      });
+      graphView.addEdge(
+        {
+          id,
+          sourceId: id - (i > 1 ? 3 : 2),
+          targetId: id - 1
+        },
+        edgeShape
+      );
+
+      id++;
     }
   }
-
-  graphView.setData(nodes, edges);
 }
 
 function main() {
