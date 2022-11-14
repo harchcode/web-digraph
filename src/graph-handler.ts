@@ -19,9 +19,14 @@ export class GraphHandler<Node extends GraphNode, Edge extends GraphEdge> {
   }
 
   handleMouseMove = (e: MouseEvent) => {
-    const { moveNodeIds, moveX, moveY, dragLineSourceNode } = this.state;
+    const { moveNodeIds, moveX, moveY, dragLineSourceNode, isMovingView } =
+      this.state;
 
     const vp = this.view.getViewPosFromWindowPos(e.x, e.y);
+
+    if (isMovingView && !dragLineSourceNode && moveNodeIds.length === 0) {
+      this.view.moveBy(e.movementX, e.movementY);
+    }
 
     if (dragLineSourceNode) {
       this.state.dragLineX = vp[0];
@@ -106,11 +111,25 @@ export class GraphHandler<Node extends GraphNode, Edge extends GraphEdge> {
     this.renderer.resetTransform();
   }
 
+  handleWheel = (e: WheelEvent) => {
+    e.preventDefault();
+
+    const pos = this.view.getViewPosFromWindowPos(e.x, e.y);
+
+    this.view.zoomBy(-e.deltaY * 0.001, pos[0], pos[1]);
+  };
+
   init() {
-    this.state.container.addEventListener("mousemove", this.handleMouseMove);
+    const { container } = this.state;
+
+    container.addEventListener("mousemove", this.handleMouseMove);
+    container.addEventListener("wheel", this.handleWheel);
   }
 
   destroy() {
-    this.state.container.removeEventListener("mousemove", this.handleMouseMove);
+    const { container } = this.state;
+
+    container.removeEventListener("mousemove", this.handleMouseMove);
+    container.removeEventListener("wheel", this.handleWheel);
   }
 }

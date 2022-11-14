@@ -27,6 +27,8 @@ export class GraphState<Node extends GraphNode, Edge extends GraphEdge> {
   sourceNodeIdToEdgesMap: Record<number, Edge[]> = {};
   targetNodeIdToEdgesMap: Record<number, Edge[]> = {};
 
+  options = defaultGraphOptions;
+
   translateX = 0;
   translateY = 0;
   scale = 1;
@@ -38,14 +40,12 @@ export class GraphState<Node extends GraphNode, Edge extends GraphEdge> {
   boundingRect: DOMRect;
 
   isDrawing = false;
-  options = defaultGraphOptions;
+  isMovingView = false;
   hoveredId = 0;
   selectedIdMap: Record<number, boolean> = {};
   moveNodeIds: number[] = [];
   moveX = 0;
   moveY = 0;
-  moveStartX = 0;
-  moveStartY = 0;
   dragLineSourceNode: Node | undefined = undefined;
   dragLineX = 0;
   dragLineY = 0;

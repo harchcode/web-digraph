@@ -45,13 +45,21 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     this.handler.destroy();
   }
 
-  beginDragLine(node: Node) {
+  beginDragLine() {
+    const { hoveredId, idMap } = this.state;
+
+    if (!hoveredId) return;
+
+    const node = idMap[hoveredId];
+
+    if (!this.isNode(node)) return;
+
     this.state.dragLineSourceNode = node;
     this.state.dragLineX = node.x;
     this.state.dragLineY = node.y;
   }
 
-  endDragLine() {
+  endDragLine(): [Node, Node] | undefined {
     const { hoveredId, idMap } = this.state;
 
     if (!this.state.dragLineSourceNode) return;
@@ -71,22 +79,24 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     return rn && this.isNode(rn) ? [s, rn] : undefined;
   }
 
-  beginMoveNode(ids: number[], vx: number, vy: number) {
-    this.state.moveNodeIds = ids;
-    this.state.moveX = vx;
-    this.state.moveY = vy;
-    this.state.moveStartX = vx;
-    this.state.moveStartY = vy;
+  beginMoveView() {
+    this.state.isMovingView = true;
   }
 
-  endMoveNode() {
-    const { moveX, moveY, moveStartX, moveStartY } = this.state;
+  endMoveView() {
+    this.state.isMovingView = false;
+  }
 
+  beginMoveNodes(nodeIds: number[], vx: number, vy: number) {
+    this.state.moveNodeIds = nodeIds;
+    this.state.moveX = vx;
+    this.state.moveY = vy;
+  }
+
+  endMoveNodes() {
     this.state.moveNodeIds.length = 0;
 
     this.renderer.requestDraw();
-
-    return [moveX - moveStartX, moveY - moveStartY];
   }
 
   getHoveredId() {
@@ -111,6 +121,26 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
   clearSelection() {
     this.state.selectedIdMap = {};
     this.renderer.requestDraw();
+  }
+
+  getSelection() {
+    return Object.keys(this.state.selectedIdMap).map(k => Number(k));
+  }
+
+  getSelectedNodeIds() {
+    return this.getSelection().filter(id => {
+      const nodeOrEdge = this.state.idMap[id];
+
+      return this.isNode(nodeOrEdge);
+    });
+  }
+
+  getSelectedEdgeIds() {
+    return this.getSelection().filter(id => {
+      const nodeOrEdge = this.state.idMap[id];
+
+      return this.isEdge(nodeOrEdge);
+    });
   }
 
   addNode(node: Node, shape: GraphShape) {
@@ -249,6 +279,13 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     }
   }
 
+  remove(id: number) {
+    const nodeOrEdge = this.state.idMap[id];
+
+    if (this.isNode(nodeOrEdge)) this.removeNode(id);
+    if (this.isEdge(nodeOrEdge)) this.removeEdge(id);
+  }
+
   removeNode(id: number) {
     const node = this.state.idMap[id];
 
@@ -257,11 +294,15 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     delete this.state.idMap[id];
     delete this.state.pathMap[id];
 
+    this.state.nodes = this.state.nodes.filter(n => n.id !== id);
+
     const ses = this.state.sourceNodeIdToEdgesMap[id];
     if (ses) for (const edge of ses) this.removeEdge(edge.id);
 
-    const tes = this.state.sourceNodeIdToEdgesMap[id];
+    const tes = this.state.targetNodeIdToEdgesMap[id];
     if (tes) for (const edge of tes) this.removeEdge(edge.id);
+
+    this.renderer.requestDraw();
   }
 
   removeEdge(id: number) {
@@ -274,6 +315,8 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     delete this.state.linePathMap[id];
     delete this.state.arrowPathMap[id];
 
+    this.state.edges = this.state.edges.filter(n => n.id !== id);
+
     const ses = this.state.sourceNodeIdToEdgesMap[edge.sourceId];
     if (ses)
       this.state.sourceNodeIdToEdgesMap[edge.sourceId] = ses.filter(
@@ -285,6 +328,8 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
       this.state.targetNodeIdToEdgesMap[edge.targetId] = ses.filter(
         e => e.id !== id
       );
+
+    this.renderer.requestDraw();
   }
 
   getNode(id: number): Node {
@@ -406,11 +451,13 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     this.renderer.requestDraw();
   }
 
-  isNode(nodeOrEdge: Node | Edge): nodeOrEdge is Node {
+  isNode(nodeOrEdge?: Node | Edge): nodeOrEdge is Node {
+    if (!nodeOrEdge) return false;
     return "x" in nodeOrEdge;
   }
 
-  isEdge(nodeOrEdge: Node | Edge): nodeOrEdge is Edge {
+  isEdge(nodeOrEdge?: Node | Edge): nodeOrEdge is Edge {
+    if (!nodeOrEdge) return false;
     return "sourceId" in nodeOrEdge;
   }
 

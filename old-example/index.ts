@@ -100,7 +100,7 @@ graphView.canvas.addEventListener(
     if (action === "move" && graphView.hoveredNode) {
       movingNode = graphView.hoveredNode;
 
-      graphView.beginMoveNode(graphView.hoveredNode);
+      graphView.beginMoveSelectedNode(graphView.hoveredNode);
     }
 
     if (action === "create") {
@@ -122,7 +122,7 @@ graphView.canvas.addEventListener(
   "mouseup",
   e => {
     if (isDragging && action === "move" && movingNode) {
-      graphView.endMoveNode();
+      graphView.endMoveNodes();
     }
 
     if (isDragging && action === "create" && dragSourceNode) {
