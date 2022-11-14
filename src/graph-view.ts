@@ -354,6 +354,7 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     this.state.shapeMap = {};
     this.state.pathMap = {};
     this.state.edgeContentPosMap = {};
+    this.state.edgeLinePosMap = {};
     this.state.linePathMap = {};
     this.state.arrowPathMap = {};
 

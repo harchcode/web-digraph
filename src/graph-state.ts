@@ -24,6 +24,7 @@ export class GraphState<Node extends GraphNode, Edge extends GraphEdge> {
   linePathMap: Record<number, Path2D> = {};
   arrowPathMap: Record<number, Path2D> = {};
   edgeContentPosMap: Record<number, [number, number]> = {};
+  edgeLinePosMap: Record<number, [number, number, number, number]> = {};
   sourceNodeIdToEdgesMap: Record<number, Edge[]> = {};
   targetNodeIdToEdgesMap: Record<number, Edge[]> = {};
 
