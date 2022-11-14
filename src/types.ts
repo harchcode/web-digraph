@@ -21,14 +21,13 @@ export type GraphShape = {
     h: number,
     id: number
   ) => void;
-  drawPath: (
-    path: Path2D,
+  createPath: (
     x: number,
     y: number,
     w: number,
     h: number,
     id: number
-  ) => void;
+  ) => Path2D;
 };
 
 export const defaultNodeShape: GraphShape = {
@@ -37,9 +36,13 @@ export const defaultNodeShape: GraphShape = {
   drawContent: (ctx, x, y, w, _h, id) => {
     ctx.fillText(`Node ID: ${id}`, x, y, w);
   },
-  drawPath: (p, x, y, w) => {
+  createPath: (x, y, w) => {
+    const p = new Path2D();
+
     p.arc(x, y, w * 0.5, 0, Math.PI * 2);
     p.closePath();
+
+    return p;
   }
 };
 
@@ -49,15 +52,19 @@ export const defaultEdgeShape: GraphShape = {
   drawContent: (ctx, x, y, w, _h, id) => {
     ctx.fillText(id.toString(), x, y, w);
   },
-  drawPath: (p, x, y, w, h) => {
+  createPath: (x, y, w, h) => {
     const wh = w * 0.5;
     const hh = h * 0.5;
+
+    const p = new Path2D();
 
     p.moveTo(x - wh, y);
     p.lineTo(x, y + wh);
     p.lineTo(x + wh, y);
     p.lineTo(x, y - hh);
     p.closePath();
+
+    return p;
   }
 };
 

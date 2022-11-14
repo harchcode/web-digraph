@@ -188,8 +188,13 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     nodes.push(node);
     idMap[node.id] = node;
 
-    const path = new Path2D();
-    shape.drawPath(path, node.x, node.y, shape.width, shape.height, node.id);
+    const path = shape.createPath(
+      node.x,
+      node.y,
+      shape.width,
+      shape.height,
+      node.id
+    );
 
     shapeMap[node.id] = shape;
     pathMap[node.id] = path;
@@ -271,8 +276,13 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     const midx = (sipx + tipx - options.edgeArrowHeight * cosr) * 0.5;
     const midy = (sipy + tipy - options.edgeArrowHeight * sinr) * 0.5;
 
-    const path = new Path2D();
-    shape.drawPath(path, midx, midy, shape.width, shape.height, edge.id);
+    const path = shape.createPath(
+      midx,
+      midy,
+      shape.width,
+      shape.height,
+      edge.id
+    );
 
     pathMap[edge.id] = path;
     edgeContentPosMap[edge.id] = [midx, midy];
@@ -341,8 +351,13 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
 
     const shape = shapeMap[id];
 
-    const path = new Path2D();
-    shape.drawPath(path, node.x, node.y, shape.width, shape.height, node.id);
+    const path = shape.createPath(
+      node.x,
+      node.y,
+      shape.width,
+      shape.height,
+      node.id
+    );
 
     pathMap[id] = path;
 
