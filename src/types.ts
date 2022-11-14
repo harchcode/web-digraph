@@ -79,6 +79,9 @@ export type GraphOptions = {
   edgeTextBaseline: CanvasTextBaseline;
   edgeFont: string;
   edgeHoveredLineColor: string;
+  edgeSelectedLineColor: string;
+  edgeSelectedShapeColor: string;
+  edgeSelectedContentColor: string;
   nodeLineWidth: number;
   nodeLineColor: string;
   nodeColor: string;
@@ -87,12 +90,15 @@ export type GraphOptions = {
   nodeTextBaseline: CanvasTextBaseline;
   nodeFont: string;
   nodeHoveredLineColor: string;
+  nodeSelectedLineColor: string;
+  nodeSelectedColor: string;
+  nodeSelectedContentColor: string;
 };
 
 export const defaultGraphOptions: GraphOptions = {
-  bgColor: "#eee",
-  bgDotColor: "#999",
-  bgLineWidth: 8,
+  bgColor: "#f1f5f9",
+  bgDotColor: "#64748b",
+  bgLineWidth: 4,
   bgLineGap: 64,
   bgShowDots: true,
   minScale: 0.25,
@@ -106,7 +112,10 @@ export const defaultGraphOptions: GraphOptions = {
   edgeTextAlign: "center",
   edgeTextBaseline: "middle",
   edgeFont: "16px sans-serif",
-  edgeHoveredLineColor: "cornflowerblue",
+  edgeHoveredLineColor: "#3b82f6",
+  edgeSelectedLineColor: "#2563eb",
+  edgeSelectedShapeColor: "#3b82f6",
+  edgeSelectedContentColor: "white",
   nodeLineColor: "black",
   nodeLineWidth: 2,
   nodeColor: "white",
@@ -114,5 +123,8 @@ export const defaultGraphOptions: GraphOptions = {
   nodeTextAlign: "center",
   nodeTextBaseline: "middle",
   nodeFont: "16px sans-serif",
-  nodeHoveredLineColor: "cornflowerblue"
+  nodeHoveredLineColor: "#3b82f6",
+  nodeSelectedLineColor: "#2563eb",
+  nodeSelectedColor: "#3b82f6",
+  nodeSelectedContentColor: "white"
 };
