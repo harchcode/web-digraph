@@ -43,11 +43,34 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     container.appendChild(this.state.nodeCtx.canvas);
     container.appendChild(this.state.moveCtx.canvas);
 
+    const resizeObserver = new ResizeObserver(() => {
+      requestAnimationFrame(() => {
+        this.resize();
+      });
+    });
+
+    resizeObserver.observe(container);
+
     this.handler.init();
   }
 
   destroy() {
     this.handler.destroy();
+  }
+
+  resize(): void {
+    this.state.bgCtx.canvas.width = this.state.container.clientWidth;
+    this.state.bgCtx.canvas.height = this.state.container.clientHeight;
+    this.state.edgeCtx.canvas.width = this.state.container.clientWidth;
+    this.state.edgeCtx.canvas.height = this.state.container.clientHeight;
+    this.state.nodeCtx.canvas.width = this.state.container.clientWidth;
+    this.state.nodeCtx.canvas.height = this.state.container.clientHeight;
+    this.state.moveCtx.canvas.width = this.state.container.clientWidth;
+    this.state.moveCtx.canvas.height = this.state.container.clientHeight;
+
+    this.state.boundingRect = this.state.container.getBoundingClientRect();
+
+    this.renderer.requestDrawHandler();
   }
 
   beginDragLine() {
@@ -430,21 +453,6 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     this.state.scale += deltaScale;
     this.state.translateX += offsetX;
     this.state.translateY += offsetY;
-
-    this.renderer.requestDraw();
-  }
-
-  resize(): void {
-    this.state.bgCtx.canvas.width = this.state.container.clientWidth;
-    this.state.bgCtx.canvas.height = this.state.container.clientHeight;
-    this.state.edgeCtx.canvas.width = this.state.container.clientWidth;
-    this.state.edgeCtx.canvas.height = this.state.container.clientHeight;
-    this.state.nodeCtx.canvas.width = this.state.container.clientWidth;
-    this.state.nodeCtx.canvas.height = this.state.container.clientHeight;
-    this.state.moveCtx.canvas.width = this.state.container.clientWidth;
-    this.state.moveCtx.canvas.height = this.state.container.clientHeight;
-
-    this.state.boundingRect = this.state.container.getBoundingClientRect();
 
     this.renderer.requestDraw();
   }

@@ -90,11 +90,6 @@ function main() {
     }
   });
 
-  window.addEventListener("resize", () => {
-    graphView.resize();
-    // graphView.resize(graphDiv.clientWidth, graphDiv.clientHeight);
-  });
-
   graphDiv.addEventListener("mousedown", e => {
     const pos = graphView.getViewPosFromWindowPos(e.x, e.y);
     const hoveredId = graphView.getHoveredId();
