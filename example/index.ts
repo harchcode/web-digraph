@@ -91,7 +91,8 @@ function main() {
   });
 
   window.addEventListener("resize", () => {
-    graphView.resize(graphDiv.clientWidth, graphDiv.clientHeight);
+    graphView.resize();
+    // graphView.resize(graphDiv.clientWidth, graphDiv.clientHeight);
   });
 
   graphDiv.addEventListener("mousedown", e => {

@@ -9,8 +9,7 @@ import {
   GraphShape,
   GraphOptions,
   GraphDataType,
-  NodeDrawData,
-  EdgeDrawData
+  NodeDrawData
 } from "./types";
 
 export function createNodeShape(shape?: Partial<GraphShape>): GraphShape {
@@ -39,7 +38,10 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
 
     this.renderer.requestDraw();
 
-    container.appendChild(this.state.canvas);
+    container.appendChild(this.state.bgCtx.canvas);
+    container.appendChild(this.state.edgeCtx.canvas);
+    container.appendChild(this.state.nodeCtx.canvas);
+    container.appendChild(this.state.moveCtx.canvas);
 
     this.handler.init();
   }
@@ -411,7 +413,7 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
 
   zoomTo(value: number, targetX?: number, targetY?: number) {
     const { scale, translateX, translateY, options } = this.state;
-    const { width, height } = this.state.canvas;
+    const { width, height } = this.state.bgCtx.canvas;
 
     targetX = targetX || (width * 0.5 - translateX) / scale;
     targetY = targetY || (height * 0.5 - translateY) / scale;
@@ -432,11 +434,17 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     this.renderer.requestDraw();
   }
 
-  resize(width: number, height: number): void {
-    this.state.canvas.width = width;
-    this.state.canvas.height = height;
+  resize(): void {
+    this.state.bgCtx.canvas.width = this.state.container.clientWidth;
+    this.state.bgCtx.canvas.height = this.state.container.clientHeight;
+    this.state.edgeCtx.canvas.width = this.state.container.clientWidth;
+    this.state.edgeCtx.canvas.height = this.state.container.clientHeight;
+    this.state.nodeCtx.canvas.width = this.state.container.clientWidth;
+    this.state.nodeCtx.canvas.height = this.state.container.clientHeight;
+    this.state.moveCtx.canvas.width = this.state.container.clientWidth;
+    this.state.moveCtx.canvas.height = this.state.container.clientHeight;
 
-    this.state.boundingRect = this.state.canvas.getBoundingClientRect();
+    this.state.boundingRect = this.state.container.getBoundingClientRect();
 
     this.renderer.requestDraw();
   }

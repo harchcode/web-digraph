@@ -19,15 +19,15 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
     this.state = state;
   }
 
-  applyTransform() {
-    const { ctx, scale, translateX, translateY } = this.state;
+  applyTransform(ctx: CanvasRenderingContext2D) {
+    const { scale, translateX, translateY } = this.state;
 
     ctx.setTransform(scale, 0, 0, scale, translateX, translateY);
     this.state.setView();
   }
 
-  resetTransform() {
-    this.state.ctx.setTransform(1, 0, 0, 1, 0, 0);
+  resetTransform(ctx: CanvasRenderingContext2D) {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
   }
 
   requestDraw() {
@@ -50,7 +50,7 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
     ty: number,
     path: Path2D
   ) {
-    const { ctx } = this.state;
+    const { bgCtx } = this.state;
 
     const dx = tx - sx;
     const dy = ty - sy;
@@ -66,7 +66,7 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
       const x = sx + (mid / e) * dx;
       const y = sy + (mid / e) * dy;
 
-      if (ctx.isPointInPath(path, x, y)) {
+      if (bgCtx.isPointInPath(path, x, y)) {
         end = mid - 1;
       } else {
         start = mid + 1;
@@ -204,8 +204,10 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
 
   draw() {
     const {
-      ctx,
-      canvas,
+      bgCtx,
+      edgeCtx,
+      nodeCtx,
+      moveCtx,
       options,
       nodes,
       edges,
@@ -214,10 +216,16 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
       dragLineSourceNode
     } = this.state;
 
-    ctx.fillStyle = options.bgColor;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    bgCtx.fillStyle = options.bgColor;
+    bgCtx.fillRect(0, 0, bgCtx.canvas.width, bgCtx.canvas.height);
+    edgeCtx.clearRect(0, 0, edgeCtx.canvas.width, edgeCtx.canvas.height);
+    nodeCtx.clearRect(0, 0, nodeCtx.canvas.width, nodeCtx.canvas.height);
+    moveCtx.clearRect(0, 0, moveCtx.canvas.width, moveCtx.canvas.height);
 
-    this.applyTransform();
+    this.applyTransform(bgCtx);
+    this.applyTransform(edgeCtx);
+    this.applyTransform(nodeCtx);
+    this.applyTransform(moveCtx);
 
     if (options.bgShowDots) this.drawBackground();
 
@@ -229,11 +237,14 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
     for (const node of Object.values(nodes))
       this.drawNode(node, hoveredId === node.id, selectedIdMap[node.id]);
 
-    this.resetTransform();
+    this.resetTransform(bgCtx);
+    this.resetTransform(edgeCtx);
+    this.resetTransform(nodeCtx);
+    this.resetTransform(moveCtx);
   }
 
   drawDragLine() {
-    const { ctx, options, dragLineSourceNode, dragLineX, dragLineY } =
+    const { edgeCtx, options, dragLineSourceNode, dragLineX, dragLineY } =
       this.state;
 
     if (!dragLineSourceNode) return;
@@ -258,30 +269,30 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
     const lp2x = lsx - ll * sinr;
     const lp2y = lsy + ll * cosr;
 
-    ctx.lineWidth = options.edgeLineWidth;
-    ctx.strokeStyle = options.edgeLineColor;
-    ctx.fillStyle = options.edgeLineColor;
+    edgeCtx.lineWidth = options.edgeLineWidth;
+    edgeCtx.strokeStyle = options.edgeLineColor;
+    edgeCtx.fillStyle = options.edgeLineColor;
 
-    ctx.beginPath();
-    ctx.moveTo(sx, sy);
-    ctx.lineTo(tx, ty);
-    ctx.stroke();
+    edgeCtx.beginPath();
+    edgeCtx.moveTo(sx, sy);
+    edgeCtx.lineTo(tx, ty);
+    edgeCtx.stroke();
 
-    ctx.beginPath();
-    ctx.moveTo(tx, ty);
-    ctx.lineTo(lp1x, lp1y);
-    ctx.lineTo(lp2x, lp2y);
-    ctx.closePath();
-    ctx.fill();
+    edgeCtx.beginPath();
+    edgeCtx.moveTo(tx, ty);
+    edgeCtx.lineTo(lp1x, lp1y);
+    edgeCtx.lineTo(lp2x, lp2y);
+    edgeCtx.closePath();
+    edgeCtx.fill();
   }
 
   drawEdge(edge: Edge, hovered = false, selected = false) {
-    const { ctx, options, drawData } = this.state;
+    const { edgeCtx, options, drawData } = this.state;
 
     const data = drawData[edge.id] as EdgeDrawData;
 
-    ctx.lineWidth = options.edgeLineWidth;
-    ctx.strokeStyle = selected
+    edgeCtx.lineWidth = options.edgeLineWidth;
+    edgeCtx.strokeStyle = selected
       ? options.edgeSelectedLineColor
       : hovered
       ? options.edgeHoveredLineColor
@@ -289,18 +300,18 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
 
     // draw edge line
     if (this.isEdgeLineInView(edge)) {
-      ctx.stroke(data.linePath);
+      edgeCtx.stroke(data.linePath);
     }
 
     // draw edge arrow
     if (this.isEdgeArrowInView(edge)) {
-      ctx.fillStyle = selected
+      edgeCtx.fillStyle = selected
         ? options.edgeSelectedLineColor
         : hovered
         ? options.edgeHoveredLineColor
         : options.edgeLineColor;
 
-      ctx.fill(data.arrowPath);
+      edgeCtx.fill(data.arrowPath);
     }
 
     // draw shape and content
@@ -309,22 +320,22 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
     if (this.isEdgeShapeInView(edge)) {
       // draw shape
 
-      ctx.fillStyle = selected
+      edgeCtx.fillStyle = selected
         ? options.edgeSelectedShapeColor
         : options.edgeShapeColor;
-      ctx.fill(data.path);
-      ctx.stroke(data.path);
+      edgeCtx.fill(data.path);
+      edgeCtx.stroke(data.path);
 
       // draw content
-      ctx.fillStyle = selected
+      edgeCtx.fillStyle = selected
         ? options.edgeSelectedContentColor
         : options.edgeContentColor;
-      ctx.textAlign = options.edgeTextAlign;
-      ctx.textBaseline = options.edgeTextBaseline;
-      ctx.font = options.edgeFont;
+      edgeCtx.textAlign = options.edgeTextAlign;
+      edgeCtx.textBaseline = options.edgeTextBaseline;
+      edgeCtx.font = options.edgeFont;
 
       shape.drawContent(
-        ctx,
+        edgeCtx,
         data.shapeX,
         data.shapeY,
         shape.width,
@@ -427,7 +438,7 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
   }
 
   drawNode(node: Node, hovered = false, selected = false) {
-    const { ctx, options, drawData } = this.state;
+    const { nodeCtx, options, drawData } = this.state;
 
     const data = drawData[node.id] as NodeDrawData;
 
@@ -436,37 +447,46 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
     if (!this.isNodeInView(node)) return;
 
     // draw shape
-    ctx.strokeStyle = selected
+    nodeCtx.strokeStyle = selected
       ? options.nodeSelectedLineColor
       : hovered
       ? options.nodeHoveredLineColor
       : options.nodeLineColor;
-    ctx.fillStyle = selected ? options.nodeSelectedColor : options.nodeColor;
-    ctx.lineWidth = options.nodeLineWidth;
+    nodeCtx.fillStyle = selected
+      ? options.nodeSelectedColor
+      : options.nodeColor;
+    nodeCtx.lineWidth = options.nodeLineWidth;
 
-    ctx.fill(data.path);
-    ctx.stroke(data.path);
+    nodeCtx.fill(data.path);
+    nodeCtx.stroke(data.path);
 
     // draw content
 
-    ctx.fillStyle = selected
+    nodeCtx.fillStyle = selected
       ? options.nodeSelectedContentColor
       : options.nodeContentColor;
-    ctx.textAlign = options.nodeTextAlign;
-    ctx.textBaseline = options.nodeTextBaseline;
-    ctx.font = options.nodeFont;
+    nodeCtx.textAlign = options.nodeTextAlign;
+    nodeCtx.textBaseline = options.nodeTextBaseline;
+    nodeCtx.font = options.nodeFont;
 
-    shape.drawContent(ctx, node.x, node.y, shape.width, shape.height, node.id);
+    shape.drawContent(
+      nodeCtx,
+      node.x,
+      node.y,
+      shape.width,
+      shape.height,
+      node.id
+    );
   }
 
   drawBackground() {
-    const { ctx, viewX, viewY, viewW, viewH, options } = this.state;
+    const { bgCtx, viewX, viewY, viewW, viewH, options } = this.state;
 
     const lw = options.bgLineWidth;
     const gap = options.bgLineGap;
 
-    ctx.strokeStyle = options.bgDotColor;
-    ctx.lineWidth = lw;
+    bgCtx.strokeStyle = options.bgDotColor;
+    bgCtx.lineWidth = lw;
 
     const bl = viewX - lw * 0.5;
     const br = viewX + viewW + lw * 0.5;
@@ -478,17 +498,17 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
     const lt = bt - (((bt % gap) - gap) % gap);
     const lb = bb - (((bb % gap) + gap) % gap);
 
-    ctx.beginPath();
+    bgCtx.beginPath();
 
     for (let i = ll; i <= lr; i += gap) {
-      ctx.moveTo(i, lt);
-      ctx.lineTo(i, lb + gap);
+      bgCtx.moveTo(i, lt);
+      bgCtx.lineTo(i, lb + gap);
     }
 
-    ctx.lineCap = "round";
-    ctx.setLineDash([0, gap]);
-    ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.lineCap = "square";
+    bgCtx.lineCap = "round";
+    bgCtx.setLineDash([0, gap]);
+    bgCtx.stroke();
+    bgCtx.setLineDash([]);
+    bgCtx.lineCap = "square";
   }
 }

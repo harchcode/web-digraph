@@ -8,30 +8,18 @@ import {
 } from "./types";
 
 export class GraphState<Node extends GraphNode, Edge extends GraphEdge> {
-  readonly canvas: HTMLCanvasElement;
-  readonly ctx: CanvasRenderingContext2D;
+  // readonly canvas: HTMLCanvasElement;
+  // readonly ctx: CanvasRenderingContext2D;
 
   readonly container: HTMLElement;
-  // readonly bgCtx: CanvasRenderingContext2D;
-  // readonly edgeCtx: CanvasRenderingContext2D;
-  // readonly nodeCtx: CanvasRenderingContext2D;
-  // readonly moveCtx: CanvasRenderingContext2D;
+  readonly bgCtx: CanvasRenderingContext2D;
+  readonly edgeCtx: CanvasRenderingContext2D;
+  readonly nodeCtx: CanvasRenderingContext2D;
+  readonly moveCtx: CanvasRenderingContext2D;
 
   nodes: Record<number, Node> = {};
   edges: Record<number, Edge> = {};
   drawData: Record<number, NodeDrawData | EdgeDrawData> = {};
-
-  // nodes: Node[] = [];
-  // edges: Edge[] = [];
-  // idMap: Record<number, Node | Edge> = {};
-  // shapeMap: Record<number, GraphShape> = {};
-  // pathMap: Record<number, Path2D> = {};
-  // linePathMap: Record<number, Path2D> = {};
-  // arrowPathMap: Record<number, Path2D> = {};
-  // edgeContentPosMap: Record<number, [number, number]> = {};
-  // edgeLinePosMap: Record<number, [number, number, number, number]> = {};
-  // sourceNodeIdToEdgesMap: Record<number, Edge[]> = {};
-  // targetNodeIdToEdgesMap: Record<number, Edge[]> = {};
 
   options = defaultGraphOptions;
 
@@ -65,17 +53,35 @@ export class GraphState<Node extends GraphNode, Edge extends GraphEdge> {
     this.boundingRect = container.getBoundingClientRect();
     this.container = container;
 
-    this.canvas = document.createElement("canvas");
-    this.canvas.textContent = "Canvas is not supported in your browser.";
-    this.canvas.width = container.clientWidth;
-    this.canvas.height = container.clientHeight;
+    const bgCtx = this.initCtx(false);
+    const edgeCtx = this.initCtx();
+    const nodeCtx = this.initCtx();
+    const moveCtx = this.initCtx();
 
-    const ctx = this.canvas.getContext("2d", { alpha: false });
-    if (!ctx) {
+    if (!bgCtx || !edgeCtx || !nodeCtx || !moveCtx) {
       throw "Canvas is not supported in your browser.";
     }
 
-    this.ctx = ctx;
+    this.bgCtx = bgCtx;
+    this.edgeCtx = edgeCtx;
+    this.nodeCtx = nodeCtx;
+    this.moveCtx = moveCtx;
+  }
+
+  initCtx(alpha = true) {
+    const { container } = this;
+
+    const canvas = document.createElement("canvas");
+    canvas.style.position = "absolute";
+    canvas.style.top = "0";
+    canvas.style.left = "0";
+    canvas.textContent = "Canvas is not supported in your browser.";
+    canvas.width = container.clientWidth;
+    canvas.height = container.clientHeight;
+
+    const ctx = canvas.getContext("2d", { alpha });
+
+    return ctx;
   }
 
   createCanvas(container: HTMLElement): CanvasRenderingContext2D {
@@ -84,7 +90,8 @@ export class GraphState<Node extends GraphNode, Edge extends GraphEdge> {
     canvas.textContent = "Canvas is not supported in your browser.";
     canvas.width = container.clientWidth;
     canvas.height = container.clientHeight;
-    const ctx = this.canvas.getContext("2d", { alpha: false });
+
+    const ctx = canvas.getContext("2d", { alpha: false });
 
     if (!ctx) {
       throw "Canvas is not supported in your browser.";
@@ -96,11 +103,11 @@ export class GraphState<Node extends GraphNode, Edge extends GraphEdge> {
   }
 
   setView() {
-    const { canvas, translateX, translateY, scale } = this;
+    const { container, translateX, translateY, scale } = this;
 
     this.viewX = -translateX / scale;
     this.viewY = -translateY / scale;
-    this.viewW = canvas.width / scale;
-    this.viewH = canvas.height / scale;
+    this.viewW = container.clientWidth / scale;
+    this.viewH = container.clientHeight / scale;
   }
 }
