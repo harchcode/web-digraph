@@ -10,6 +10,33 @@ export type GraphEdge = {
   targetId: number;
 };
 
+export enum GraphDataType {
+  NODE,
+  EDGE
+}
+
+export type NodeDrawData = {
+  type: GraphDataType.NODE;
+  sourceOfEdgeIds: Set<number>;
+  targetOfEdgeIds: Set<number>;
+  path: Path2D;
+  shape: GraphShape;
+};
+
+export type EdgeDrawData = {
+  type: GraphDataType.EDGE;
+  shape: GraphShape;
+  path: Path2D;
+  linePath: Path2D;
+  arrowPath: Path2D;
+  lineSourceX: number;
+  lineSourceY: number;
+  lineTargetX: number;
+  lineTargetY: number;
+  shapeX: number;
+  shapeY: number;
+};
+
 export type GraphShape = {
   width: number;
   height: number;

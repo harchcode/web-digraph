@@ -1,6 +1,13 @@
 import { GraphState } from "./graph-state";
 import { GraphView } from "./graph-view";
-import { GraphEdge, GraphNode, GraphShape } from "./types";
+import {
+  EdgeDrawData,
+  GraphDataType,
+  GraphEdge,
+  GraphNode,
+  GraphShape,
+  NodeDrawData
+} from "./types";
 import { isLineInsideRect, lineIntersect, rectIntersect } from "./utils";
 
 export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
@@ -70,19 +77,11 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
   }
 
   createEdgePath(edge: Edge, shape: GraphShape) {
-    const {
-      idMap,
-      pathMap,
-      options,
-      edgeContentPosMap,
-      edgeLinePosMap,
-      linePathMap,
-      arrowPathMap
-    } = this.state;
+    const { options, nodes, drawData } = this.state;
     const { sourceId, targetId } = edge;
 
-    const source = idMap[sourceId] as Node;
-    const target = idMap[targetId] as Node;
+    const source = nodes[sourceId];
+    const target = nodes[targetId] as Node;
 
     const dx = target.x - source.x;
     const dy = target.y - source.y;
@@ -96,47 +95,81 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
       target.y,
       source.x,
       source.y,
-      pathMap[source.id]
+      drawData[source.id].path
     );
-    const sipx = target.x - sip * dx + options.nodeLineWidth * cosr * 0.5;
-    const sipy = target.y - sip * dy + options.nodeLineWidth * sinr * 0.5;
+    const lineSourceX =
+      target.x - sip * dx + options.nodeLineWidth * cosr * 0.5;
+    const lineSourceY =
+      target.y - sip * dy + options.nodeLineWidth * sinr * 0.5;
 
     const tip = this.getIntersectionPoint(
       source.x,
       source.y,
       target.x,
       target.y,
-      pathMap[target.id]
+      drawData[target.id].path
     );
-    const tipx = source.x + tip * dx - options.nodeLineWidth * cosr * 0.5;
-    const tipy = source.y + tip * dy - options.nodeLineWidth * sinr * 0.5;
+    const lineTargetX =
+      source.x + tip * dx - options.nodeLineWidth * cosr * 0.5;
+    const lineTargetY =
+      source.y + tip * dy - options.nodeLineWidth * sinr * 0.5;
 
-    edgeLinePosMap[edge.id] = [sipx, sipy, tipx, tipy];
-
-    const midx = (sipx + tipx - options.edgeArrowHeight * cosr) * 0.5;
-    const midy = (sipy + tipy - options.edgeArrowHeight * sinr) * 0.5;
+    const shapeX =
+      (lineSourceX + lineTargetX - options.edgeArrowHeight * cosr) * 0.5;
+    const shapeY =
+      (lineSourceY + lineTargetY - options.edgeArrowHeight * sinr) * 0.5;
 
     const path = shape.createPath(
-      midx,
-      midy,
+      shapeX,
+      shapeY,
       shape.width,
       shape.height,
       edge.id
     );
 
-    pathMap[edge.id] = path;
-    edgeContentPosMap[edge.id] = [midx, midy];
-
     const linePath = this.createEdgeLinePath(
-      sipx,
-      sipy,
-      tipx - options.edgeArrowHeight * cosr,
-      tipy - options.edgeArrowHeight * sinr
+      lineSourceX,
+      lineSourceY,
+      lineTargetX - options.edgeArrowHeight * cosr,
+      lineTargetY - options.edgeArrowHeight * sinr
     );
-    linePathMap[edge.id] = linePath;
 
-    const arrowPath = this.createEdgeArrowPath(tipx, tipy, sinr, cosr);
-    arrowPathMap[edge.id] = arrowPath;
+    const arrowPath = this.createEdgeArrowPath(
+      lineTargetX,
+      lineTargetY,
+      sinr,
+      cosr
+    );
+
+    const data = drawData[edge.id] as EdgeDrawData | undefined;
+
+    if (!data) {
+      drawData[edge.id] = {
+        type: GraphDataType.EDGE,
+        shape,
+        path,
+        linePath,
+        arrowPath,
+        lineSourceX,
+        lineSourceY,
+        lineTargetX,
+        lineTargetY,
+        shapeX,
+        shapeY
+      };
+    } else {
+      data.type = GraphDataType.EDGE;
+      data.shape = shape;
+      data.path = path;
+      data.linePath = linePath;
+      data.arrowPath = arrowPath;
+      data.lineSourceX = lineSourceX;
+      data.lineSourceY = lineSourceY;
+      data.lineTargetX = lineTargetX;
+      data.lineTargetY = lineTargetY;
+      data.shapeX = shapeX;
+      data.shapeY = shapeY;
+    }
   }
 
   createEdgeLinePath(sx: number, sy: number, tx: number, ty: number) {
@@ -190,10 +223,10 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
 
     if (dragLineSourceNode) this.drawDragLine();
 
-    for (const edge of edges)
+    for (const edge of Object.values(edges))
       this.drawEdge(edge, hoveredId === edge.id, selectedIdMap[edge.id]);
 
-    for (const node of nodes)
+    for (const node of Object.values(nodes))
       this.drawNode(node, hoveredId === node.id, selectedIdMap[node.id]);
 
     this.resetTransform();
@@ -243,27 +276,9 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
   }
 
   drawEdge(edge: Edge, hovered = false, selected = false) {
-    const {
-      ctx,
-      options,
-      linePathMap,
-      arrowPathMap,
-      pathMap,
-      edgeContentPosMap,
-      edgeLinePosMap,
-      shapeMap,
-      viewX,
-      viewY,
-      viewW,
-      viewH
-    } = this.state;
+    const { ctx, options, drawData } = this.state;
 
-    const [sx, sy, tx, ty] = edgeLinePosMap[edge.id];
-    const lsz = Math.max(options.edgeLineWidth, options.nodeLineWidth);
-    const vx = viewX - lsz;
-    const vy = viewY - lsz;
-    const vw = viewW + lsz * 2;
-    const vh = viewH + lsz * 2;
+    const data = drawData[edge.id] as EdgeDrawData;
 
     ctx.lineWidth = options.edgeLineWidth;
     ctx.strokeStyle = selected
@@ -273,54 +288,32 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
       : options.edgeLineColor;
 
     // draw edge line
-    if (
-      isLineInsideRect(sx, sy, tx, ty, vx, vy, vw, vh) ||
-      lineIntersect(sx, sy, tx, ty, vx, vy, vx, vy + vh) ||
-      lineIntersect(sx, sy, tx, ty, vx, vy + vh, vx + vw, vy + vh) ||
-      lineIntersect(sx, sy, tx, ty, vx + vw, vy + vh, vx + vw, vy) ||
-      lineIntersect(sx, sy, tx, ty, vx + vw, vy, vx, vy)
-    ) {
-      const linePath = linePathMap[edge.id];
-      ctx.stroke(linePath);
+    if (this.isEdgeLineInView(edge)) {
+      ctx.stroke(data.linePath);
     }
 
     // draw edge arrow
-    const sz = Math.max(options.edgeArrowWidth, options.edgeArrowHeight);
-
-    if (rectIntersect(tx - sz, ty - sz, sz * 2, sz * 2, vx, vy, vw, vh)) {
-      const arrowPath = arrowPathMap[edge.id];
+    if (this.isEdgeArrowInView(edge)) {
       ctx.fillStyle = selected
         ? options.edgeSelectedLineColor
         : hovered
         ? options.edgeHoveredLineColor
         : options.edgeLineColor;
-      ctx.fill(arrowPath);
+
+      ctx.fill(data.arrowPath);
     }
 
-    // draw shape and content if is in view
-    const shape = shapeMap[edge.id];
-    const [cx, cy] = edgeContentPosMap[edge.id];
+    // draw shape and content
+    const shape = data.shape;
 
-    if (
-      rectIntersect(
-        cx - shape.width * 0.5,
-        cy - shape.height * 0.5,
-        shape.width,
-        shape.height,
-        vx,
-        vy,
-        vw,
-        vh
-      )
-    ) {
+    if (this.isEdgeShapeInView(edge)) {
       // draw shape
-      const path = pathMap[edge.id];
 
       ctx.fillStyle = selected
         ? options.edgeSelectedShapeColor
         : options.edgeShapeColor;
-      ctx.fill(path);
-      ctx.stroke(path);
+      ctx.fill(data.path);
+      ctx.stroke(data.path);
 
       // draw content
       ctx.fillStyle = selected
@@ -330,34 +323,119 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
       ctx.textBaseline = options.edgeTextBaseline;
       ctx.font = options.edgeFont;
 
-      shape.drawContent(ctx, cx, cy, shape.width, shape.height, edge.id);
+      shape.drawContent(
+        ctx,
+        data.shapeX,
+        data.shapeY,
+        shape.width,
+        shape.height,
+        edge.id
+      );
     }
   }
 
+  isNodeInView(node: Node) {
+    const { drawData, viewX, viewY, viewW, viewH } = this.state;
+
+    const { shape } = drawData[node.id] as NodeDrawData;
+
+    return rectIntersect(
+      node.x - shape.width * 0.5,
+      node.y - shape.height * 0.5,
+      shape.width,
+      shape.height,
+      viewX,
+      viewY,
+      viewW,
+      viewH
+    );
+  }
+
+  isEdgeInView(edge: Edge) {
+    return (
+      this.isEdgeArrowInView(edge) ||
+      this.isEdgeLineInView(edge) ||
+      this.isEdgeShapeInView(edge)
+    );
+  }
+
+  isEdgeLineInView(edge: Edge) {
+    const { options, viewX, viewY, viewW, viewH, drawData } = this.state;
+
+    const data = drawData[edge.id] as EdgeDrawData;
+
+    const sx = data.lineSourceX;
+    const sy = data.lineSourceY;
+    const tx = data.lineTargetX;
+    const ty = data.lineTargetY;
+
+    const lsz = Math.max(options.edgeLineWidth, options.nodeLineWidth);
+    const vx = viewX - lsz;
+    const vy = viewY - lsz;
+    const vw = viewW + lsz * 2;
+    const vh = viewH + lsz * 2;
+
+    return (
+      isLineInsideRect(sx, sy, tx, ty, vx, vy, vw, vh) ||
+      lineIntersect(sx, sy, tx, ty, vx, vy, vx, vy + vh) ||
+      lineIntersect(sx, sy, tx, ty, vx, vy + vh, vx + vw, vy + vh) ||
+      lineIntersect(sx, sy, tx, ty, vx + vw, vy + vh, vx + vw, vy) ||
+      lineIntersect(sx, sy, tx, ty, vx + vw, vy, vx, vy)
+    );
+  }
+
+  isEdgeArrowInView(edge: Edge) {
+    const { options, drawData, viewX, viewY, viewW, viewH } = this.state;
+
+    const data = drawData[edge.id] as EdgeDrawData;
+    const tx = data.lineTargetX;
+    const ty = data.lineTargetY;
+
+    const lsz = Math.max(options.edgeLineWidth, options.nodeLineWidth);
+    const vx = viewX - lsz;
+    const vy = viewY - lsz;
+    const vw = viewW + lsz * 2;
+    const vh = viewH + lsz * 2;
+    const sz = Math.max(options.edgeArrowWidth, options.edgeArrowHeight);
+
+    return rectIntersect(tx - sz, ty - sz, sz * 2, sz * 2, vx, vy, vw, vh);
+  }
+
+  isEdgeShapeInView(edge: Edge) {
+    const { options, drawData, viewX, viewY, viewW, viewH } = this.state;
+
+    const data = drawData[edge.id] as EdgeDrawData;
+
+    const lsz = Math.max(options.edgeLineWidth, options.nodeLineWidth);
+    const vx = viewX - lsz;
+    const vy = viewY - lsz;
+    const vw = viewW + lsz * 2;
+    const vh = viewH + lsz * 2;
+
+    const shape = data.shape;
+
+    return rectIntersect(
+      data.shapeX - shape.width * 0.5,
+      data.shapeY - shape.height * 0.5,
+      shape.width,
+      shape.height,
+      vx,
+      vy,
+      vw,
+      vh
+    );
+  }
+
   drawNode(node: Node, hovered = false, selected = false) {
-    const { ctx, options, pathMap, shapeMap, viewX, viewY, viewW, viewH } =
-      this.state;
+    const { ctx, options, drawData } = this.state;
+
+    const data = drawData[node.id] as NodeDrawData;
 
     // check is in view
-    const shape = shapeMap[node.id];
-    if (
-      !rectIntersect(
-        node.x - shape.width * 0.5,
-        node.y - shape.height * 0.5,
-        shape.width,
-        shape.height,
-        viewX,
-        viewY,
-        viewW,
-        viewH
-      )
-    ) {
-      return;
-    }
+    const shape = data.shape;
+    if (!this.isNodeInView(node)) return;
 
     // draw shape
-    const path = pathMap[node.id];
-
     ctx.strokeStyle = selected
       ? options.nodeSelectedLineColor
       : hovered
@@ -366,8 +444,8 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
     ctx.fillStyle = selected ? options.nodeSelectedColor : options.nodeColor;
     ctx.lineWidth = options.nodeLineWidth;
 
-    ctx.fill(path);
-    ctx.stroke(path);
+    ctx.fill(data.path);
+    ctx.stroke(data.path);
 
     // draw content
 

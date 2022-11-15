@@ -99,7 +99,8 @@ function main() {
     const hoveredId = graphView.getHoveredId();
 
     if (hoveredId) {
-      graphView.addSelection(hoveredId);
+      // graphView.addSelection(hoveredId);
+      graphView.select(hoveredId);
     } else {
       graphView.clearSelection();
     }

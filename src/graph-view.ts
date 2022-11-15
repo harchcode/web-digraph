@@ -7,7 +7,10 @@ import {
   GraphEdge,
   GraphNode,
   GraphShape,
-  GraphOptions
+  GraphOptions,
+  GraphDataType,
+  NodeDrawData,
+  EdgeDrawData
 } from "./types";
 
 export function createNodeShape(shape?: Partial<GraphShape>): GraphShape {
@@ -46,13 +49,13 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
   }
 
   beginDragLine() {
-    const { hoveredId, idMap } = this.state;
+    const { hoveredId, nodes } = this.state;
 
     if (!hoveredId) return;
 
-    const node = idMap[hoveredId];
+    const node = nodes[hoveredId];
 
-    if (!this.isNode(node)) return;
+    if (!node) return;
 
     this.state.dragLineSourceNode = node;
     this.state.dragLineX = node.x;
@@ -60,7 +63,7 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
   }
 
   endDragLine(): [Node, Node] | undefined {
-    const { hoveredId, idMap } = this.state;
+    const { hoveredId, nodes } = this.state;
 
     if (!this.state.dragLineSourceNode) return;
 
@@ -75,8 +78,8 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
 
     this.renderer.requestDraw();
 
-    const rn = idMap[r];
-    return rn && this.isNode(rn) ? [s, rn] : undefined;
+    const rn = nodes[r];
+    return rn ? [s, rn] : undefined;
   }
 
   beginMoveView() {
@@ -129,27 +132,22 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
 
   getSelectedNodeIds() {
     return this.getSelection().filter(id => {
-      const nodeOrEdge = this.state.idMap[id];
-
-      return this.isNode(nodeOrEdge);
+      return this.state.nodes[id] !== undefined;
     });
   }
 
   getSelectedEdgeIds() {
     return this.getSelection().filter(id => {
-      const nodeOrEdge = this.state.idMap[id];
-
-      return this.isEdge(nodeOrEdge);
+      return this.state.edges[id] !== undefined;
     });
   }
 
-  addNode(node: Node, shape: GraphShape) {
-    const { idMap, nodes, shapeMap, pathMap } = this.state;
+  addNode(node: Node, shape: GraphShape): boolean {
+    const { nodes, edges, drawData } = this.state;
 
-    if (idMap[node.id]) return;
+    if (nodes[node.id] || edges[node.id]) return false;
 
-    nodes.push(node);
-    idMap[node.id] = node;
+    nodes[node.id] = node;
 
     const path = shape.createPath(
       node.x,
@@ -159,58 +157,52 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
       node.id
     );
 
-    shapeMap[node.id] = shape;
-    pathMap[node.id] = path;
+    drawData[node.id] = {
+      type: GraphDataType.NODE,
+      shape,
+      path,
+      sourceOfEdgeIds: new Set(),
+      targetOfEdgeIds: new Set()
+    };
 
     this.renderer.requestDraw();
+
+    return true;
   }
 
-  addEdge(edge: Edge, shape: GraphShape) {
-    const { idMap } = this.state;
+  addEdge(edge: Edge, shape: GraphShape): boolean {
+    const { nodes, edges, drawData } = this.state;
 
-    if (idMap[edge.id] || !idMap[edge.sourceId] || !idMap[edge.targetId])
-      return;
+    if (nodes[edge.id] || edges[edge.id]) return false;
+    if (!nodes[edge.sourceId] || !nodes[edge.targetId]) return false;
 
-    const { edges, shapeMap, sourceNodeIdToEdgesMap, targetNodeIdToEdgesMap } =
-      this.state;
+    edges[edge.id] = edge;
 
-    edges.push(edge);
-    idMap[edge.id] = edge;
-    shapeMap[edge.id] = shape;
+    const snd = drawData[edge.sourceId] as NodeDrawData;
+    snd.sourceOfEdgeIds.add(edge.id);
 
-    if (sourceNodeIdToEdgesMap[edge.sourceId]) {
-      sourceNodeIdToEdgesMap[edge.sourceId].push(edge);
-    } else {
-      sourceNodeIdToEdgesMap[edge.sourceId] = [edge];
-    }
-
-    if (targetNodeIdToEdgesMap[edge.targetId]) {
-      targetNodeIdToEdgesMap[edge.targetId].push(edge);
-    } else {
-      targetNodeIdToEdgesMap[edge.targetId] = [edge];
-    }
+    const tnd = drawData[edge.targetId] as NodeDrawData;
+    tnd.targetOfEdgeIds.add(edge.id);
 
     this.renderer.createEdgePath(edge, shape);
 
     this.renderer.requestDraw();
+
+    return true;
   }
 
-  moveNode(id: number, dx: number, dy: number) {
-    const {
-      idMap,
-      shapeMap,
-      pathMap,
-      sourceNodeIdToEdgesMap,
-      targetNodeIdToEdgesMap
-    } = this.state;
+  moveNode(id: number, dx: number, dy: number): boolean {
+    const { drawData, nodes, edges } = this.state;
 
-    const node = idMap[id] as Node | undefined;
-    if (!node) return;
+    if (!nodes[id]) return false;
+
+    const node = nodes[id];
+    const ndd = drawData[id] as NodeDrawData;
 
     node.x += dx;
     node.y += dy;
 
-    const shape = shapeMap[id];
+    const shape = ndd.shape;
 
     const path = shape.createPath(
       node.x,
@@ -220,50 +212,55 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
       node.id
     );
 
-    pathMap[id] = path;
+    ndd.path = path;
 
-    const ses = sourceNodeIdToEdgesMap[id];
-    const tes = targetNodeIdToEdgesMap[id];
+    for (const edgeId of ndd.sourceOfEdgeIds) {
+      const edge = edges[edgeId];
+      const edd = drawData[edgeId];
 
-    if (ses)
-      for (const edge of ses) {
-        this.renderer.createEdgePath(edge, shapeMap[edge.id]);
-      }
+      this.renderer.createEdgePath(edge, edd.shape);
+    }
 
-    if (tes)
-      for (const edge of tes) {
-        this.renderer.createEdgePath(edge, shapeMap[edge.id]);
-      }
+    for (const edgeId of ndd.targetOfEdgeIds) {
+      const edge = edges[edgeId];
+      const edd = drawData[edgeId];
+
+      this.renderer.createEdgePath(edge, edd.shape);
+    }
 
     this.renderer.requestDraw();
+
+    return true;
   }
 
-  updateNode(id: number, node: Partial<Node>) {
-    const { idMap } = this.state;
+  updateNode(id: number, node: Partial<Node>): boolean {
+    const { nodes } = this.state;
 
-    const curNode = idMap[id] as Node | undefined;
-    if (!curNode) return;
+    if (!nodes[id]) return false;
+    const cur = nodes[id];
 
-    if ((node.x && node.x !== curNode.x) || (node.y && node.y !== curNode.y)) {
+    if ((node.x && node.x !== cur.x) || (node.y && node.y !== cur.y)) {
       this.moveNode(
         id,
-        node.x ? node.x - curNode.x : 0,
-        node.y ? node.y - curNode.y : 0
+        node.x ? node.x - cur.x : 0,
+        node.y ? node.y - cur.y : 0
       );
     }
 
     for (const k in node) {
       if (k === "id") continue;
 
-      curNode[k] = node[k] as Node[Extract<keyof Node, string>];
+      cur[k] = node[k] as Node[Extract<keyof Node, string>];
     }
+
+    return true;
   }
 
-  updateEdge(id: number, edge: Partial<Edge>) {
-    const { idMap } = this.state;
+  updateEdge(id: number, edge: Partial<Edge>): boolean {
+    const { edges } = this.state;
 
-    const cur = idMap[id] as Edge | undefined;
-    if (!cur) return;
+    if (!edges[id]) return false;
+    const cur = edges[id];
 
     if (
       (edge.sourceId && edge.sourceId !== cur.sourceId) ||
@@ -277,86 +274,78 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
 
       cur[k] = edge[k] as Edge[Extract<keyof Edge, string>];
     }
+
+    return true;
   }
 
-  remove(id: number) {
-    const nodeOrEdge = this.state.idMap[id];
+  remove(id: number): boolean {
+    if (this.state.nodes[id]) return this.removeNode(id);
+    if (this.state.edges[id]) return this.removeEdge(id);
 
-    if (this.isNode(nodeOrEdge)) this.removeNode(id);
-    if (this.isEdge(nodeOrEdge)) this.removeEdge(id);
+    return false;
   }
 
-  removeNode(id: number) {
-    const node = this.state.idMap[id];
+  removeNode(id: number): boolean {
+    const { nodes, drawData } = this.state;
 
-    if (!this.isNode(node)) return;
+    if (!nodes[id]) return false;
+    const ndd = drawData[id] as NodeDrawData;
 
-    delete this.state.idMap[id];
-    delete this.state.pathMap[id];
+    for (const edgeId of ndd.sourceOfEdgeIds) {
+      this.removeEdge(edgeId);
+    }
 
-    this.state.nodes = this.state.nodes.filter(n => n.id !== id);
+    for (const edgeId of ndd.targetOfEdgeIds) {
+      this.removeEdge(edgeId);
+    }
 
-    const ses = this.state.sourceNodeIdToEdgesMap[id];
-    if (ses) for (const edge of ses) this.removeEdge(edge.id);
-
-    const tes = this.state.targetNodeIdToEdgesMap[id];
-    if (tes) for (const edge of tes) this.removeEdge(edge.id);
+    delete this.state.nodes[id];
+    delete this.state.drawData[id];
 
     this.renderer.requestDraw();
+
+    return true;
   }
 
-  removeEdge(id: number) {
-    const edge = this.state.idMap[id];
+  removeEdge(id: number): boolean {
+    const { edges, drawData } = this.state;
 
-    if (!this.isEdge(edge)) return;
+    if (!edges[id]) return false;
+    const edge = edges[id];
 
-    delete this.state.idMap[id];
-    delete this.state.pathMap[id];
-    delete this.state.linePathMap[id];
-    delete this.state.arrowPathMap[id];
+    const sndd = drawData[edge.sourceId] as NodeDrawData;
+    sndd.sourceOfEdgeIds.delete(id);
 
-    this.state.edges = this.state.edges.filter(n => n.id !== id);
+    const tndd = drawData[edge.targetId] as NodeDrawData;
+    tndd.targetOfEdgeIds.delete(id);
 
-    const ses = this.state.sourceNodeIdToEdgesMap[edge.sourceId];
-    if (ses)
-      this.state.sourceNodeIdToEdgesMap[edge.sourceId] = ses.filter(
-        e => e.id !== id
-      );
-
-    const tes = this.state.targetNodeIdToEdgesMap[edge.targetId];
-    if (tes)
-      this.state.targetNodeIdToEdgesMap[edge.targetId] = ses.filter(
-        e => e.id !== id
-      );
+    delete this.state.edges[id];
+    delete this.state.drawData[id];
 
     this.renderer.requestDraw();
+
+    return true;
   }
 
-  getNode(id: number): Node {
-    return this.state.idMap[id] as Node;
+  getNode(id: number): Node | undefined {
+    return this.state.nodes[id];
   }
 
-  getEdge(id: number): Edge {
-    return this.state.idMap[id] as Edge;
+  getEdge(id: number): Edge | undefined {
+    return this.state.edges[id];
   }
 
   getData() {
     return {
-      nodes: this.state.nodes,
-      edges: this.state.edges
+      nodes: Object.values(this.state.nodes),
+      edges: Object.values(this.state.edges)
     };
   }
 
   clear() {
-    this.state.nodes = [];
-    this.state.edges = [];
-    this.state.idMap = {};
-    this.state.shapeMap = {};
-    this.state.pathMap = {};
-    this.state.edgeContentPosMap = {};
-    this.state.edgeLinePosMap = {};
-    this.state.linePathMap = {};
-    this.state.arrowPathMap = {};
+    this.state.nodes = {};
+    this.state.edges = {};
+    this.state.drawData = {};
 
     this.renderer.requestDraw();
   }
@@ -450,16 +439,6 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     this.state.boundingRect = this.state.canvas.getBoundingClientRect();
 
     this.renderer.requestDraw();
-  }
-
-  isNode(nodeOrEdge?: Node | Edge): nodeOrEdge is Node {
-    if (!nodeOrEdge) return false;
-    return "x" in nodeOrEdge;
-  }
-
-  isEdge(nodeOrEdge?: Node | Edge): nodeOrEdge is Edge {
-    if (!nodeOrEdge) return false;
-    return "sourceId" in nodeOrEdge;
   }
 
   getViewPosFromWindowPos(windowX: number, windowY: number) {

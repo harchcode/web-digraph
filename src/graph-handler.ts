@@ -1,7 +1,13 @@
 import { GraphRenderer } from "./graph-renderer";
 import { GraphState } from "./graph-state";
 import { GraphView } from "./graph-view";
-import { GraphEdge, GraphNode } from "./types";
+import {
+  EdgeDrawData,
+  GraphEdge,
+  NodeDrawData,
+  GraphNode,
+  GraphDataType
+} from "./types";
 
 export class GraphHandler<Node extends GraphNode, Edge extends GraphEdge> {
   private state: GraphState<Node, Edge>;
@@ -22,11 +28,12 @@ export class GraphHandler<Node extends GraphNode, Edge extends GraphEdge> {
     const { moveNodeIds, moveX, moveY, dragLineSourceNode, isMovingView } =
       this.state;
 
-    const vp = this.view.getViewPosFromWindowPos(e.x, e.y);
-
     if (isMovingView && !dragLineSourceNode && moveNodeIds.length === 0) {
       this.view.moveBy(e.movementX, e.movementY);
+      return;
     }
+
+    const vp = this.view.getViewPosFromWindowPos(e.x, e.y);
 
     if (dragLineSourceNode) {
       this.state.dragLineX = vp[0];
@@ -37,6 +44,7 @@ export class GraphHandler<Node extends GraphNode, Edge extends GraphEdge> {
 
     if (moveNodeIds.length === 0) {
       this.checkHover(vp[0], vp[1]);
+
       return;
     }
 
@@ -52,34 +60,42 @@ export class GraphHandler<Node extends GraphNode, Edge extends GraphEdge> {
   };
 
   private isEdgeHovered(x: number, y: number, edge: Edge) {
-    const { ctx, pathMap, linePathMap, arrowPathMap } = this.state;
+    const { ctx, drawData } = this.state;
+
+    const data = drawData[edge.id] as EdgeDrawData;
 
     return (
-      ctx.isPointInPath(pathMap[edge.id], x, y) ||
-      ctx.isPointInStroke(linePathMap[edge.id], x, y) ||
-      ctx.isPointInPath(arrowPathMap[edge.id], x, y)
+      ctx.isPointInPath(data.path, x, y) ||
+      ctx.isPointInStroke(data.linePath, x, y) ||
+      ctx.isPointInPath(data.arrowPath, x, y)
     );
   }
 
   private isNodeHovered(x: number, y: number, node: Node) {
-    const { ctx, pathMap } = this.state;
+    const { ctx, drawData } = this.state;
 
-    return ctx.isPointInPath(pathMap[node.id], x, y);
+    const data = drawData[node.id] as NodeDrawData;
+
+    return ctx.isPointInPath(data.path, x, y);
   }
 
   private checkHover(vx: number, vy: number) {
-    const { nodes, edges, idMap, selectedIdMap } = this.state;
+    const { nodes, edges, selectedIdMap } = this.state;
 
     const prevId = this.state.hoveredId;
     this.state.hoveredId = 0;
 
-    for (const node of nodes) {
+    for (const node of Object.values(nodes)) {
+      if (!this.renderer.isNodeInView(node)) continue;
+
       if (this.isNodeHovered(vx, vy, node)) {
         this.state.hoveredId = node.id;
       }
     }
 
-    for (const edge of edges) {
+    for (const edge of Object.values(edges)) {
+      if (!this.renderer.isEdgeInView(edge)) continue;
+
       if (this.isEdgeHovered(vx, vy, edge)) {
         this.state.hoveredId = edge.id;
       }
@@ -87,24 +103,25 @@ export class GraphHandler<Node extends GraphNode, Edge extends GraphEdge> {
 
     if (this.state.hoveredId === prevId) return;
 
-    const prev = idMap[prevId] as Node | Edge | undefined;
-    const curr = idMap[this.state.hoveredId] as Node | Edge | undefined;
+    const currId = this.state.hoveredId;
+    const prev = this.state.drawData[prevId];
+    const curr = this.state.drawData[currId];
 
     this.renderer.applyTransform();
 
     if (prev) {
-      if ("x" in prev) {
-        this.renderer.drawNode(prev, false, selectedIdMap[prev.id]);
-      } else {
-        this.renderer.drawEdge(prev, false, selectedIdMap[prev.id]);
+      if (prev.type === GraphDataType.NODE) {
+        this.renderer.drawNode(nodes[prevId], false, selectedIdMap[prevId]);
+      } else if (prev.type === GraphDataType.EDGE) {
+        this.renderer.drawEdge(edges[prevId], false, selectedIdMap[prevId]);
       }
     }
 
     if (curr) {
-      if ("x" in curr) {
-        this.renderer.drawNode(curr, true, selectedIdMap[curr.id]);
-      } else {
-        this.renderer.drawEdge(curr, true, selectedIdMap[curr.id]);
+      if (curr.type === GraphDataType.NODE) {
+        this.renderer.drawNode(nodes[currId], true, selectedIdMap[currId]);
+      } else if (curr.type === GraphDataType.EDGE) {
+        this.renderer.drawEdge(edges[currId], true, selectedIdMap[currId]);
       }
     }
 
@@ -112,8 +129,6 @@ export class GraphHandler<Node extends GraphNode, Edge extends GraphEdge> {
   }
 
   handleWheel = (e: WheelEvent) => {
-    e.preventDefault();
-
     const pos = this.view.getViewPosFromWindowPos(e.x, e.y);
 
     this.view.zoomBy(-e.deltaY * 0.001, pos[0], pos[1]);
@@ -122,8 +137,10 @@ export class GraphHandler<Node extends GraphNode, Edge extends GraphEdge> {
   init() {
     const { container } = this.state;
 
-    container.addEventListener("mousemove", this.handleMouseMove);
-    container.addEventListener("wheel", this.handleWheel);
+    container.addEventListener("mousemove", this.handleMouseMove, {
+      passive: true
+    });
+    container.addEventListener("wheel", this.handleWheel, { passive: true });
   }
 
   destroy() {

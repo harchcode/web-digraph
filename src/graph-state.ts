@@ -1,9 +1,10 @@
 import {
   GraphEdge,
   GraphNode,
-  GraphShape,
   GraphOptions,
-  defaultGraphOptions
+  defaultGraphOptions,
+  NodeDrawData,
+  EdgeDrawData
 } from "./types";
 
 export class GraphState<Node extends GraphNode, Edge extends GraphEdge> {
@@ -16,17 +17,21 @@ export class GraphState<Node extends GraphNode, Edge extends GraphEdge> {
   // readonly nodeCtx: CanvasRenderingContext2D;
   // readonly moveCtx: CanvasRenderingContext2D;
 
-  nodes: Node[] = [];
-  edges: Edge[] = [];
-  idMap: Record<number, Node | Edge> = {};
-  shapeMap: Record<number, GraphShape> = {};
-  pathMap: Record<number, Path2D> = {};
-  linePathMap: Record<number, Path2D> = {};
-  arrowPathMap: Record<number, Path2D> = {};
-  edgeContentPosMap: Record<number, [number, number]> = {};
-  edgeLinePosMap: Record<number, [number, number, number, number]> = {};
-  sourceNodeIdToEdgesMap: Record<number, Edge[]> = {};
-  targetNodeIdToEdgesMap: Record<number, Edge[]> = {};
+  nodes: Record<number, Node> = {};
+  edges: Record<number, Edge> = {};
+  drawData: Record<number, NodeDrawData | EdgeDrawData> = {};
+
+  // nodes: Node[] = [];
+  // edges: Edge[] = [];
+  // idMap: Record<number, Node | Edge> = {};
+  // shapeMap: Record<number, GraphShape> = {};
+  // pathMap: Record<number, Path2D> = {};
+  // linePathMap: Record<number, Path2D> = {};
+  // arrowPathMap: Record<number, Path2D> = {};
+  // edgeContentPosMap: Record<number, [number, number]> = {};
+  // edgeLinePosMap: Record<number, [number, number, number, number]> = {};
+  // sourceNodeIdToEdgesMap: Record<number, Edge[]> = {};
+  // targetNodeIdToEdgesMap: Record<number, Edge[]> = {};
 
   options = defaultGraphOptions;
 
