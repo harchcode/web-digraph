@@ -55,6 +55,8 @@ export class GraphHandler<Node extends GraphNode, Edge extends GraphEdge> {
     this.state.moveX = vp[0];
     this.state.moveY = vp[1];
 
+    this.renderer.clearMove();
+
     for (const id of moveNodeIds) {
       this.view.moveNode(id, dx, dy);
     }

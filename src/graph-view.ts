@@ -116,12 +116,70 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
   }
 
   beginMoveNodes(nodeIds: number[], vx: number, vy: number) {
+    const { drawData, nodes, edges } = this.state;
+
+    const affectedIds = new Set(nodeIds);
+
+    this.renderer.redrawNodes(affectedIds);
+
+    affectedIds.clear();
+
+    for (const id of nodeIds) {
+      const dd = drawData[id] as NodeDrawData;
+
+      for (const eid of dd.sourceOfEdgeIds) {
+        affectedIds.add(eid);
+      }
+
+      for (const eid of dd.targetOfEdgeIds) {
+        affectedIds.add(eid);
+      }
+    }
+
+    this.renderer.redrawEdges(affectedIds);
+
+    for (const eid of affectedIds) {
+      this.renderer.drawEdge(edges[eid], true);
+    }
+
+    for (const nid of nodeIds) {
+      this.renderer.drawNode(nodes[nid], true);
+    }
+
     this.state.moveNodeIds = nodeIds;
     this.state.moveX = vx;
     this.state.moveY = vy;
   }
 
   endMoveNodes() {
+    const { moveNodeIds, drawData, nodes, edges } = this.state;
+
+    for (const id of moveNodeIds) {
+      this.renderer.drawNode(nodes[id]);
+    }
+
+    const isRendered: Record<number, boolean> = {};
+
+    for (const id of moveNodeIds) {
+      const dd = drawData[id] as NodeDrawData;
+
+      for (const eid of dd.sourceOfEdgeIds) {
+        if (isRendered[eid]) continue;
+
+        isRendered[eid] = true;
+        this.renderer.drawEdge(edges[eid]);
+      }
+
+      for (const eid of dd.targetOfEdgeIds) {
+        if (isRendered[eid]) continue;
+
+        isRendered[eid] = true;
+        this.renderer.drawEdge(edges[eid]);
+      }
+    }
+
+    this.renderer.clearMove();
+
     this.state.moveNodeIds.length = 0;
   }
 
@@ -276,6 +334,8 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
       const edd = drawData[edgeId];
 
       this.renderer.createEdgePath(edge, edd.shape);
+
+      this.renderer.drawEdge(edge, true);
     }
 
     for (const edgeId of ndd.targetOfEdgeIds) {
@@ -283,9 +343,11 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
       const edd = drawData[edgeId];
 
       this.renderer.createEdgePath(edge, edd.shape);
+
+      this.renderer.drawEdge(edge, true);
     }
 
-    this.renderer.requestDraw();
+    this.renderer.drawNode(node, true);
 
     return true;
   }
@@ -359,7 +421,7 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     delete this.state.nodes[id];
     delete this.state.drawData[id];
 
-    this.renderer.redrawNodes();
+    requestAnimationFrame(() => this.renderer.redrawNodes());
 
     return true;
   }
@@ -379,7 +441,7 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     delete this.state.edges[id];
     delete this.state.drawData[id];
 
-    this.renderer.redrawEdges();
+    requestAnimationFrame(() => this.renderer.redrawEdges());
 
     return true;
   }
@@ -443,7 +505,17 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     this.state.translateX += x;
     this.state.translateY += y;
 
+    // const ovx = this.state.viewX;
+    // const ovy = this.state.viewY;
+    // const ovw = this.state.viewW;
+    // const ovh = this.state.viewH;
+
     this.renderer.applyTransform();
+
+    // requestAnimationFrame(() => {
+    // this.renderer.drawUncoveredRegion(ovx, ovy, ovw, ovh);
+    // });
+
     this.renderer.requestDraw();
   }
 
