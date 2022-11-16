@@ -41,6 +41,7 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
 
     container.appendChild(this.state.bgCtx.canvas);
     container.appendChild(this.state.edgeCtx.canvas);
+    container.appendChild(this.state.dragCtx.canvas);
     container.appendChild(this.state.nodeCtx.canvas);
     container.appendChild(this.state.moveCtx.canvas);
 
@@ -90,7 +91,7 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
   endDragLine(): [Node, Node] | undefined {
     const { hoveredId, nodes } = this.state;
 
-    this.renderer.clearMove();
+    this.renderer.clearDragLine();
 
     if (!this.state.dragLineSourceNode) return;
 
@@ -498,6 +499,7 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     this.state.scale = scale;
 
     this.renderer.applyTransform();
+    // this.renderer.drawAll();
     this.renderer.requestDraw();
   }
 
@@ -510,9 +512,9 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     // const ovw = this.state.viewW;
     // const ovh = this.state.viewH;
 
-    this.renderer.applyTransform();
-
     // requestAnimationFrame(() => {
+    this.renderer.applyTransform();
+    // this.renderer.drawAll();
     // this.renderer.drawUncoveredRegion(ovx, ovy, ovw, ovh);
     // });
 
@@ -543,8 +545,15 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     this.state.translateX += offsetX;
     this.state.translateY += offsetY;
 
-    this.renderer.applyTransform();
+    // const ovx = this.state.viewX;
+    // const ovy = this.state.viewY;
+    // const ovw = this.state.viewW;
+    // const ovh = this.state.viewH;
 
+    this.renderer.applyTransform();
+    // this.renderer.drawUncoveredRegion(ovx, ovy, ovw, ovh);
+
+    // this.renderer.drawAll();
     this.renderer.requestDraw();
   }
 

@@ -1,0 +1,117 @@
+// A custom, incorrect Quad Tree implementation
+
+import { rectIntersect } from "./utils";
+
+export type QuadData<T> = {
+  value: T;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+};
+
+export class Quad<T> {
+  data: T[];
+  children: Quad<T>[];
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+
+  constructor(x: number, y: number, w: number, h: number) {
+    this.data = [];
+    this.children = [];
+    this.x = x;
+    this.y = y;
+    this.w = w;
+    this.h = h;
+  }
+
+  clear() {
+    _clear(this);
+  }
+
+  insert(value: T, x: number, y: number, w: number, h: number) {
+    _insert(this, { value, x, y, w, h });
+  }
+
+  getDataInRegion(x: number, y: number, w: number, h: number, out: Set<T>) {
+    out.clear();
+
+    _getDataInRegion(this, x, y, w, h, out);
+  }
+}
+
+function _clear(node: Quad<unknown>) {
+  node.data.length = 0;
+
+  for (const child of node.children) {
+    _clear(child);
+  }
+}
+
+function _insert(node: Quad<unknown>, data: QuadData<unknown>) {
+  // if not intersecting, return
+  if (
+    !rectIntersect(
+      node.x,
+      node.y,
+      node.w,
+      node.h,
+      data.x,
+      data.y,
+      data.w,
+      data.h
+    )
+  )
+    return;
+
+  // if no children and data size is smaller than the limit (4), insert data to the node
+  if (node.children.length === 0 && node.data.length < 4) {
+    node.data.push(data);
+    return;
+  }
+
+  // if no children, create the children
+  if (node.children.length === 0) {
+    const hw = node.w * 0.5;
+    const hh = node.h * 0.5;
+
+    const tl = new Quad(node.x, node.y, hw, hh);
+    const tr = new Quad(node.x + hw, node.y, hw, hh);
+    const bl = new Quad(node.x, node.y + hh, hw, hh);
+    const br = new Quad(node.x + hw, node.y + hh, hw, hh);
+
+    node.children.push(tl);
+    node.children.push(tr);
+    node.children.push(bl);
+    node.children.push(br);
+  }
+
+  for (let i = 0; i < 4; i++) {
+    _insert(node.children[i], data);
+  }
+}
+
+function _getDataInRegion(
+  node: Quad<unknown>,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  hs: Set<unknown>
+) {
+  if (!rectIntersect(node.x, node.y, node.w, node.h, x, y, w, h)) return;
+
+  for (const data of node.data) {
+    hs.add(data);
+  }
+
+  for (const child of node.children) {
+    _getDataInRegion(child, x, y, w, h, hs);
+  }
+}
+
+export function createQuad<T>(x: number, y: number, w: number, h: number) {
+  return new Quad<T>(x, y, w, h);
+}

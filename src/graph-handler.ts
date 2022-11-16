@@ -14,6 +14,10 @@ export class GraphHandler<Node extends GraphNode, Edge extends GraphEdge> {
   private view: GraphView<Node, Edge>;
   private renderer: GraphRenderer<Node, Edge>;
 
+  private vp: [number, number] = [0, 0];
+  private cp: [number, number] = [0, 0];
+  private dp: [number, number] = [0, 0];
+
   constructor(
     view: GraphView<Node, Edge>,
     state: GraphState<Node, Edge>,
@@ -24,12 +28,22 @@ export class GraphHandler<Node extends GraphNode, Edge extends GraphEdge> {
     this.renderer = renderer;
   }
 
+  moveBy = () => {
+    this.view.moveBy(this.dp[0], this.dp[1]);
+  };
+
   handleMouseMove = (e: MouseEvent) => {
     const { moveNodeIds, moveX, moveY, dragLineSourceNode, isMovingView } =
       this.state;
 
+    // this.dp[0] = e.movementX;
+    // this.dp[1] = e.movementY;
+
     if (isMovingView && !dragLineSourceNode && moveNodeIds.length === 0) {
+      // requestAnimationFrame(() => {
       this.view.moveBy(e.movementX, e.movementY);
+      // });
+
       return;
     }
 

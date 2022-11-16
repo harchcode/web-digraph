@@ -1,3 +1,4 @@
+import { createQuad, Quad } from "./quad";
 import {
   GraphEdge,
   GraphNode,
@@ -14,12 +15,19 @@ export class GraphState<Node extends GraphNode, Edge extends GraphEdge> {
   readonly container: HTMLElement;
   readonly bgCtx: CanvasRenderingContext2D;
   readonly edgeCtx: CanvasRenderingContext2D;
+  readonly dragCtx: CanvasRenderingContext2D;
   readonly nodeCtx: CanvasRenderingContext2D;
   readonly moveCtx: CanvasRenderingContext2D;
 
   nodes: Record<number, Node> = {};
   edges: Record<number, Edge> = {};
   drawData: Record<number, NodeDrawData | EdgeDrawData> = {};
+  quad: Quad<number> = createQuad(
+    Number.MIN_VALUE,
+    Number.MAX_VALUE,
+    Number.MAX_VALUE - Number.MIN_VALUE,
+    Number.MAX_VALUE - Number.MIN_VALUE
+  );
 
   options = defaultGraphOptions;
 
@@ -55,15 +63,17 @@ export class GraphState<Node extends GraphNode, Edge extends GraphEdge> {
 
     const bgCtx = this.initCtx(false);
     const edgeCtx = this.initCtx();
+    const dragCtx = this.initCtx();
     const nodeCtx = this.initCtx();
     const moveCtx = this.initCtx();
 
-    if (!bgCtx || !edgeCtx || !nodeCtx || !moveCtx) {
+    if (!bgCtx || !edgeCtx || !nodeCtx || !moveCtx || !dragCtx) {
       throw "Canvas is not supported in your browser.";
     }
 
     this.bgCtx = bgCtx;
     this.edgeCtx = edgeCtx;
+    this.dragCtx = dragCtx;
     this.nodeCtx = nodeCtx;
     this.moveCtx = moveCtx;
   }

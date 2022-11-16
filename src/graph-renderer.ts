@@ -19,9 +19,9 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
     this.state = state;
   }
 
-  requestDraw() {
+  requestDraw(handler = this.requestDrawHandler) {
     if (!this.state.isDrawing) {
-      requestAnimationFrame(this.requestDrawHandler);
+      requestAnimationFrame(handler);
     }
 
     this.state.isDrawing = true;
@@ -33,11 +33,20 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
   };
 
   applyTransform() {
-    const { scale, translateX, translateY, bgCtx, nodeCtx, edgeCtx, moveCtx } =
-      this.state;
+    const {
+      scale,
+      translateX,
+      translateY,
+      bgCtx,
+      nodeCtx,
+      dragCtx,
+      edgeCtx,
+      moveCtx
+    } = this.state;
 
     bgCtx.setTransform(scale, 0, 0, scale, translateX, translateY);
     nodeCtx.setTransform(scale, 0, 0, scale, translateX, translateY);
+    dragCtx.setTransform(scale, 0, 0, scale, translateX, translateY);
     edgeCtx.setTransform(scale, 0, 0, scale, translateX, translateY);
     moveCtx.setTransform(scale, 0, 0, scale, translateX, translateY);
 
@@ -235,17 +244,19 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
 
     const { bgCtx, nodeCtx, edgeCtx, moveCtx } = this.state;
 
-    bgCtx.drawImage(bgCtx.canvas, ovx, ovy);
+    bgCtx.drawImage(bgCtx.canvas, ovx, ovy, nvw, nvh);
 
     moveCtx.clearRect(nvx, nvy, nvw, nvh);
     moveCtx.drawImage(edgeCtx.canvas, nvx, nvy, nvw, nvh);
     edgeCtx.clearRect(nvx, nvy, nvw, nvh);
-    edgeCtx.drawImage(moveCtx.canvas, ovx, ovy);
+    edgeCtx.drawImage(moveCtx.canvas, ovx, ovy, ovw, ovh);
 
     moveCtx.clearRect(nvx, nvy, nvw, nvh);
     moveCtx.drawImage(nodeCtx.canvas, nvx, nvy, nvw, nvh);
     nodeCtx.clearRect(nvx, nvy, nvw, nvh);
-    nodeCtx.drawImage(moveCtx.canvas, ovx, ovy);
+    nodeCtx.drawImage(moveCtx.canvas, ovx, ovy, ovw, ovh);
+
+    moveCtx.clearRect(nvx, nvy, nvw, nvh);
 
     if (nvt < ovt) {
       const tt = nvt;
@@ -341,6 +352,11 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
     edgeCtx.clearRect(viewX, viewY, viewW, viewH);
   };
 
+  clearDragLine = () => {
+    const { dragCtx, viewX, viewY, viewW, viewH } = this.state;
+    dragCtx.clearRect(viewX, viewY, viewW, viewH);
+  };
+
   clearMove = () => {
     const { moveCtx, viewX, viewY, viewW, viewH } = this.state;
     moveCtx.clearRect(viewX, viewY, viewW, viewH);
@@ -348,7 +364,7 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
 
   drawDragLine = () => {
     const {
-      moveCtx,
+      dragCtx,
       options,
       dragLineSourceNode,
       dragLineX,
@@ -361,7 +377,7 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
 
     if (!dragLineSourceNode) return;
 
-    moveCtx.clearRect(viewX, viewY, viewW, viewH);
+    dragCtx.clearRect(viewX, viewY, viewW, viewH);
 
     const sx = dragLineSourceNode.x;
     const sy = dragLineSourceNode.y;
@@ -383,21 +399,21 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
     const lp2x = lsx - ll * sinr;
     const lp2y = lsy + ll * cosr;
 
-    moveCtx.lineWidth = options.edgeLineWidth;
-    moveCtx.strokeStyle = options.edgeLineColor;
-    moveCtx.fillStyle = options.edgeLineColor;
+    dragCtx.lineWidth = options.edgeLineWidth;
+    dragCtx.strokeStyle = options.edgeLineColor;
+    dragCtx.fillStyle = options.edgeLineColor;
 
-    moveCtx.beginPath();
-    moveCtx.moveTo(sx, sy);
-    moveCtx.lineTo(tx, ty);
-    moveCtx.stroke();
+    dragCtx.beginPath();
+    dragCtx.moveTo(sx, sy);
+    dragCtx.lineTo(tx, ty);
+    dragCtx.stroke();
 
-    moveCtx.beginPath();
-    moveCtx.moveTo(tx, ty);
-    moveCtx.lineTo(lp1x, lp1y);
-    moveCtx.lineTo(lp2x, lp2y);
-    moveCtx.closePath();
-    moveCtx.fill();
+    dragCtx.beginPath();
+    dragCtx.moveTo(tx, ty);
+    dragCtx.lineTo(lp1x, lp1y);
+    dragCtx.lineTo(lp2x, lp2y);
+    dragCtx.closePath();
+    dragCtx.fill();
   };
 
   drawEdge(
