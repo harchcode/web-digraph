@@ -36,7 +36,7 @@ export class GraphState<Node extends GraphNode, Edge extends GraphEdge> {
   isDrawing = false;
   isMovingView = false;
   hoveredId = 0;
-  selectedIdMap: Record<number, boolean> = {};
+  selectedIds = new Set<number>();
   moveNodeIds: number[] = [];
   moveX = 0;
   moveY = 0;

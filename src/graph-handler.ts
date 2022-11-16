@@ -34,16 +34,17 @@ export class GraphHandler<Node extends GraphNode, Edge extends GraphEdge> {
     }
 
     const vp = this.view.getViewPosFromWindowPos(e.x, e.y);
+    const cp = this.view.getCanvasPosFromWindowPos(e.x, e.y);
 
     if (dragLineSourceNode) {
       this.state.dragLineX = vp[0];
       this.state.dragLineY = vp[1];
 
-      this.renderer.requestDraw();
+      requestAnimationFrame(this.renderer.drawDragLine);
     }
 
     if (moveNodeIds.length === 0) {
-      this.checkHover(vp[0], vp[1]);
+      requestAnimationFrame(() => this.checkHover(cp[0], cp[1]));
 
       return;
     }
@@ -80,7 +81,7 @@ export class GraphHandler<Node extends GraphNode, Edge extends GraphEdge> {
   }
 
   private checkHover(vx: number, vy: number) {
-    const { nodes, edges, selectedIdMap, nodeCtx, edgeCtx } = this.state;
+    const { nodes, edges } = this.state;
 
     const prevId = this.state.hoveredId;
     this.state.hoveredId = 0;
@@ -107,27 +108,21 @@ export class GraphHandler<Node extends GraphNode, Edge extends GraphEdge> {
     const prev = this.state.drawData[prevId];
     const curr = this.state.drawData[currId];
 
-    this.renderer.applyTransform(nodeCtx);
-    this.renderer.applyTransform(edgeCtx);
-
     if (prev) {
       if (prev.type === GraphDataType.NODE) {
-        this.renderer.drawNode(nodes[prevId], false, selectedIdMap[prevId]);
+        this.renderer.drawNode(nodes[prevId]);
       } else if (prev.type === GraphDataType.EDGE) {
-        this.renderer.drawEdge(edges[prevId], false, selectedIdMap[prevId]);
+        this.renderer.drawEdge(edges[prevId]);
       }
     }
 
     if (curr) {
       if (curr.type === GraphDataType.NODE) {
-        this.renderer.drawNode(nodes[currId], true, selectedIdMap[currId]);
+        this.renderer.drawNode(nodes[currId]);
       } else if (curr.type === GraphDataType.EDGE) {
-        this.renderer.drawEdge(edges[currId], true, selectedIdMap[currId]);
+        this.renderer.drawEdge(edges[currId]);
       }
     }
-
-    this.renderer.resetTransform(nodeCtx);
-    this.renderer.resetTransform(edgeCtx);
   }
 
   handleWheel = (e: WheelEvent) => {

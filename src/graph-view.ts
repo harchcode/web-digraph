@@ -36,7 +36,8 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     this.renderer = new GraphRenderer(this, this.state);
     this.handler = new GraphHandler(this, this.state, this.renderer);
 
-    this.renderer.requestDraw();
+    this.renderer.applyTransform();
+    this.renderer.drawAll();
 
     container.appendChild(this.state.bgCtx.canvas);
     container.appendChild(this.state.edgeCtx.canvas);
@@ -44,9 +45,7 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     container.appendChild(this.state.moveCtx.canvas);
 
     const resizeObserver = new ResizeObserver(() => {
-      requestAnimationFrame(() => {
-        this.resize();
-      });
+      this.resize();
     });
 
     resizeObserver.observe(container);
@@ -70,7 +69,8 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
 
     this.state.boundingRect = this.state.container.getBoundingClientRect();
 
-    this.renderer.requestDrawHandler();
+    this.renderer.applyTransform();
+    this.renderer.drawAll();
   }
 
   beginDragLine() {
@@ -90,6 +90,8 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
   endDragLine(): [Node, Node] | undefined {
     const { hoveredId, nodes } = this.state;
 
+    this.renderer.clearMove();
+
     if (!this.state.dragLineSourceNode) return;
 
     let r = 0;
@@ -100,8 +102,6 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     const s = this.state.dragLineSourceNode;
 
     this.state.dragLineSourceNode = undefined;
-
-    this.renderer.requestDraw();
 
     const rn = nodes[r];
     return rn ? [s, rn] : undefined;
@@ -123,8 +123,6 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
 
   endMoveNodes() {
     this.state.moveNodeIds.length = 0;
-
-    this.renderer.requestDraw();
   }
 
   getHoveredId() {
@@ -132,27 +130,53 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
   }
 
   select(id: number) {
-    this.state.selectedIdMap = { [id]: true };
-    this.renderer.requestDraw();
+    const { nodes, edges, selectedIds } = this.state;
+
+    const affectedIds = Array.from(selectedIds);
+    affectedIds.push(id);
+
+    selectedIds.clear();
+    selectedIds.add(id);
+
+    for (const id of affectedIds) {
+      if (nodes[id]) this.renderer.drawNode(nodes[id]);
+      if (edges[id]) this.renderer.drawEdge(edges[id]);
+    }
   }
 
   addSelection(id: number) {
-    this.state.selectedIdMap[id] = true;
-    this.renderer.requestDraw();
+    const { nodes, edges, selectedIds } = this.state;
+
+    selectedIds.add(id);
+
+    if (nodes[id]) this.renderer.drawNode(nodes[id]);
+    if (edges[id]) this.renderer.drawEdge(edges[id]);
   }
 
   removeSelection(id: number) {
-    delete this.state.selectedIdMap[id];
-    this.renderer.requestDraw();
+    const { nodes, edges, selectedIds } = this.state;
+
+    selectedIds.delete(id);
+
+    if (nodes[id]) this.renderer.drawNode(nodes[id]);
+    if (edges[id]) this.renderer.drawEdge(edges[id]);
   }
 
   clearSelection() {
-    this.state.selectedIdMap = {};
-    this.renderer.requestDraw();
+    const { nodes, edges, selectedIds } = this.state;
+
+    const affectedIds = Array.from(selectedIds);
+
+    selectedIds.clear();
+
+    for (const id of affectedIds) {
+      if (nodes[id]) this.renderer.drawNode(nodes[id]);
+      if (edges[id]) this.renderer.drawEdge(edges[id]);
+    }
   }
 
   getSelection() {
-    return Object.keys(this.state.selectedIdMap).map(k => Number(k));
+    return Array.from(this.state.selectedIds);
   }
 
   getSelectedNodeIds() {
@@ -190,7 +214,7 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
       targetOfEdgeIds: new Set()
     };
 
-    this.renderer.requestDraw();
+    this.renderer.drawNode(node);
 
     return true;
   }
@@ -201,17 +225,25 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     if (nodes[edge.id] || edges[edge.id]) return false;
     if (!nodes[edge.sourceId] || !nodes[edge.targetId]) return false;
 
+    const snd = drawData[edge.sourceId] as NodeDrawData;
+    const tnd = drawData[edge.targetId] as NodeDrawData;
+
+    for (const eid of snd.sourceOfEdgeIds) {
+      if (edges[eid].targetId === edge.targetId) return false;
+    }
+
+    for (const eid of tnd.targetOfEdgeIds) {
+      if (edges[eid].sourceId === edge.sourceId) return false;
+    }
+
     edges[edge.id] = edge;
 
-    const snd = drawData[edge.sourceId] as NodeDrawData;
     snd.sourceOfEdgeIds.add(edge.id);
-
-    const tnd = drawData[edge.targetId] as NodeDrawData;
     tnd.targetOfEdgeIds.add(edge.id);
 
     this.renderer.createEdgePath(edge, shape);
 
-    this.renderer.requestDraw();
+    this.renderer.drawEdge(edge);
 
     return true;
   }
@@ -291,7 +323,7 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
       (edge.sourceId && edge.sourceId !== cur.sourceId) ||
       (edge.targetId && edge.targetId !== cur.targetId)
     ) {
-      this.renderer.requestDraw();
+      this.renderer.redrawEdges();
     }
 
     for (const k in edge) {
@@ -327,7 +359,7 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     delete this.state.nodes[id];
     delete this.state.drawData[id];
 
-    this.renderer.requestDraw();
+    this.renderer.redrawNodes();
 
     return true;
   }
@@ -347,7 +379,7 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     delete this.state.edges[id];
     delete this.state.drawData[id];
 
-    this.renderer.requestDraw();
+    this.renderer.redrawEdges();
 
     return true;
   }
@@ -371,41 +403,24 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     this.state.nodes = {};
     this.state.edges = {};
     this.state.drawData = {};
+    this.state.selectedIds.clear();
+    this.state.moveNodeIds = [];
+    this.state.dragLineSourceNode = undefined;
 
-    this.renderer.requestDraw();
+    this.renderer.clearNodes();
+    this.renderer.clearEdges();
   }
 
   getTranslateX() {
     return this.state.translateX;
   }
 
-  setTranslateX(v: number) {
-    if (v === this.state.translateX) return;
-
-    this.state.translateX = v;
-    this.renderer.requestDraw();
-  }
-
   getTranslateY() {
     return this.state.translateY;
   }
 
-  setTranslateY(v: number) {
-    if (v === this.state.translateY) return;
-
-    this.state.translateY = v;
-    this.renderer.requestDraw();
-  }
-
   getScale() {
     return this.state.scale;
-  }
-
-  setScale(v: number) {
-    if (v === this.state.scale) return;
-
-    this.state.scale = v;
-    this.renderer.requestDraw();
   }
 
   setTransform(translateX: number, translateY: number, scale: number) {
@@ -420,6 +435,7 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     this.state.translateY = translateY;
     this.state.scale = scale;
 
+    this.renderer.applyTransform();
     this.renderer.requestDraw();
   }
 
@@ -427,6 +443,7 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     this.state.translateX += x;
     this.state.translateY += y;
 
+    this.renderer.applyTransform();
     this.renderer.requestDraw();
   }
 
@@ -453,6 +470,8 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     this.state.scale += deltaScale;
     this.state.translateX += offsetX;
     this.state.translateY += offsetY;
+
+    this.renderer.applyTransform();
 
     this.renderer.requestDraw();
   }

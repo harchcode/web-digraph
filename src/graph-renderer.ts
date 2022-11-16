@@ -19,17 +19,6 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
     this.state = state;
   }
 
-  applyTransform(ctx: CanvasRenderingContext2D) {
-    const { scale, translateX, translateY } = this.state;
-
-    ctx.setTransform(scale, 0, 0, scale, translateX, translateY);
-    this.state.setView();
-  }
-
-  resetTransform(ctx: CanvasRenderingContext2D) {
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-  }
-
   requestDraw() {
     if (!this.state.isDrawing) {
       requestAnimationFrame(this.requestDrawHandler);
@@ -40,8 +29,20 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
 
   requestDrawHandler = () => {
     this.state.isDrawing = false;
-    this.draw();
+    this.drawAll();
   };
+
+  applyTransform() {
+    const { scale, translateX, translateY, bgCtx, nodeCtx, edgeCtx, moveCtx } =
+      this.state;
+
+    bgCtx.setTransform(scale, 0, 0, scale, translateX, translateY);
+    nodeCtx.setTransform(scale, 0, 0, scale, translateX, translateY);
+    edgeCtx.setTransform(scale, 0, 0, scale, translateX, translateY);
+    moveCtx.setTransform(scale, 0, 0, scale, translateX, translateY);
+
+    this.state.setView();
+  }
 
   getIntersectionPoint(
     sx: number,
@@ -65,8 +66,9 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
 
       const x = sx + (mid / e) * dx;
       const y = sy + (mid / e) * dy;
+      const [cx, cy] = this.view.getCanvasPosFromViewPos(x, y);
 
-      if (bgCtx.isPointInPath(path, x, y)) {
+      if (bgCtx.isPointInPath(path, cx, cy)) {
         end = mid - 1;
       } else {
         start = mid + 1;
@@ -202,52 +204,81 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
     return p;
   }
 
-  draw() {
+  clear = (ctx: CanvasRenderingContext2D) => {
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+  };
+
+  drawAll = () => {
     const {
-      bgCtx,
       edgeCtx,
       nodeCtx,
       moveCtx,
-      options,
       nodes,
       edges,
-      hoveredId,
-      selectedIdMap,
-      dragLineSourceNode
+      dragLineSourceNode,
+      viewX,
+      viewY,
+      viewW,
+      viewH
     } = this.state;
 
-    bgCtx.fillStyle = options.bgColor;
-    bgCtx.fillRect(0, 0, bgCtx.canvas.width, bgCtx.canvas.height);
-    edgeCtx.clearRect(0, 0, edgeCtx.canvas.width, edgeCtx.canvas.height);
-    nodeCtx.clearRect(0, 0, nodeCtx.canvas.width, nodeCtx.canvas.height);
-    moveCtx.clearRect(0, 0, moveCtx.canvas.width, moveCtx.canvas.height);
+    nodeCtx.clearRect(viewX, viewY, viewW, viewH);
+    edgeCtx.clearRect(viewX, viewY, viewW, viewH);
+    moveCtx.clearRect(viewX, viewY, viewW, viewH);
 
-    this.applyTransform(bgCtx);
-    this.applyTransform(edgeCtx);
-    this.applyTransform(nodeCtx);
-    this.applyTransform(moveCtx);
-
-    if (options.bgShowDots) this.drawBackground();
+    this.drawBackground();
 
     if (dragLineSourceNode) this.drawDragLine();
 
-    for (const edge of Object.values(edges))
-      this.drawEdge(edge, hoveredId === edge.id, selectedIdMap[edge.id]);
+    for (const edge of Object.values(edges)) this.drawEdge(edge);
+    for (const node of Object.values(nodes)) this.drawNode(node);
+  };
 
-    for (const node of Object.values(nodes))
-      this.drawNode(node, hoveredId === node.id, selectedIdMap[node.id]);
+  redrawNodes = () => {
+    const { nodes, nodeCtx, viewX, viewY, viewW, viewH } = this.state;
 
-    this.resetTransform(bgCtx);
-    this.resetTransform(edgeCtx);
-    this.resetTransform(nodeCtx);
-    this.resetTransform(moveCtx);
-  }
+    nodeCtx.clearRect(viewX, viewY, viewW, viewH);
+    for (const node of Object.values(nodes)) this.drawNode(node);
+  };
 
-  drawDragLine() {
-    const { edgeCtx, options, dragLineSourceNode, dragLineX, dragLineY } =
-      this.state;
+  redrawEdges = () => {
+    const { edges, edgeCtx, viewX, viewY, viewW, viewH } = this.state;
+
+    edgeCtx.clearRect(viewX, viewY, viewW, viewH);
+    for (const edge of Object.values(edges)) this.drawEdge(edge);
+  };
+
+  clearNodes = () => {
+    const { nodeCtx, viewX, viewY, viewW, viewH } = this.state;
+    nodeCtx.clearRect(viewX, viewY, viewW, viewH);
+  };
+
+  clearEdges = () => {
+    const { edgeCtx, viewX, viewY, viewW, viewH } = this.state;
+    edgeCtx.clearRect(viewX, viewY, viewW, viewH);
+  };
+
+  clearMove = () => {
+    const { moveCtx, viewX, viewY, viewW, viewH } = this.state;
+    moveCtx.clearRect(viewX, viewY, viewW, viewH);
+  };
+
+  drawDragLine = () => {
+    const {
+      moveCtx,
+      options,
+      dragLineSourceNode,
+      dragLineX,
+      dragLineY,
+      viewX,
+      viewY,
+      viewW,
+      viewH
+    } = this.state;
 
     if (!dragLineSourceNode) return;
+
+    moveCtx.clearRect(viewX, viewY, viewW, viewH);
 
     const sx = dragLineSourceNode.x;
     const sy = dragLineSourceNode.y;
@@ -269,25 +300,28 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
     const lp2x = lsx - ll * sinr;
     const lp2y = lsy + ll * cosr;
 
-    edgeCtx.lineWidth = options.edgeLineWidth;
-    edgeCtx.strokeStyle = options.edgeLineColor;
-    edgeCtx.fillStyle = options.edgeLineColor;
+    moveCtx.lineWidth = options.edgeLineWidth;
+    moveCtx.strokeStyle = options.edgeLineColor;
+    moveCtx.fillStyle = options.edgeLineColor;
 
-    edgeCtx.beginPath();
-    edgeCtx.moveTo(sx, sy);
-    edgeCtx.lineTo(tx, ty);
-    edgeCtx.stroke();
+    moveCtx.beginPath();
+    moveCtx.moveTo(sx, sy);
+    moveCtx.lineTo(tx, ty);
+    moveCtx.stroke();
 
-    edgeCtx.beginPath();
-    edgeCtx.moveTo(tx, ty);
-    edgeCtx.lineTo(lp1x, lp1y);
-    edgeCtx.lineTo(lp2x, lp2y);
-    edgeCtx.closePath();
-    edgeCtx.fill();
-  }
+    moveCtx.beginPath();
+    moveCtx.moveTo(tx, ty);
+    moveCtx.lineTo(lp1x, lp1y);
+    moveCtx.lineTo(lp2x, lp2y);
+    moveCtx.closePath();
+    moveCtx.fill();
+  };
 
-  drawEdge(edge: Edge, hovered = false, selected = false) {
+  drawEdge(edge: Edge) {
     const { edgeCtx, options, drawData } = this.state;
+
+    const selected = this.state.selectedIds.has(edge.id);
+    const hovered = this.state.hoveredId === edge.id;
 
     const data = drawData[edge.id] as EdgeDrawData;
 
@@ -437,50 +471,58 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
     );
   }
 
-  drawNode(node: Node, hovered = false, selected = false) {
+  drawNode(node: Node) {
     const { nodeCtx, options, drawData } = this.state;
+
+    const selected = this.state.selectedIds.has(node.id);
+    const hovered = this.state.hoveredId === node.id;
 
     const data = drawData[node.id] as NodeDrawData;
 
     // check is in view
     const shape = data.shape;
-    if (!this.isNodeInView(node)) return;
+    if (this.isNodeInView(node)) {
+      // draw shape
+      nodeCtx.strokeStyle = selected
+        ? options.nodeSelectedLineColor
+        : hovered
+        ? options.nodeHoveredLineColor
+        : options.nodeLineColor;
+      nodeCtx.fillStyle = selected
+        ? options.nodeSelectedColor
+        : options.nodeColor;
+      nodeCtx.lineWidth = options.nodeLineWidth;
 
-    // draw shape
-    nodeCtx.strokeStyle = selected
-      ? options.nodeSelectedLineColor
-      : hovered
-      ? options.nodeHoveredLineColor
-      : options.nodeLineColor;
-    nodeCtx.fillStyle = selected
-      ? options.nodeSelectedColor
-      : options.nodeColor;
-    nodeCtx.lineWidth = options.nodeLineWidth;
+      nodeCtx.fill(data.path);
+      nodeCtx.stroke(data.path);
 
-    nodeCtx.fill(data.path);
-    nodeCtx.stroke(data.path);
+      // draw content
 
-    // draw content
+      nodeCtx.fillStyle = selected
+        ? options.nodeSelectedContentColor
+        : options.nodeContentColor;
+      nodeCtx.textAlign = options.nodeTextAlign;
+      nodeCtx.textBaseline = options.nodeTextBaseline;
+      nodeCtx.font = options.nodeFont;
 
-    nodeCtx.fillStyle = selected
-      ? options.nodeSelectedContentColor
-      : options.nodeContentColor;
-    nodeCtx.textAlign = options.nodeTextAlign;
-    nodeCtx.textBaseline = options.nodeTextBaseline;
-    nodeCtx.font = options.nodeFont;
-
-    shape.drawContent(
-      nodeCtx,
-      node.x,
-      node.y,
-      shape.width,
-      shape.height,
-      node.id
-    );
+      shape.drawContent(
+        nodeCtx,
+        node.x,
+        node.y,
+        shape.width,
+        shape.height,
+        node.id
+      );
+    }
   }
 
   drawBackground() {
     const { bgCtx, viewX, viewY, viewW, viewH, options } = this.state;
+
+    bgCtx.fillStyle = options.bgColor;
+    bgCtx.fillRect(viewX, viewY, viewW, viewH);
+
+    if (!options.bgShowDots) return;
 
     const lw = options.bgLineWidth;
     const gap = options.bgLineGap;
