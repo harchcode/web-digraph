@@ -312,10 +312,18 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
 
     this.drawBackground(vx, vy, vw, vh);
 
-    for (const edge of Object.values(edges))
-      this.drawEdge(edge, false, vx, vy, vw, vh);
-    for (const node of Object.values(nodes))
-      this.drawNode(node, false, vx, vy, vw, vh);
+    this.state.quad.getDataInRegion(vx, vy, vw, vh, this.state.drawIds);
+    // console.log(this.state.drawIds.size);
+
+    for (const id of this.state.drawIds) {
+      if (nodes[id]) this.drawNode(nodes[id], false, vx, vy, vw, vh);
+      if (edges[id]) this.drawEdge(edges[id], false, vx, vy, vw, vh);
+    }
+
+    // for (const edge of Object.values(edges))
+    //   this.drawEdge(edge, false, vx, vy, vw, vh);
+    // for (const node of Object.values(nodes))
+    //   this.drawNode(node, false, vx, vy, vw, vh);
   };
 
   redrawNodes = (excludeIds?: Set<number>) => {

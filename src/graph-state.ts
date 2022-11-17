@@ -23,10 +23,10 @@ export class GraphState<Node extends GraphNode, Edge extends GraphEdge> {
   edges: Record<number, Edge> = {};
   drawData: Record<number, NodeDrawData | EdgeDrawData> = {};
   quad: Quad<number> = createQuad(
-    Number.MIN_VALUE,
-    Number.MAX_VALUE,
-    Number.MAX_VALUE - Number.MIN_VALUE,
-    Number.MAX_VALUE - Number.MIN_VALUE
+    Number.MIN_SAFE_INTEGER,
+    Number.MIN_SAFE_INTEGER,
+    Number.MAX_SAFE_INTEGER - Number.MIN_SAFE_INTEGER,
+    Number.MAX_SAFE_INTEGER - Number.MIN_SAFE_INTEGER
   );
 
   options = defaultGraphOptions;
@@ -51,6 +51,7 @@ export class GraphState<Node extends GraphNode, Edge extends GraphEdge> {
   dragLineSourceNode: Node | undefined = undefined;
   dragLineX = 0;
   dragLineY = 0;
+  drawIds = new Set<number>();
 
   constructor(container: HTMLElement, options: Partial<GraphOptions> = {}) {
     this.options = {

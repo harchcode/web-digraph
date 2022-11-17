@@ -48,7 +48,6 @@ export class GraphHandler<Node extends GraphNode, Edge extends GraphEdge> {
     }
 
     const vp = this.view.getViewPosFromWindowPos(e.x, e.y);
-    const cp = this.view.getCanvasPosFromWindowPos(e.x, e.y);
 
     if (dragLineSourceNode) {
       this.state.dragLineX = vp[0];
@@ -58,7 +57,7 @@ export class GraphHandler<Node extends GraphNode, Edge extends GraphEdge> {
     }
 
     if (moveNodeIds.length === 0) {
-      requestAnimationFrame(() => this.checkHover(cp[0], cp[1]));
+      requestAnimationFrame(() => this.checkHover(vp[0], vp[1]));
 
       return;
     }
@@ -102,21 +101,32 @@ export class GraphHandler<Node extends GraphNode, Edge extends GraphEdge> {
     const prevId = this.state.hoveredId;
     this.state.hoveredId = 0;
 
-    for (const node of Object.values(nodes)) {
-      if (!this.renderer.isNodeInView(node)) continue;
+    const [cx, cy] = this.view.getCanvasPosFromViewPos(vx, vy);
+    this.state.quad.getDataInRegion(vx - 1, vy - 1, 2, 2, this.state.drawIds);
 
-      if (this.isNodeHovered(vx, vy, node)) {
-        this.state.hoveredId = node.id;
-      }
+    for (const id of this.state.drawIds) {
+      if (nodes[id] && this.isNodeHovered(cx, cy, nodes[id]))
+        this.state.hoveredId = id;
+
+      if (edges[id] && this.isEdgeHovered(cx, cy, edges[id]))
+        this.state.hoveredId = id;
     }
 
-    for (const edge of Object.values(edges)) {
-      if (!this.renderer.isEdgeInView(edge)) continue;
+    // for (const node of Object.values(nodes)) {
+    //   if (!this.renderer.isNodeInView(node)) continue;
 
-      if (this.isEdgeHovered(vx, vy, edge)) {
-        this.state.hoveredId = edge.id;
-      }
-    }
+    //   if (this.isNodeHovered(vx, vy, node)) {
+    //     this.state.hoveredId = node.id;
+    //   }
+    // }
+
+    // for (const edge of Object.values(edges)) {
+    //   if (!this.renderer.isEdgeInView(edge)) continue;
+
+    //   if (this.isEdgeHovered(vx, vy, edge)) {
+    //     this.state.hoveredId = edge.id;
+    //   }
+    // }
 
     if (this.state.hoveredId === prevId) return;
 

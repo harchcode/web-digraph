@@ -273,6 +273,14 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
       targetOfEdgeIds: new Set()
     };
 
+    this.state.quad.insert(
+      node.id,
+      node.x - shape.width * 0.5,
+      node.y - shape.height * 0.5,
+      shape.width,
+      shape.height
+    );
+
     this.renderer.drawNode(node);
 
     return true;
@@ -302,7 +310,20 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
 
     this.renderer.createEdgePath(edge, shape);
 
+    const source = nodes[edge.sourceId];
+    const target = nodes[edge.targetId];
+
+    this.state.quad.insert(
+      edge.id,
+      Math.min(source.x, target.x),
+      Math.min(source.y, target.y),
+      Math.max(Math.abs(source.x - target.x), shape.width),
+      Math.max(Math.abs(source.y - target.y), shape.height)
+    );
+
     this.renderer.drawEdge(edge);
+
+    // console.log(this.state.quad);
 
     return true;
   }
@@ -469,6 +490,7 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     this.state.selectedIds.clear();
     this.state.moveNodeIds = [];
     this.state.dragLineSourceNode = undefined;
+    this.state.quad.clear();
 
     this.renderer.clearNodes();
     this.renderer.clearEdges();
