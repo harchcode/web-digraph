@@ -3,6 +3,7 @@
 import { rectIntersect } from "./utils";
 
 const MAX_DEPTH = 64;
+const DATA_PER_CHILD = 4;
 
 export type QuadData<T> = {
   value: T;
@@ -97,10 +98,10 @@ function _insert(node: Quad<unknown>, data: QuadData<unknown>, depth: number) {
   )
     return;
 
-  // if no children and data size is smaller than the limit (4), insert data to the node
+  // if no children and data size is smaller than the limit, insert data to the node
   if (
     depth === MAX_DEPTH ||
-    (node.children.length === 0 && node.data.length < 4)
+    (node.children.length === 0 && node.data.length < DATA_PER_CHILD)
   ) {
     node.data.push(data);
     return;
@@ -109,7 +110,7 @@ function _insert(node: Quad<unknown>, data: QuadData<unknown>, depth: number) {
   const dataToInsert: QuadData<unknown>[] = [];
 
   // if no children, create the children
-  if (node.children.length === 0 && node.data.length >= 4) {
+  if (node.children.length === 0 && node.data.length >= DATA_PER_CHILD) {
     const hw = node.w * 0.5;
     const hh = node.h * 0.5;
 

@@ -112,22 +112,6 @@ export class GraphHandler<Node extends GraphNode, Edge extends GraphEdge> {
         this.state.hoveredId = id;
     }
 
-    // for (const node of Object.values(nodes)) {
-    //   if (!this.renderer.isNodeInView(node)) continue;
-
-    //   if (this.isNodeHovered(vx, vy, node)) {
-    //     this.state.hoveredId = node.id;
-    //   }
-    // }
-
-    // for (const edge of Object.values(edges)) {
-    //   if (!this.renderer.isEdgeInView(edge)) continue;
-
-    //   if (this.isEdgeHovered(vx, vy, edge)) {
-    //     this.state.hoveredId = edge.id;
-    //   }
-    // }
-
     if (this.state.hoveredId === prevId) return;
 
     const currId = this.state.hoveredId;

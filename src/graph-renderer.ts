@@ -10,25 +10,35 @@ import {
 } from "./types";
 import { isLineInsideRect, lineIntersect, rectIntersect } from "./utils";
 
+export enum RedrawType {
+  ALL = 0,
+  NODES,
+  EDGES,
+  MOVE
+}
+
 export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
   private state: GraphState<Node, Edge>;
   private view: GraphView<Node, Edge>;
+
+  private isDrawing = false;
 
   constructor(view: GraphView<Node, Edge>, state: GraphState<Node, Edge>) {
     this.view = view;
     this.state = state;
   }
 
-  requestDraw(handler = this.requestDrawHandler) {
-    if (!this.state.isDrawing) {
-      requestAnimationFrame(handler);
+  requestDraw() {
+    if (!this.isDrawing) {
+      requestAnimationFrame(this.requestDrawHandler);
     }
 
-    this.state.isDrawing = true;
+    this.isDrawing = true;
   }
 
   requestDrawHandler = () => {
-    this.state.isDrawing = false;
+    this.isDrawing = false;
+
     this.drawAll();
   };
 
@@ -237,11 +247,6 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
     const nvb = nvy + nvh;
     const nvl = nvx;
 
-    // const ct = Math.max(ovt, nvt);
-    // const cr = Math.min(ovr, nvr);
-    // const cb = Math.min(ovb, nvb);
-    // const cl = Math.max(ovl, nvl);
-
     const { bgCtx, nodeCtx, edgeCtx, moveCtx } = this.state;
 
     bgCtx.drawImage(bgCtx.canvas, ovx, ovy, nvw, nvh);
@@ -264,7 +269,6 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
       const tb = ovt;
       const tl = nvl;
 
-      // console.log("atas");
       this.drawAll(tl, tt, tr - tl, tb - tt);
     }
 
@@ -274,7 +278,6 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
       const rb = Math.min(nvb, ovb);
       const rl = ovr;
 
-      // console.log("kanan");
       this.drawAll(rl, rt, rr - rl, rb - rt);
     }
 
@@ -284,7 +287,6 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
       const bb = nvb;
       const bl = nvl;
 
-      // console.log(bt, br, bb, bl);
       this.drawAll(bl, bt, br - bl, bb - bt);
     }
 
@@ -294,7 +296,6 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
       const lb = Math.min(nvb, ovb);
       const ll = nvl;
 
-      // console.log(lt, lr, lb, ll);
       this.drawAll(ll, lt, lr - ll, lb - lt);
     }
   };
@@ -313,17 +314,11 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
     this.drawBackground(vx, vy, vw, vh);
 
     this.state.quad.getDataInRegion(vx, vy, vw, vh, this.state.drawIds);
-    // console.log(this.state.drawIds.size);
 
     for (const id of this.state.drawIds) {
       if (nodes[id]) this.drawNode(nodes[id], false, vx, vy, vw, vh);
       if (edges[id]) this.drawEdge(edges[id], false, vx, vy, vw, vh);
     }
-
-    // for (const edge of Object.values(edges))
-    //   this.drawEdge(edge, false, vx, vy, vw, vh);
-    // for (const node of Object.values(nodes))
-    //   this.drawNode(node, false, vx, vy, vw, vh);
   };
 
   redrawNodes = (excludeIds?: Set<number>) => {

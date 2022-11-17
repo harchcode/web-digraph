@@ -41,7 +41,6 @@ export class GraphState<Node extends GraphNode, Edge extends GraphEdge> {
   viewH = 0;
   boundingRect: DOMRect;
 
-  isDrawing = false;
   isMovingView = false;
   hoveredId = 0;
   selectedIds = new Set<number>();
