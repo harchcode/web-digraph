@@ -19,16 +19,16 @@ export type NodeDrawData = {
   type: GraphDataType.NODE;
   sourceOfEdgeIds: Set<number>;
   targetOfEdgeIds: Set<number>;
-  path: Path2D;
+  path?: Path2D;
   shape: GraphShape;
 };
 
 export type EdgeDrawData = {
   type: GraphDataType.EDGE;
   shape: GraphShape;
-  path: Path2D;
-  linePath: Path2D;
-  arrowPath: Path2D;
+  path?: Path2D;
+  linePath?: Path2D;
+  arrowPath?: Path2D;
   lineSourceX: number;
   lineSourceY: number;
   lineTargetX: number;

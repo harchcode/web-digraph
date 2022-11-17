@@ -54,6 +54,10 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     this.handler.init();
   }
 
+  destroy() {
+    this.handler.destroy();
+  }
+
   resize(): void {
     this.state.bgCtx.canvas.width = this.state.container.clientWidth;
     this.state.bgCtx.canvas.height = this.state.container.clientHeight;
@@ -68,6 +72,89 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
 
     this.renderer.applyTransform();
     this.renderer.drawAll();
+  }
+
+  addNode(node: Node, shape: GraphShape): boolean {
+    const { nodes, edges, nodeData } = this.state;
+
+    if (nodes[node.id] || edges[node.id]) return false;
+
+    nodes[node.id] = node;
+
+    nodeData[node.id] = {
+      type: GraphDataType.NODE,
+      shape,
+      sourceOfEdgeIds: new Set(),
+      targetOfEdgeIds: new Set()
+    };
+
+    this.state.quad.insert(
+      node.id,
+      node.x - shape.width * 0.5,
+      node.y - shape.height * 0.5,
+      shape.width,
+      shape.height
+    );
+
+    this.renderer.drawNode(node);
+
+    return true;
+  }
+
+  // addEdge(edge: Edge, shape: GraphShape): boolean {
+  //   const { nodes, edges, drawData } = this.state;
+
+  //   if (nodes[edge.id] || edges[edge.id]) return false;
+  //   if (!nodes[edge.sourceId] || !nodes[edge.targetId]) return false;
+
+  //   const snd = drawData[edge.sourceId] as NodeDrawData;
+  //   const tnd = drawData[edge.targetId] as NodeDrawData;
+
+  //   for (const eid of snd.sourceOfEdgeIds) {
+  //     if (edges[eid].targetId === edge.targetId) return false;
+  //   }
+
+  //   for (const eid of tnd.targetOfEdgeIds) {
+  //     if (edges[eid].sourceId === edge.sourceId) return false;
+  //   }
+
+  //   edges[edge.id] = edge;
+
+  //   snd.sourceOfEdgeIds.add(edge.id);
+  //   tnd.targetOfEdgeIds.add(edge.id);
+
+  //   this.renderer.createEdgePath(edge, shape);
+
+  //   const source = nodes[edge.sourceId];
+  //   const target = nodes[edge.targetId];
+
+  //   this.state.quad.insert(
+  //     edge.id,
+  //     Math.min(source.x, target.x),
+  //     Math.min(source.y, target.y),
+  //     Math.max(Math.abs(source.x - target.x), shape.width),
+  //     Math.max(Math.abs(source.y - target.y), shape.height)
+  //   );
+
+  //   this.renderer.drawEdge(edge);
+
+  //   // console.log(this.state.quad);
+
+  //   return true;
+  // }
+
+  clear() {
+    this.state.nodes = {};
+    this.state.edges = {};
+    this.state.nodeData = {};
+    this.state.edgeData = {};
+    this.state.selectedIds.clear();
+    this.state.moveNodeIds = [];
+    this.state.dragLineSourceNode = undefined;
+    this.state.quad.clear();
+
+    this.renderer.clearNodes();
+    this.renderer.clearEdges();
   }
 
   viewPosFromWindowPos(
@@ -143,7 +230,6 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     this.state.translateY += y;
 
     this.renderer.applyTransform();
-
     this.renderer.requestDraw();
   }
 

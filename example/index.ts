@@ -24,58 +24,58 @@ const deleteButton = document.getElementById(
 
 let graphView: GraphView<GraphNode, GraphEdge>;
 
-const lastId = 0;
+let lastId = 0;
 const mode: "move" | "create" = "move";
 
-// function generate(nodeCount = 100) {
-//   let id = 1;
+function generate(nodeCount = 100) {
+  let id = 1;
 
-//   graphView.clear();
+  graphView.clear();
 
-//   const columns = Math.ceil(Math.sqrt(nodeCount));
+  const columns = Math.ceil(Math.sqrt(nodeCount));
 
-//   for (let i = 0; i < nodeCount; i++) {
-//     const row = (i / columns) | 0;
-//     const col = i % columns;
+  for (let i = 0; i < nodeCount; i++) {
+    const row = (i / columns) | 0;
+    const col = i % columns;
 
-//     graphView.addNode(
-//       {
-//         id,
-//         x: col * 320,
-//         y: row * 320
-//       },
-//       nodeShapes[getRandomInt(0, nodeShapes.length)]
-//     );
+    graphView.addNode(
+      {
+        id,
+        x: col * 320,
+        y: row * 320
+      },
+      nodeShapes[getRandomInt(0, nodeShapes.length)]
+    );
 
-//     id++;
+    id++;
 
-//     if (i > 0) {
-//       graphView.addEdge(
-//         {
-//           id,
-//           sourceId: id - (i > 1 ? 3 : 2),
-//           targetId: id - 1
-//         },
-//         edgeShapes[getRandomInt(0, edgeShapes.length)]
-//       );
+    // if (i > 0) {
+    //   graphView.addEdge(
+    //     {
+    //       id,
+    //       sourceId: id - (i > 1 ? 3 : 2),
+    //       targetId: id - 1
+    //     },
+    //     edgeShapes[getRandomInt(0, edgeShapes.length)]
+    //   );
 
-//       id++;
-//     }
-//   }
+    //   id++;
+    // }
+  }
 
-//   lastId = id - 1;
-// }
+  lastId = id - 1;
+}
 
 function main() {
   graphView = createGraphView(graphDiv);
 
-  // generate(100);
+  generate(100);
 
-  // generateButton.addEventListener("click", () => {
-  //   const len = parseInt(nodeCountInput.value, 10);
+  generateButton.addEventListener("click", () => {
+    const len = parseInt(nodeCountInput.value, 10);
 
-  //   generate(len);
-  // });
+    generate(len);
+  });
 
   // toggleModeButton.addEventListener("click", () => {
   //   if (mode === "create") mode = "move";

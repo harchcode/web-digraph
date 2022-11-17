@@ -99,20 +99,76 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
     vw = this.state.viewW,
     vh = this.state.viewH
   ) => {
-    // const { edgeCtx, nodeCtx, nodes, edges } = this.state;
+    const { edgeCtx, nodeCtx, nodes, edges } = this.state;
 
-    // nodeCtx.clearRect(vx, vy, vw, vh);
-    // edgeCtx.clearRect(vx, vy, vw, vh);
+    nodeCtx.clearRect(vx, vy, vw, vh);
+    edgeCtx.clearRect(vx, vy, vw, vh);
 
     this.drawBackground(vx, vy, vw, vh);
 
-    // this.state.quad.getDataInRegion(vx, vy, vw, vh, this.state.drawIds);
+    this.state.quad.getDataInRegion(vx, vy, vw, vh, this.state.drawIds);
 
-    // for (const id of this.state.drawIds) {
-    //   if (nodes[id]) this.drawNode(nodes[id], false, vx, vy, vw, vh);
-    //   if (edges[id]) this.drawEdge(edges[id], false, vx, vy, vw, vh);
-    // }
+    for (const id of this.state.drawIds) {
+      if (nodes[id]) this.drawNode(nodes[id], false, vx, vy, vw, vh);
+      // if (edges[id]) this.drawEdge(edges[id], false, vx, vy, vw, vh);
+    }
   };
+
+  drawNode(
+    node: Node,
+    isMove = false,
+    vx = this.state.viewX,
+    vy = this.state.viewY,
+    vw = this.state.viewW,
+    vh = this.state.viewH
+  ) {
+    const { nodeCtx, moveCtx, options, nodeData } = this.state;
+
+    if (!this.isNodeInView(node, vx, vy, vw, vh)) return;
+
+    const ctx = isMove ? moveCtx : nodeCtx;
+
+    const selected = this.state.selectedIds.has(node.id);
+    const hovered = this.state.hoveredId === node.id;
+
+    const data = nodeData[node.id];
+
+    // check is in view
+    const shape = data.shape;
+
+    // draw shape
+    ctx.strokeStyle = selected
+      ? options.nodeSelectedLineColor
+      : hovered
+      ? options.nodeHoveredLineColor
+      : options.nodeLineColor;
+    ctx.fillStyle = selected ? options.nodeSelectedColor : options.nodeColor;
+    ctx.lineWidth = options.nodeLineWidth;
+
+    if (!data.path) {
+      data.path = shape.createPath(
+        node.x,
+        node.y,
+        shape.width,
+        shape.height,
+        node.id
+      );
+    }
+
+    ctx.fill(data.path);
+    ctx.stroke(data.path);
+
+    // draw content
+
+    ctx.fillStyle = selected
+      ? options.nodeSelectedContentColor
+      : options.nodeContentColor;
+    ctx.textAlign = options.nodeTextAlign;
+    ctx.textBaseline = options.nodeTextBaseline;
+    ctx.font = options.nodeFont;
+
+    shape.drawContent(ctx, node.x, node.y, shape.width, shape.height, node.id);
+  }
 
   drawBackground(
     vx = this.state.viewX,
@@ -173,5 +229,48 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
     bgCtx.stroke();
     bgCtx.setLineDash([]);
     bgCtx.lineCap = "square";
+  }
+
+  clearNodes = () => {
+    const { nodeCtx, viewX, viewY, viewW, viewH } = this.state;
+    nodeCtx.clearRect(viewX, viewY, viewW, viewH);
+  };
+
+  clearEdges = () => {
+    const { edgeCtx, viewX, viewY, viewW, viewH } = this.state;
+    edgeCtx.clearRect(viewX, viewY, viewW, viewH);
+  };
+
+  clearDragLine = () => {
+    const { dragCtx, viewX, viewY, viewW, viewH } = this.state;
+    dragCtx.clearRect(viewX, viewY, viewW, viewH);
+  };
+
+  clearMove = () => {
+    const { moveCtx, viewX, viewY, viewW, viewH } = this.state;
+    moveCtx.clearRect(viewX, viewY, viewW, viewH);
+  };
+
+  isNodeInView(
+    node: Node,
+    vx = this.state.viewX,
+    vy = this.state.viewY,
+    vw = this.state.viewW,
+    vh = this.state.viewH
+  ) {
+    const { nodeData } = this.state;
+
+    const { shape } = nodeData[node.id];
+
+    return rectIntersect(
+      node.x - shape.width * 0.5,
+      node.y - shape.height * 0.5,
+      shape.width,
+      shape.height,
+      vx,
+      vy,
+      vw,
+      vh
+    );
   }
 }

@@ -21,7 +21,8 @@ export class GraphState<Node extends GraphNode, Edge extends GraphEdge> {
 
   nodes: Record<number, Node> = {};
   edges: Record<number, Edge> = {};
-  drawData: Record<number, NodeDrawData | EdgeDrawData> = {};
+  nodeData: Record<number, NodeDrawData> = {};
+  edgeData: Record<number, EdgeDrawData> = {};
   quad: Quad<number>;
 
   options = defaultGraphOptions;
