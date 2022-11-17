@@ -54,10 +54,6 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     this.handler.init();
   }
 
-  destroy() {
-    this.handler.destroy();
-  }
-
   resize(): void {
     this.state.bgCtx.canvas.width = this.state.container.clientWidth;
     this.state.bgCtx.canvas.height = this.state.container.clientHeight;
@@ -74,428 +70,46 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     this.renderer.drawAll();
   }
 
-  beginDragLine() {
-    const { hoveredId, nodes } = this.state;
+  viewPosFromWindowPos(
+    out: [number, number],
+    windowX: number,
+    windowY: number
+  ) {
+    const { left, top } = this.state.boundingRect;
+    const { scale, translateX, translateY } = this.state;
 
-    if (!hoveredId) return;
-
-    const node = nodes[hoveredId];
-
-    if (!node) return;
-
-    this.state.dragLineSourceNode = node;
-    this.state.dragLineX = node.x;
-    this.state.dragLineY = node.y;
+    out[0] = (windowX - left - translateX) / scale;
+    out[1] = (windowY - top - translateY) / scale;
   }
 
-  endDragLine(): [Node, Node] | undefined {
-    const { hoveredId, nodes } = this.state;
+  viewPosFromCanvasPos(
+    out: [number, number],
+    canvasX: number,
+    canvasY: number
+  ) {
+    const { scale, translateX, translateY } = this.state;
 
-    this.renderer.clearDragLine();
-
-    if (!this.state.dragLineSourceNode) return;
-
-    let r = 0;
-    if (hoveredId > 0 && hoveredId !== this.state.dragLineSourceNode.id) {
-      r = hoveredId;
-    }
-
-    const s = this.state.dragLineSourceNode;
-
-    this.state.dragLineSourceNode = undefined;
-
-    const rn = nodes[r];
-    return rn ? [s, rn] : undefined;
+    out[0] = (canvasX - translateX) / scale;
+    out[1] = (canvasY - translateY) / scale;
   }
 
-  beginMoveView() {
-    this.state.isMovingView = true;
+  canvasPosFromViewPos(out: [number, number], viewX: number, viewY: number) {
+    const { scale, translateX, translateY } = this.state;
+
+    out[0] = viewX * scale + translateX;
+    out[1] = viewY * scale + translateY;
   }
 
-  endMoveView() {
-    this.state.isMovingView = false;
+  canvasPosFromWindowPos(
+    out: [number, number],
+    windowX: number,
+    windowY: number
+  ) {
+    const { left, top } = this.state.boundingRect;
+
+    out[0] = windowX - left;
+    out[1] = windowY - top;
   }
-
-  beginMoveNodes(nodeIds: number[], vx: number, vy: number) {
-    const { drawData, nodes, edges } = this.state;
-
-    const affectedIds = new Set(nodeIds);
-
-    this.renderer.redrawNodes(affectedIds);
-
-    affectedIds.clear();
-
-    for (const id of nodeIds) {
-      const dd = drawData[id] as NodeDrawData;
-
-      for (const eid of dd.sourceOfEdgeIds) {
-        affectedIds.add(eid);
-      }
-
-      for (const eid of dd.targetOfEdgeIds) {
-        affectedIds.add(eid);
-      }
-    }
-
-    this.renderer.redrawEdges(affectedIds);
-
-    for (const eid of affectedIds) {
-      this.renderer.drawEdge(edges[eid], true);
-    }
-
-    for (const nid of nodeIds) {
-      this.renderer.drawNode(nodes[nid], true);
-    }
-
-    this.state.moveNodeIds = nodeIds;
-    this.state.moveX = vx;
-    this.state.moveY = vy;
-  }
-
-  endMoveNodes() {
-    const { moveNodeIds, drawData, nodes, edges } = this.state;
-
-    for (const id of moveNodeIds) {
-      this.renderer.drawNode(nodes[id]);
-    }
-
-    const isRendered: Record<number, boolean> = {};
-
-    for (const id of moveNodeIds) {
-      const dd = drawData[id] as NodeDrawData;
-
-      for (const eid of dd.sourceOfEdgeIds) {
-        if (isRendered[eid]) continue;
-
-        isRendered[eid] = true;
-        this.renderer.drawEdge(edges[eid]);
-      }
-
-      for (const eid of dd.targetOfEdgeIds) {
-        if (isRendered[eid]) continue;
-
-        isRendered[eid] = true;
-        this.renderer.drawEdge(edges[eid]);
-      }
-    }
-
-    this.renderer.clearMove();
-
-    this.state.moveNodeIds.length = 0;
-  }
-
-  getHoveredId() {
-    return this.state.hoveredId;
-  }
-
-  select(id: number) {
-    const { nodes, edges, selectedIds } = this.state;
-
-    const affectedIds = Array.from(selectedIds);
-    affectedIds.push(id);
-
-    selectedIds.clear();
-    selectedIds.add(id);
-
-    for (const id of affectedIds) {
-      if (nodes[id]) this.renderer.drawNode(nodes[id]);
-      if (edges[id]) this.renderer.drawEdge(edges[id]);
-    }
-  }
-
-  addSelection(id: number) {
-    const { nodes, edges, selectedIds } = this.state;
-
-    selectedIds.add(id);
-
-    if (nodes[id]) this.renderer.drawNode(nodes[id]);
-    if (edges[id]) this.renderer.drawEdge(edges[id]);
-  }
-
-  removeSelection(id: number) {
-    const { nodes, edges, selectedIds } = this.state;
-
-    selectedIds.delete(id);
-
-    if (nodes[id]) this.renderer.drawNode(nodes[id]);
-    if (edges[id]) this.renderer.drawEdge(edges[id]);
-  }
-
-  clearSelection() {
-    const { nodes, edges, selectedIds } = this.state;
-
-    const affectedIds = Array.from(selectedIds);
-
-    selectedIds.clear();
-
-    for (const id of affectedIds) {
-      if (nodes[id]) this.renderer.drawNode(nodes[id]);
-      if (edges[id]) this.renderer.drawEdge(edges[id]);
-    }
-  }
-
-  getSelection() {
-    return Array.from(this.state.selectedIds);
-  }
-
-  getSelectedNodeIds() {
-    return this.getSelection().filter(id => {
-      return this.state.nodes[id] !== undefined;
-    });
-  }
-
-  getSelectedEdgeIds() {
-    return this.getSelection().filter(id => {
-      return this.state.edges[id] !== undefined;
-    });
-  }
-
-  addNode(node: Node, shape: GraphShape): boolean {
-    const { nodes, edges, drawData } = this.state;
-
-    if (nodes[node.id] || edges[node.id]) return false;
-
-    nodes[node.id] = node;
-
-    const path = shape.createPath(
-      node.x,
-      node.y,
-      shape.width,
-      shape.height,
-      node.id
-    );
-
-    drawData[node.id] = {
-      type: GraphDataType.NODE,
-      shape,
-      path,
-      sourceOfEdgeIds: new Set(),
-      targetOfEdgeIds: new Set()
-    };
-
-    this.state.quad.insert(
-      node.id,
-      node.x - shape.width * 0.5,
-      node.y - shape.height * 0.5,
-      shape.width,
-      shape.height
-    );
-
-    this.renderer.drawNode(node);
-
-    return true;
-  }
-
-  addEdge(edge: Edge, shape: GraphShape): boolean {
-    const { nodes, edges, drawData } = this.state;
-
-    if (nodes[edge.id] || edges[edge.id]) return false;
-    if (!nodes[edge.sourceId] || !nodes[edge.targetId]) return false;
-
-    const snd = drawData[edge.sourceId] as NodeDrawData;
-    const tnd = drawData[edge.targetId] as NodeDrawData;
-
-    for (const eid of snd.sourceOfEdgeIds) {
-      if (edges[eid].targetId === edge.targetId) return false;
-    }
-
-    for (const eid of tnd.targetOfEdgeIds) {
-      if (edges[eid].sourceId === edge.sourceId) return false;
-    }
-
-    edges[edge.id] = edge;
-
-    snd.sourceOfEdgeIds.add(edge.id);
-    tnd.targetOfEdgeIds.add(edge.id);
-
-    this.renderer.createEdgePath(edge, shape);
-
-    const source = nodes[edge.sourceId];
-    const target = nodes[edge.targetId];
-
-    this.state.quad.insert(
-      edge.id,
-      Math.min(source.x, target.x),
-      Math.min(source.y, target.y),
-      Math.max(Math.abs(source.x - target.x), shape.width),
-      Math.max(Math.abs(source.y - target.y), shape.height)
-    );
-
-    this.renderer.drawEdge(edge);
-
-    // console.log(this.state.quad);
-
-    return true;
-  }
-
-  moveNode(id: number, dx: number, dy: number): boolean {
-    const { drawData, nodes, edges } = this.state;
-
-    if (!nodes[id]) return false;
-
-    const node = nodes[id];
-    const ndd = drawData[id] as NodeDrawData;
-
-    node.x += dx;
-    node.y += dy;
-
-    const shape = ndd.shape;
-
-    const path = shape.createPath(
-      node.x,
-      node.y,
-      shape.width,
-      shape.height,
-      node.id
-    );
-
-    ndd.path = path;
-
-    for (const edgeId of ndd.sourceOfEdgeIds) {
-      const edge = edges[edgeId];
-      const edd = drawData[edgeId];
-
-      this.renderer.createEdgePath(edge, edd.shape);
-
-      this.renderer.drawEdge(edge, true);
-    }
-
-    for (const edgeId of ndd.targetOfEdgeIds) {
-      const edge = edges[edgeId];
-      const edd = drawData[edgeId];
-
-      this.renderer.createEdgePath(edge, edd.shape);
-
-      this.renderer.drawEdge(edge, true);
-    }
-
-    this.renderer.drawNode(node, true);
-
-    return true;
-  }
-
-  updateNode(id: number, node: Partial<Node>): boolean {
-    const { nodes } = this.state;
-
-    if (!nodes[id]) return false;
-    const cur = nodes[id];
-
-    if ((node.x && node.x !== cur.x) || (node.y && node.y !== cur.y)) {
-      this.moveNode(
-        id,
-        node.x ? node.x - cur.x : 0,
-        node.y ? node.y - cur.y : 0
-      );
-    }
-
-    for (const k in node) {
-      if (k === "id") continue;
-
-      cur[k] = node[k] as Node[Extract<keyof Node, string>];
-    }
-
-    return true;
-  }
-
-  updateEdge(id: number, edge: Partial<Edge>): boolean {
-    const { edges } = this.state;
-
-    if (!edges[id]) return false;
-    const cur = edges[id];
-
-    if (
-      (edge.sourceId && edge.sourceId !== cur.sourceId) ||
-      (edge.targetId && edge.targetId !== cur.targetId)
-    ) {
-      this.renderer.redrawEdges();
-    }
-
-    for (const k in edge) {
-      if (k === "id") continue;
-
-      cur[k] = edge[k] as Edge[Extract<keyof Edge, string>];
-    }
-
-    return true;
-  }
-
-  remove(id: number): boolean {
-    if (this.state.nodes[id]) return this.removeNode(id);
-    if (this.state.edges[id]) return this.removeEdge(id);
-
-    return false;
-  }
-
-  removeNode(id: number): boolean {
-    const { nodes, drawData } = this.state;
-
-    if (!nodes[id]) return false;
-    const ndd = drawData[id] as NodeDrawData;
-
-    for (const edgeId of ndd.sourceOfEdgeIds) {
-      this.removeEdge(edgeId);
-    }
-
-    for (const edgeId of ndd.targetOfEdgeIds) {
-      this.removeEdge(edgeId);
-    }
-
-    delete this.state.nodes[id];
-    delete this.state.drawData[id];
-
-    requestAnimationFrame(() => this.renderer.redrawNodes());
-
-    return true;
-  }
-
-  removeEdge(id: number): boolean {
-    const { edges, drawData } = this.state;
-
-    if (!edges[id]) return false;
-    const edge = edges[id];
-
-    const sndd = drawData[edge.sourceId] as NodeDrawData;
-    sndd.sourceOfEdgeIds.delete(id);
-
-    const tndd = drawData[edge.targetId] as NodeDrawData;
-    tndd.targetOfEdgeIds.delete(id);
-
-    delete this.state.edges[id];
-    delete this.state.drawData[id];
-
-    requestAnimationFrame(() => this.renderer.redrawEdges());
-
-    return true;
-  }
-
-  getNode(id: number): Node | undefined {
-    return this.state.nodes[id];
-  }
-
-  getEdge(id: number): Edge | undefined {
-    return this.state.edges[id];
-  }
-
-  getData() {
-    return {
-      nodes: Object.values(this.state.nodes),
-      edges: Object.values(this.state.edges)
-    };
-  }
-
-  clear() {
-    this.state.nodes = {};
-    this.state.edges = {};
-    this.state.drawData = {};
-    this.state.selectedIds.clear();
-    this.state.moveNodeIds = [];
-    this.state.dragLineSourceNode = undefined;
-    this.state.quad.clear();
-
-    this.renderer.clearNodes();
-    this.renderer.clearEdges();
-  }
-
   getTranslateX() {
     return this.state.translateX;
   }
@@ -521,7 +135,6 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     this.state.scale = scale;
 
     this.renderer.applyTransform();
-    // this.renderer.drawAll();
     this.renderer.requestDraw();
   }
 
@@ -529,16 +142,7 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     this.state.translateX += x;
     this.state.translateY += y;
 
-    // const ovx = this.state.viewX;
-    // const ovy = this.state.viewY;
-    // const ovw = this.state.viewW;
-    // const ovh = this.state.viewH;
-
-    // requestAnimationFrame(() => {
     this.renderer.applyTransform();
-    // this.renderer.drawAll();
-    // this.renderer.drawUncoveredRegion(ovx, ovy, ovw, ovh);
-    // });
 
     this.renderer.requestDraw();
   }
@@ -567,44 +171,16 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     this.state.translateX += offsetX;
     this.state.translateY += offsetY;
 
-    // const ovx = this.state.viewX;
-    // const ovy = this.state.viewY;
-    // const ovw = this.state.viewW;
-    // const ovh = this.state.viewH;
-
     this.renderer.applyTransform();
-    // this.renderer.drawUncoveredRegion(ovx, ovy, ovw, ovh);
-
-    // this.renderer.drawAll();
     this.renderer.requestDraw();
   }
 
-  getViewPosFromWindowPos(windowX: number, windowY: number) {
-    const { left, top } = this.state.boundingRect;
-    const { scale, translateX, translateY } = this.state;
-
-    return [
-      (windowX - left - translateX) / scale,
-      (windowY - top - translateY) / scale
-    ];
+  beginMoveView() {
+    this.state.isMovingView = true;
   }
 
-  getViewPosFromCanvasPos(canvasX: number, canvasY: number) {
-    const { scale, translateX, translateY } = this.state;
-
-    return [(canvasX - translateX) / scale, (canvasY - translateY) / scale];
-  }
-
-  getCanvasPosFromViewPos(viewX: number, viewY: number) {
-    const { scale, translateX, translateY } = this.state;
-
-    return [viewX * scale + translateX, viewY * scale + translateY];
-  }
-
-  getCanvasPosFromWindowPos(windowX: number, windowY: number) {
-    const { left, top } = this.state.boundingRect;
-
-    return [windowX - left, windowY - top];
+  endMoveView() {
+    this.state.isMovingView = false;
   }
 }
 

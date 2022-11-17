@@ -96,8 +96,6 @@ export const defaultEdgeShape: GraphShape = {
 };
 
 export type GraphOptions = {
-  width: number;
-  height: number;
   bgColor: string;
   bgDotColor: string;
   bgLineWidth: number;
@@ -132,8 +130,6 @@ export type GraphOptions = {
 };
 
 export const defaultGraphOptions: GraphOptions = {
-  width: 100000,
-  height: 100000,
   bgColor: "#f1f5f9",
   bgDotColor: "#64748b",
   bgLineWidth: 4,

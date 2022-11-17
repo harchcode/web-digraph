@@ -22,7 +22,12 @@ export class GraphState<Node extends GraphNode, Edge extends GraphEdge> {
   nodes: Record<number, Node> = {};
   edges: Record<number, Edge> = {};
   drawData: Record<number, NodeDrawData | EdgeDrawData> = {};
-  quad: Quad<number>;
+  quad: Quad<number> = createQuad(
+    Number.MIN_SAFE_INTEGER,
+    Number.MIN_SAFE_INTEGER,
+    Number.MAX_SAFE_INTEGER - Number.MIN_SAFE_INTEGER,
+    Number.MAX_SAFE_INTEGER - Number.MIN_SAFE_INTEGER
+  );
 
   options = defaultGraphOptions;
 
@@ -71,13 +76,6 @@ export class GraphState<Node extends GraphNode, Edge extends GraphEdge> {
     this.dragCtx = dragCtx;
     this.nodeCtx = nodeCtx;
     this.moveCtx = moveCtx;
-
-    this.quad = createQuad(
-      -this.options.width * 0.5,
-      -this.options.height * 0.5,
-      this.options.width,
-      this.options.height
-    );
   }
 
   initCtx(alpha = true) {
