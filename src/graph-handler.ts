@@ -1,13 +1,7 @@
 import { GraphRenderer, RedrawType } from "./graph-renderer";
 import { GraphState } from "./graph-state";
 import { GraphView } from "./graph-view";
-import {
-  EdgeDrawData,
-  GraphEdge,
-  NodeDrawData,
-  GraphNode,
-  GraphDataType
-} from "./types";
+import { GraphEdge, GraphNode, GraphDataType } from "./types";
 
 export class GraphHandler<Node extends GraphNode, Edge extends GraphEdge> {
   private state: GraphState<Node, Edge>;

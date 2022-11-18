@@ -1,13 +1,6 @@
 import { GraphState } from "./graph-state";
 import { GraphView } from "./graph-view";
-import {
-  EdgeDrawData,
-  GraphDataType,
-  GraphEdge,
-  GraphNode,
-  GraphShape,
-  NodeDrawData
-} from "./types";
+import { GraphEdge, GraphNode, GraphShape } from "./types";
 import { isLineInsideRect, lineIntersect, rectIntersect } from "./utils";
 
 export enum RedrawType {
@@ -62,38 +55,55 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
 
     this.state.setView();
 
+    const { options, viewX, viewY, viewW, viewH } = this.state;
+
+    const xt = -options.height * 0.5;
+    const xr = options.width * 0.5;
+    const xb = options.height * 0.5;
+    const xl = -options.width * 0.5;
+
+    const dl = Math.max(viewX, xl);
+    const dt = Math.max(viewY, xt);
+    const dr = Math.min(viewX + viewW, xr);
+    const db = Math.min(viewY + viewH, xb);
+
+    if (dl > viewX || dt > viewY || dr < viewX + viewW || db < viewY + viewH) {
+      nodeCtx.restore();
+      nodeCtx.save();
+
+      edgeCtx.restore();
+      edgeCtx.save();
+
+      moveCtx.restore();
+      moveCtx.save();
+
+      bgCtx.setTransform(scale, 0, 0, scale, translateX, translateY);
+      nodeCtx.setTransform(scale, 0, 0, scale, translateX, translateY);
+      dragCtx.setTransform(scale, 0, 0, scale, translateX, translateY);
+      edgeCtx.setTransform(scale, 0, 0, scale, translateX, translateY);
+      moveCtx.setTransform(scale, 0, 0, scale, translateX, translateY);
+
+      nodeCtx.clearRect(viewX, viewY, viewW, viewH);
+      nodeCtx.beginPath();
+      nodeCtx.rect(dl, dt, dr - dl, db - dt);
+      nodeCtx.clip();
+      edgeCtx.clearRect(viewX, viewY, viewW, viewH);
+      edgeCtx.beginPath();
+      edgeCtx.rect(dl, dt, dr - dl, db - dt);
+      edgeCtx.clip();
+      moveCtx.clearRect(viewX, viewY, viewW, viewH);
+      moveCtx.beginPath();
+      moveCtx.rect(dl, dt, dr - dl, db - dt);
+      moveCtx.clip();
+
+      return;
+    }
+
     bgCtx.setTransform(scale, 0, 0, scale, translateX, translateY);
     nodeCtx.setTransform(scale, 0, 0, scale, translateX, translateY);
     dragCtx.setTransform(scale, 0, 0, scale, translateX, translateY);
     edgeCtx.setTransform(scale, 0, 0, scale, translateX, translateY);
     moveCtx.setTransform(scale, 0, 0, scale, translateX, translateY);
-
-    // const { options, viewX, viewY, viewW, viewH } = this.state;
-
-    // const xt = -options.height * 0.5;
-    // const xr = options.width * 0.5;
-    // const xb = options.height * 0.5;
-    // const xl = -options.width * 0.5;
-
-    // const dl = Math.max(viewX, xl);
-    // const dt = Math.max(viewY, xt);
-    // const dr = Math.min(viewX + viewW, xr);
-    // const db = Math.min(viewY + viewH, xb);
-
-    // if (dl > viewX || dt > viewY || dr < viewX + viewW || db < viewY + viewH) {
-    //   nodeCtx.beginPath();
-    //   nodeCtx.rect(dl, dt, dr - dl, db - dt);
-    //   nodeCtx.clip();
-    //   edgeCtx.beginPath();
-    //   edgeCtx.rect(dl, dt, dr - dl, db - dt);
-    //   edgeCtx.clip();
-    //   dragCtx.beginPath();
-    //   dragCtx.rect(dl, dt, dr - dl, db - dt);
-    //   dragCtx.clip();
-    //   moveCtx.beginPath();
-    //   moveCtx.rect(dl, dt, dr - dl, db - dt);
-    //   moveCtx.clip();
-    // }
   }
 
   draw = (
@@ -207,7 +217,6 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
     }
 
     // draw content
-
     ctx.fillStyle = selected
       ? options.nodeSelectedContentColor
       : options.nodeContentColor;
