@@ -74,7 +74,10 @@ function generate(nodeCount = 100) {
 }
 
 function main() {
-  graphView = createGraphView(graphDiv);
+  graphView = createGraphView(graphDiv, {
+    width: 100000,
+    height: 100000
+  });
 
   generate(100);
 

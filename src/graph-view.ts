@@ -62,6 +62,15 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     this.handler.destroy();
   }
 
+  setOptions(options: Partial<GraphOptions> = {}) {
+    this.state.options = {
+      ...this.state.options,
+      ...options
+    };
+
+    if (!this.isBatching) this.renderer.requestDraw();
+  }
+
   resize(): void {
     this.state.bgCtx.canvas.width = this.state.container.clientWidth;
     this.state.bgCtx.canvas.height = this.state.container.clientHeight;
@@ -695,6 +704,9 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
   }
 }
 
-export function createGraphView(container: HTMLElement) {
-  return new GraphView(container);
+export function createGraphView(
+  container: HTMLElement,
+  options: Partial<GraphOptions> = {}
+) {
+  return new GraphView(container, options);
 }
