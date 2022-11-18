@@ -103,6 +103,9 @@ export type GraphOptions = {
   bgLineWidth: number;
   bgLineGap: number;
   bgShowDots: boolean;
+  bgBorderWidth: number;
+  bgBorderColor: string;
+  bgOutboundColor: string;
   minScale: number;
   maxScale: number;
   edgeLineWidth: number;
@@ -132,13 +135,16 @@ export type GraphOptions = {
 };
 
 export const defaultGraphOptions: GraphOptions = {
-  width: 10000,
-  height: 10000,
+  width: 100000,
+  height: 100000,
   bgColor: "#f1f5f9",
   bgDotColor: "#64748b",
   bgLineWidth: 4,
   bgLineGap: 64,
   bgShowDots: true,
+  bgBorderWidth: 8,
+  bgBorderColor: "#0f172a",
+  bgOutboundColor: "#93c5fd",
   minScale: 0.25,
   maxScale: 10,
   edgeLineColor: "black",

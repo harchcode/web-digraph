@@ -330,11 +330,16 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
     const db = Math.min(vy + vh, xb);
 
     if (dl > vx || dt > vy || dr < vx + vw || db < vy + vh) {
-      bgCtx.fillStyle = "white";
+      bgCtx.fillStyle = options.bgOutboundColor;
       bgCtx.fillRect(vx, vy, vw, vh);
 
-      bgCtx.fillStyle = "black";
-      bgCtx.fillRect(dl - 4, dt - 4, dr - dl + 8, db - dt + 8);
+      bgCtx.fillStyle = options.bgBorderColor;
+      bgCtx.fillRect(
+        dl - options.bgBorderWidth,
+        dt - options.bgBorderWidth,
+        dr - dl + options.bgBorderWidth * 2,
+        db - dt + options.bgBorderWidth * 2
+      );
     }
 
     bgCtx.fillStyle = options.bgColor;
