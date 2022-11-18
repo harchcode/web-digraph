@@ -15,6 +15,7 @@ export class GraphHandler<Node extends GraphNode, Edge extends GraphEdge> {
   private renderer: GraphRenderer<Node, Edge>;
 
   private vp: [number, number] = [0, 0];
+  private cp: [number, number] = [0, 0];
 
   constructor(
     view: GraphView<Node, Edge>,
@@ -45,11 +46,11 @@ export class GraphHandler<Node extends GraphNode, Edge extends GraphEdge> {
     //   requestAnimationFrame(this.renderer.drawDragLine);
     // }
 
-    // if (moveNodeIds.length === 0) {
-    //   requestAnimationFrame(() => this.checkHover(vp[0], vp[1]));
+    if (moveNodeIds.length === 0) {
+      requestAnimationFrame(this.checkHover);
 
-    //   return;
-    // }
+      return;
+    }
 
     // const dx = vp[0] - moveX;
     // const dy = vp[1] - moveY;
@@ -62,6 +63,74 @@ export class GraphHandler<Node extends GraphNode, Edge extends GraphEdge> {
     // for (const id of moveNodeIds) {
     //   this.view.moveNode(id, dx, dy);
     // }
+  };
+
+  private isEdgeHovered(x: number, y: number, edge: Edge): boolean {
+    const { edgeCtx, edgeData } = this.state;
+
+    const data = edgeData[edge.id];
+
+    if (!data.path || !data.linePath || !data.arrowPath) return false;
+
+    return (
+      edgeCtx.isPointInPath(data.path, x, y) ||
+      edgeCtx.isPointInStroke(data.linePath, x, y) ||
+      edgeCtx.isPointInPath(data.arrowPath, x, y)
+    );
+  }
+
+  private isNodeHovered(x: number, y: number, node: Node): boolean {
+    const { nodeCtx, nodeData } = this.state;
+
+    const data = nodeData[node.id];
+
+    return data.path ? nodeCtx.isPointInPath(data.path, x, y) : false;
+  }
+
+  private checkHover = () => {
+    const { nodes, edges } = this.state;
+
+    const prevId = this.state.hoveredId;
+    this.state.hoveredId = 0;
+
+    this.view.canvasPosFromViewPos(this.cp, this.vp[0], this.vp[1]);
+    this.state.quad.getDataInRegion(
+      this.vp[0] - 1,
+      this.vp[1] - 1,
+      2,
+      2,
+      this.state.drawIds
+    );
+
+    for (const id of this.state.drawIds) {
+      if (nodes[id] && this.isNodeHovered(this.cp[0], this.cp[1], nodes[id]))
+        this.state.hoveredId = id;
+
+      if (edges[id] && this.isEdgeHovered(this.cp[0], this.cp[1], edges[id]))
+        this.state.hoveredId = id;
+    }
+
+    if (this.state.hoveredId === prevId) return;
+
+    const currId = this.state.hoveredId;
+    const prev = this.state.nodeData[prevId] || this.state.edgeData[prevId];
+    const curr = this.state.nodeData[currId] || this.state.edgeData[currId];
+
+    if (prev) {
+      if (prev.type === GraphDataType.NODE) {
+        this.renderer.drawNode(nodes[prevId]);
+      } else if (prev.type === GraphDataType.EDGE) {
+        this.renderer.drawEdge(edges[prevId]);
+      }
+    }
+
+    if (curr) {
+      if (curr.type === GraphDataType.NODE) {
+        this.renderer.drawNode(nodes[currId]);
+      } else if (curr.type === GraphDataType.EDGE) {
+        this.renderer.drawEdge(edges[currId]);
+      }
+    }
   };
 
   handleWheel = (e: WheelEvent) => {
