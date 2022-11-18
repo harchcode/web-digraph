@@ -44,6 +44,27 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
     this.draw(this.redrawType, this.exludeIds);
   };
 
+  applyClip(
+    ctx: CanvasRenderingContext2D,
+    dx: number,
+    dy: number,
+    dw: number,
+    dh: number
+  ) {
+    const { scale, translateX, translateY, viewX, viewY, viewW, viewH } =
+      this.state;
+
+    ctx.restore();
+    ctx.save();
+
+    ctx.setTransform(scale, 0, 0, scale, translateX, translateY);
+
+    ctx.clearRect(viewX, viewY, viewW, viewH);
+    ctx.beginPath();
+    ctx.rect(dx, dy, dw, dh);
+    ctx.clip();
+  }
+
   applyTransform() {
     const {
       scale,
@@ -71,49 +92,18 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
     const db = Math.min(viewY + viewH, xb);
 
     if (dl > viewX || dt > viewY || dr < viewX + viewW || db < viewY + viewH) {
-      nodeCtx.restore();
-      nodeCtx.save();
-
-      edgeCtx.restore();
-      edgeCtx.save();
-
-      moveEdgeCtx.restore();
-      moveEdgeCtx.save();
-
-      moveNodeCtx.restore();
-      moveNodeCtx.save();
-
+      bgCtx.setTransform(scale, 0, 0, scale, translateX, translateY);
+      this.applyClip(nodeCtx, dl, dt, dr - dl, db - dt);
+      this.applyClip(edgeCtx, dl, dt, dr - dl, db - dt);
+      this.applyClip(moveNodeCtx, dl, dt, dr - dl, db - dt);
+      this.applyClip(moveEdgeCtx, dl, dt, dr - dl, db - dt);
+    } else {
       bgCtx.setTransform(scale, 0, 0, scale, translateX, translateY);
       nodeCtx.setTransform(scale, 0, 0, scale, translateX, translateY);
       moveEdgeCtx.setTransform(scale, 0, 0, scale, translateX, translateY);
       edgeCtx.setTransform(scale, 0, 0, scale, translateX, translateY);
       moveNodeCtx.setTransform(scale, 0, 0, scale, translateX, translateY);
-
-      nodeCtx.clearRect(viewX, viewY, viewW, viewH);
-      nodeCtx.beginPath();
-      nodeCtx.rect(dl, dt, dr - dl, db - dt);
-      nodeCtx.clip();
-      edgeCtx.clearRect(viewX, viewY, viewW, viewH);
-      edgeCtx.beginPath();
-      edgeCtx.rect(dl, dt, dr - dl, db - dt);
-      edgeCtx.clip();
-      moveEdgeCtx.clearRect(viewX, viewY, viewW, viewH);
-      moveEdgeCtx.beginPath();
-      moveEdgeCtx.rect(dl, dt, dr - dl, db - dt);
-      moveEdgeCtx.clip();
-      moveNodeCtx.clearRect(viewX, viewY, viewW, viewH);
-      moveNodeCtx.beginPath();
-      moveNodeCtx.rect(dl, dt, dr - dl, db - dt);
-      moveNodeCtx.clip();
-
-      return;
     }
-
-    bgCtx.setTransform(scale, 0, 0, scale, translateX, translateY);
-    nodeCtx.setTransform(scale, 0, 0, scale, translateX, translateY);
-    moveEdgeCtx.setTransform(scale, 0, 0, scale, translateX, translateY);
-    edgeCtx.setTransform(scale, 0, 0, scale, translateX, translateY);
-    moveNodeCtx.setTransform(scale, 0, 0, scale, translateX, translateY);
   }
 
   draw = (

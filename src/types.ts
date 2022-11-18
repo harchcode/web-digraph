@@ -135,8 +135,8 @@ export type GraphOptions = {
 };
 
 export const defaultGraphOptions: GraphOptions = {
-  width: 100000,
-  height: 100000,
+  width: 1000,
+  height: 1000,
   bgColor: "#f1f5f9",
   bgDotColor: "#64748b",
   bgLineWidth: 4,
