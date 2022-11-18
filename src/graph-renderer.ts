@@ -352,24 +352,9 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
     bgCtx.lineCap = "square";
   }
 
-  clearNodes = () => {
-    const { nodeCtx, viewX, viewY, viewW, viewH } = this.state;
-    nodeCtx.clearRect(viewX, viewY, viewW, viewH);
-  };
-
-  clearEdges = () => {
-    const { edgeCtx, viewX, viewY, viewW, viewH } = this.state;
-    edgeCtx.clearRect(viewX, viewY, viewW, viewH);
-  };
-
   clearDragLine = () => {
     const { dragCtx, viewX, viewY, viewW, viewH } = this.state;
     dragCtx.clearRect(viewX, viewY, viewW, viewH);
-  };
-
-  clearMove = () => {
-    const { moveCtx, viewX, viewY, viewW, viewH } = this.state;
-    moveCtx.clearRect(viewX, viewY, viewW, viewH);
   };
 
   isNodeInView(

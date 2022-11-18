@@ -14,7 +14,7 @@ export type QuadData<T> = {
 };
 
 export class Quad<T> {
-  data: QuadData<T>[];
+  data: Map<T, QuadData<T>>;
   children: Quad<T>[];
   x: number;
   y: number;
@@ -22,7 +22,7 @@ export class Quad<T> {
   h: number;
 
   constructor(x: number, y: number, w: number, h: number) {
-    this.data = [];
+    this.data = new Map();
     this.children = [];
     this.x = x;
     this.y = y;
@@ -65,7 +65,7 @@ export class Quad<T> {
 }
 
 function _clear(node: Quad<unknown>) {
-  node.data.length = 0;
+  node.data.clear();
 
   for (const child of node.children) {
     _clear(child);
@@ -83,12 +83,7 @@ function _remove(
   // if not intersecting, return
   if (!rectIntersect(node.x, node.y, node.w, node.h, x, y, w, h)) return;
 
-  for (let i = 0; i < node.data.length; i++) {
-    if (node.data[i].value === value) {
-      node.data.splice(i, 1);
-      return;
-    }
-  }
+  node.data.delete(value);
 
   for (const child of node.children) {
     _remove(child, value, x, y, w, h);
@@ -116,16 +111,16 @@ function _insert(node: Quad<unknown>, data: QuadData<unknown>, depth: number) {
   // if no children and data size is smaller than the limit, insert data to the node
   if (
     depth === MAX_DEPTH ||
-    (node.children.length === 0 && node.data.length < DATA_PER_CHILD)
+    (node.children.length === 0 && node.data.size < DATA_PER_CHILD)
   ) {
-    node.data.push(data);
+    node.data.set(data.value, data);
     return;
   }
 
   const dataToInsert: QuadData<unknown>[] = [];
 
   // if no children, create the children
-  if (node.children.length === 0 && node.data.length >= DATA_PER_CHILD) {
+  if (node.children.length === 0 && node.data.size >= DATA_PER_CHILD) {
     const hw = node.w * 0.5;
     const hh = node.h * 0.5;
 
@@ -139,12 +134,12 @@ function _insert(node: Quad<unknown>, data: QuadData<unknown>, depth: number) {
     node.children.push(bl);
     node.children.push(br);
 
-    for (const dt of node.data) dataToInsert.push(dt);
+    for (const dt of node.data.entries()) dataToInsert.push(dt[1]);
   }
 
   dataToInsert.push(data);
 
-  node.data = [];
+  node.data.clear();
 
   for (let i = 0; i < 4; i++) {
     for (const dt of dataToInsert) _insert(node.children[i], dt, depth + 1);
@@ -161,8 +156,8 @@ function _getDataInRegion(
 ) {
   if (!rectIntersect(node.x, node.y, node.w, node.h, x, y, w, h)) return;
 
-  for (const data of node.data) {
-    hs.add(data.value);
+  for (const data of node.data.entries()) {
+    hs.add(data[0]);
   }
 
   for (const child of node.children) {

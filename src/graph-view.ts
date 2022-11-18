@@ -421,8 +421,7 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     this.state.quad.clear();
 
     if (!this.isBatching) {
-      this.renderer.clearNodes();
-      this.renderer.clearEdges();
+      this.renderer.draw(RedrawType.NODES_AND_EDGES);
     }
   }
 
@@ -548,7 +547,7 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
   endMoveNodes() {
     this.state.moveNodeIds.length = 0;
 
-    this.renderer.clearMove();
+    this.renderer.draw(RedrawType.MOVE);
     this.renderer.draw(RedrawType.NODES_AND_EDGES);
   }
 
