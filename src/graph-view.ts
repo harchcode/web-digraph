@@ -36,7 +36,11 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     this.renderer = new GraphRenderer(this, this.state);
     this.handler = new GraphHandler(this, this.state, this.renderer);
 
-    this.renderer.applyTransform();
+    this.setTransform(
+      container.clientWidth * 0.5,
+      container.clientHeight * 0.5,
+      1
+    );
     this.renderer.draw();
 
     container.appendChild(this.state.bgCtx.canvas);
