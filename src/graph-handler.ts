@@ -1,4 +1,4 @@
-import { GraphRenderer } from "./graph-renderer";
+import { GraphRenderer, RedrawType } from "./graph-renderer";
 import { GraphState } from "./graph-state";
 import { GraphView } from "./graph-view";
 import {
@@ -39,12 +39,12 @@ export class GraphHandler<Node extends GraphNode, Edge extends GraphEdge> {
 
     this.view.viewPosFromWindowPos(this.vp, e.x, e.y);
 
-    // if (dragLineSourceNode) {
-    //   this.state.dragLineX = vp[0];
-    //   this.state.dragLineY = vp[1];
+    if (dragLineSourceNode) {
+      this.state.dragLineX = this.vp[0];
+      this.state.dragLineY = this.vp[1];
 
-    //   requestAnimationFrame(this.renderer.drawDragLine);
-    // }
+      requestAnimationFrame(this.renderer.drawDragLine);
+    }
 
     if (moveNodeIds.length === 0) {
       requestAnimationFrame(this.checkHover);
@@ -52,17 +52,19 @@ export class GraphHandler<Node extends GraphNode, Edge extends GraphEdge> {
       return;
     }
 
-    // const dx = vp[0] - moveX;
-    // const dy = vp[1] - moveY;
+    const dx = this.vp[0] - moveX;
+    const dy = this.vp[1] - moveY;
 
-    // this.state.moveX = vp[0];
-    // this.state.moveY = vp[1];
+    this.state.moveX = this.vp[0];
+    this.state.moveY = this.vp[1];
 
-    // this.renderer.clearMove();
+    this.view.startBatch();
 
-    // for (const id of moveNodeIds) {
-    //   this.view.moveNode(id, dx, dy);
-    // }
+    for (const id of moveNodeIds) {
+      this.view.moveNode(id, dx, dy);
+    }
+
+    this.view.endBatch(RedrawType.MOVE);
   };
 
   private isEdgeHovered(x: number, y: number, edge: Edge): boolean {

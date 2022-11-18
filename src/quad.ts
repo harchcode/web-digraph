@@ -42,6 +42,21 @@ export class Quad<T> {
     _remove(this, value, x, y, w, h);
   }
 
+  move(
+    value: T,
+    oldX: number,
+    oldY: number,
+    oldW: number,
+    oldH: number,
+    newX: number,
+    newY: number,
+    newW: number,
+    newH: number
+  ) {
+    this.remove(value, oldX, oldY, oldW, oldH);
+    this.insert(value, newX, newY, newW, newH);
+  }
+
   getDataInRegion(x: number, y: number, w: number, h: number, out: Set<T>) {
     out.clear();
 

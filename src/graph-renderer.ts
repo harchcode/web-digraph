@@ -14,7 +14,8 @@ export enum RedrawType {
   ALL = 0,
   NODES,
   EDGES,
-  NODES_AND_EDGES
+  NODES_AND_EDGES,
+  MOVE
 }
 
 export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
@@ -24,6 +25,8 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
   private isDrawing = false;
   private redrawType = RedrawType.ALL;
   private cp: [number, number] = [0, 0];
+
+  private moveEdgeIds = new Set<number>();
 
   constructor(view: GraphView<Node, Edge>, state: GraphState<Node, Edge>) {
     this.view = view;
@@ -95,12 +98,18 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
 
   draw = (
     redrawType = RedrawType.ALL,
+    excludeIds?: Set<number>,
     vx = this.state.viewX,
     vy = this.state.viewY,
     vw = this.state.viewW,
     vh = this.state.viewH
   ) => {
     const { edgeCtx, nodeCtx, nodes, edges } = this.state;
+
+    if (redrawType === RedrawType.MOVE) {
+      this.drawMove();
+      return;
+    }
 
     if (redrawType === RedrawType.ALL) this.drawBackground(vx, vy, vw, vh);
 
@@ -110,11 +119,50 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
     if (redrawType !== RedrawType.NODES) edgeCtx.clearRect(vx, vy, vw, vh);
 
     for (const id of this.state.drawIds) {
+      if (excludeIds && excludeIds.has(id)) continue;
+
       if (redrawType !== RedrawType.EDGES && nodes[id])
         this.drawNode(nodes[id], false, vx, vy, vw, vh);
 
       if (redrawType !== RedrawType.NODES && edges[id])
         this.drawEdge(edges[id], false, vx, vy, vw, vh);
+    }
+  };
+
+  drawMove = (
+    vx = this.state.viewX,
+    vy = this.state.viewY,
+    vw = this.state.viewW,
+    vh = this.state.viewH
+  ) => {
+    const { nodes, edges, nodeData, moveCtx } = this.state;
+
+    moveCtx.clearRect(vx, vy, vw, vh);
+
+    this.moveEdgeIds.clear();
+
+    for (const nodeId of this.state.moveNodeIds) {
+      const ndd = nodeData[nodeId];
+
+      for (const eid of ndd.sourceOfEdgeIds) {
+        this.moveEdgeIds.add(eid);
+      }
+
+      for (const eid of ndd.targetOfEdgeIds) {
+        this.moveEdgeIds.add(eid);
+      }
+    }
+
+    for (const id of this.moveEdgeIds) {
+      const edge = edges[id];
+
+      this.drawEdge(edge, true, vx, vy, vw, vh);
+    }
+
+    for (const id of this.state.moveNodeIds) {
+      const node = nodes[id];
+
+      this.drawNode(node, true, vx, vy, vw, vh);
     }
   };
 
@@ -637,4 +685,58 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
 
     return start / e;
   }
+
+  drawDragLine = () => {
+    const {
+      dragCtx,
+      options,
+      dragLineSourceNode,
+      dragLineX,
+      dragLineY,
+      viewX,
+      viewY,
+      viewW,
+      viewH
+    } = this.state;
+
+    if (!dragLineSourceNode) return;
+
+    dragCtx.clearRect(viewX, viewY, viewW, viewH);
+
+    const sx = dragLineSourceNode.x;
+    const sy = dragLineSourceNode.y;
+    const tx = dragLineX;
+    const ty = dragLineY;
+
+    const dx = tx - sx;
+    const dy = ty - sy;
+
+    const rad = Math.atan2(dy, dx);
+    const sinr = Math.sin(rad);
+    const cosr = Math.cos(rad);
+
+    const ll = options.edgeArrowWidth * 0.5;
+    const lsx = tx - options.edgeArrowHeight * cosr;
+    const lsy = ty - options.edgeArrowHeight * sinr;
+    const lp1x = lsx + ll * sinr;
+    const lp1y = lsy - ll * cosr;
+    const lp2x = lsx - ll * sinr;
+    const lp2y = lsy + ll * cosr;
+
+    dragCtx.lineWidth = options.edgeLineWidth;
+    dragCtx.strokeStyle = options.edgeLineColor;
+    dragCtx.fillStyle = options.edgeLineColor;
+
+    dragCtx.beginPath();
+    dragCtx.moveTo(sx, sy);
+    dragCtx.lineTo(tx, ty);
+    dragCtx.stroke();
+
+    dragCtx.beginPath();
+    dragCtx.moveTo(tx, ty);
+    dragCtx.lineTo(lp1x, lp1y);
+    dragCtx.lineTo(lp2x, lp2y);
+    dragCtx.closePath();
+    dragCtx.fill();
+  };
 }

@@ -141,14 +141,6 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     const source = nodes[edge.sourceId];
     const target = nodes[edge.targetId];
 
-    // console.log(
-    //   edge.id,
-    //   Math.min(source.x, target.x),
-    //   Math.min(source.y, target.y),
-    //   Math.max(Math.abs(source.x - target.x), shape.width),
-    //   Math.max(Math.abs(source.y - target.y), shape.height)
-    // );
-
     this.state.quad.insert(
       edge.id,
       Math.min(source.x, target.x),
@@ -158,6 +150,262 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     );
 
     if (!this.isBatching) this.renderer.drawEdge(edge);
+
+    return true;
+  }
+
+  updateNode(id: number, node: Partial<Node>): boolean {
+    const { nodes } = this.state;
+
+    if (!nodes[id]) return false;
+    const cur = nodes[id];
+
+    if ((node.x && node.x !== cur.x) || (node.y && node.y !== cur.y)) {
+      this.moveNode(
+        id,
+        node.x ? node.x - cur.x : 0,
+        node.y ? node.y - cur.y : 0
+      );
+    }
+
+    for (const k in node) {
+      if (k === "id") continue;
+
+      cur[k] = node[k] as Node[Extract<keyof Node, string>];
+    }
+
+    return true;
+  }
+
+  moveNode(id: number, dx: number, dy: number): boolean {
+    const { nodeData, edgeData, nodes, edges } = this.state;
+
+    if (!nodes[id]) return false;
+
+    const node = nodes[id];
+    const ndd = nodeData[id];
+
+    ndd.path = undefined;
+
+    for (const edgeId of ndd.sourceOfEdgeIds) {
+      const edge = edges[edgeId];
+      const source = node;
+      const target = nodes[edge.targetId];
+      const edd = edgeData[edgeId];
+
+      this.state.quad.move(
+        edge.id,
+        Math.min(source.x, target.x),
+        Math.min(source.y, target.y),
+        Math.max(Math.abs(source.x - target.x), edd.shape.width),
+        Math.max(Math.abs(source.y - target.y), edd.shape.height),
+        Math.min(source.x + dx, target.x),
+        Math.min(source.y + dy, target.y),
+        Math.max(Math.abs(source.x + dx - target.x), edd.shape.width),
+        Math.max(Math.abs(source.y + dy - target.y), edd.shape.height)
+      );
+
+      edd.arrowPath = undefined;
+      edd.linePath = undefined;
+      edd.path = undefined;
+      edd.lineSourceX = undefined;
+      edd.lineSourceY = undefined;
+      edd.lineTargetX = undefined;
+      edd.lineTargetY = undefined;
+      edd.shapeX = undefined;
+      edd.shapeY = undefined;
+    }
+
+    for (const edgeId of ndd.targetOfEdgeIds) {
+      const edge = edges[edgeId];
+      const source = nodes[edge.sourceId];
+      const target = node;
+      const edd = edgeData[edgeId];
+
+      this.state.quad.move(
+        edge.id,
+        Math.min(source.x, target.x),
+        Math.min(source.y, target.y),
+        Math.max(Math.abs(source.x - target.x), edd.shape.width),
+        Math.max(Math.abs(source.y - target.y), edd.shape.height),
+        Math.min(source.x, target.x + dx),
+        Math.min(source.y, target.y + dy),
+        Math.max(Math.abs(source.x - target.x + dx), edd.shape.width),
+        Math.max(Math.abs(source.y - target.y + dy), edd.shape.height)
+      );
+
+      edd.arrowPath = undefined;
+      edd.linePath = undefined;
+      edd.path = undefined;
+      edd.lineSourceX = undefined;
+      edd.lineSourceY = undefined;
+      edd.lineTargetX = undefined;
+      edd.lineTargetY = undefined;
+      edd.shapeX = undefined;
+      edd.shapeY = undefined;
+    }
+
+    this.state.quad.move(
+      node.id,
+      node.x - ndd.shape.width * 0.5,
+      node.y - ndd.shape.height * 0.5,
+      ndd.shape.width,
+      ndd.shape.height,
+      node.x + dx - ndd.shape.width * 0.5,
+      node.y + dy - ndd.shape.height * 0.5,
+      ndd.shape.width,
+      ndd.shape.height
+    );
+
+    node.x += dx;
+    node.y += dy;
+
+    if (!this.isBatching) this.renderer.draw(RedrawType.NODES_AND_EDGES);
+
+    return true;
+  }
+
+  updateEdge(id: number, edge: Partial<Edge>): boolean {
+    const { edges } = this.state;
+
+    if (!edges[id]) return false;
+    const cur = edges[id];
+
+    if (
+      (edge.sourceId && edge.sourceId !== cur.sourceId) ||
+      (edge.targetId && edge.targetId !== cur.targetId)
+    ) {
+      this.changeEdgeSourceAndTarget(id, cur.sourceId, cur.targetId);
+    }
+
+    for (const k in edge) {
+      if (k === "id") continue;
+
+      cur[k] = edge[k] as Edge[Extract<keyof Edge, string>];
+    }
+
+    if (!this.isBatching) this.renderer.draw(RedrawType.EDGES);
+
+    return true;
+  }
+
+  changeEdgeSourceAndTarget(
+    id: number,
+    sourceId: number,
+    targetId: number
+  ): boolean {
+    const { nodes, edges, edgeData } = this.state;
+
+    if (!edges[id]) return false;
+    if (!nodes[sourceId] || !nodes[targetId]) return false;
+
+    const cur = edges[id];
+
+    if (sourceId === cur.sourceId && targetId === cur.targetId) return false;
+
+    const data = edgeData[id];
+    const curSource = nodes[cur.sourceId];
+    const curTarget = nodes[cur.targetId];
+    const newSource = nodes[cur.sourceId];
+    const newTarget = nodes[cur.targetId];
+
+    this.state.quad.move(
+      id,
+      Math.min(curSource.x, curTarget.x),
+      Math.min(curSource.y, curTarget.y),
+      Math.max(Math.abs(curSource.x - curTarget.x), data.shape.width),
+      Math.max(Math.abs(curSource.y - curTarget.y), data.shape.height),
+      Math.min(newSource.x, newTarget.x),
+      Math.min(newSource.y, newTarget.y),
+      Math.max(Math.abs(newSource.x - newTarget.x), data.shape.width),
+      Math.max(Math.abs(newSource.y - newTarget.y), data.shape.height)
+    );
+
+    cur.sourceId = sourceId;
+    cur.targetId = targetId;
+
+    data.arrowPath = undefined;
+    data.linePath = undefined;
+    data.path = undefined;
+    data.lineSourceX = undefined;
+    data.lineSourceY = undefined;
+    data.lineTargetX = undefined;
+    data.lineTargetY = undefined;
+    data.shapeX = undefined;
+    data.shapeY = undefined;
+
+    if (!this.isBatching) this.renderer.draw(RedrawType.EDGES);
+
+    return true;
+  }
+
+  remove(id: number): boolean {
+    if (this.state.nodes[id]) return this.removeNode(id);
+    if (this.state.edges[id]) return this.removeEdge(id);
+
+    return false;
+  }
+
+  removeNode(id: number): boolean {
+    const { nodes, nodeData } = this.state;
+
+    if (!nodes[id]) return false;
+
+    const node = nodes[id];
+    const data = nodeData[id];
+
+    for (const edgeId of data.sourceOfEdgeIds) {
+      this.removeEdge(edgeId);
+    }
+
+    for (const edgeId of data.targetOfEdgeIds) {
+      this.removeEdge(edgeId);
+    }
+
+    this.state.quad.remove(
+      id,
+      node.x - data.shape.width * 0.5,
+      node.y - data.shape.height * 0.5,
+      data.shape.width,
+      data.shape.height
+    );
+
+    delete this.state.nodes[id];
+    delete this.state.nodeData[id];
+
+    if (!this.isBatching) this.renderer.draw(RedrawType.NODES);
+
+    return true;
+  }
+
+  removeEdge(id: number): boolean {
+    const { nodes, edges, nodeData, edgeData } = this.state;
+
+    if (!edges[id]) return false;
+    const edge = edges[id];
+
+    const sndd = nodeData[edge.sourceId];
+    sndd.sourceOfEdgeIds.delete(id);
+
+    const tndd = nodeData[edge.targetId];
+    tndd.targetOfEdgeIds.delete(id);
+
+    const data = edgeData[id];
+    const source = nodes[edge.sourceId];
+    const target = nodes[edge.targetId];
+
+    this.state.quad.remove(
+      id,
+      Math.min(source.x, target.x),
+      Math.min(source.y, target.y),
+      Math.max(Math.abs(source.x - target.x), data.shape.width),
+      Math.max(Math.abs(source.y - target.y), data.shape.height)
+    );
+
+    delete this.state.edges[id];
+    delete this.state.edgeData[id];
+
+    if (!this.isBatching) this.renderer.draw(RedrawType.EDGES);
 
     return true;
   }
@@ -176,6 +424,163 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
       this.renderer.clearNodes();
       this.renderer.clearEdges();
     }
+  }
+
+  getHoveredId() {
+    return this.state.hoveredId;
+  }
+
+  select(id: number) {
+    const { nodes, edges, selectedIds } = this.state;
+
+    if (this.isBatching) {
+      selectedIds.clear();
+      selectedIds.add(id);
+
+      return;
+    }
+
+    const affectedIds = Array.from(selectedIds);
+    affectedIds.push(id);
+
+    selectedIds.clear();
+    selectedIds.add(id);
+
+    for (const id of affectedIds) {
+      if (nodes[id]) this.renderer.drawNode(nodes[id]);
+      if (edges[id]) this.renderer.drawEdge(edges[id]);
+    }
+  }
+
+  addSelection(id: number) {
+    const { nodes, edges, selectedIds } = this.state;
+
+    selectedIds.add(id);
+
+    if (this.isBatching) return;
+
+    if (nodes[id]) this.renderer.drawNode(nodes[id]);
+    if (edges[id]) this.renderer.drawEdge(edges[id]);
+  }
+
+  removeSelection(id: number) {
+    const { nodes, edges, selectedIds } = this.state;
+
+    selectedIds.delete(id);
+
+    if (this.isBatching) return;
+
+    if (nodes[id]) this.renderer.drawNode(nodes[id]);
+    if (edges[id]) this.renderer.drawEdge(edges[id]);
+  }
+
+  clearSelection() {
+    const { nodes, edges, selectedIds } = this.state;
+
+    if (this.isBatching) {
+      selectedIds.clear();
+
+      return;
+    }
+
+    const affectedIds = Array.from(selectedIds);
+
+    selectedIds.clear();
+
+    for (const id of affectedIds) {
+      if (nodes[id]) this.renderer.drawNode(nodes[id]);
+      if (edges[id]) this.renderer.drawEdge(edges[id]);
+    }
+  }
+
+  getSelection() {
+    return Array.from(this.state.selectedIds);
+  }
+
+  getSelectedNodeIds() {
+    return this.getSelection().filter(id => {
+      return this.state.nodes[id] !== undefined;
+    });
+  }
+
+  getSelectedEdgeIds() {
+    return this.getSelection().filter(id => {
+      return this.state.edges[id] !== undefined;
+    });
+  }
+
+  beginMoveNodes(nodeIds: number[], vx: number, vy: number) {
+    const { nodeData, nodes, edges } = this.state;
+
+    const affectedIds = new Set(nodeIds);
+
+    this.renderer.draw(RedrawType.NODES, affectedIds);
+
+    affectedIds.clear();
+
+    for (const id of nodeIds) {
+      const dd = nodeData[id];
+
+      for (const eid of dd.sourceOfEdgeIds) {
+        affectedIds.add(eid);
+      }
+
+      for (const eid of dd.targetOfEdgeIds) {
+        affectedIds.add(eid);
+      }
+    }
+
+    this.renderer.draw(RedrawType.EDGES, affectedIds);
+
+    for (const eid of affectedIds) {
+      this.renderer.drawEdge(edges[eid], true);
+    }
+
+    for (const nid of nodeIds) {
+      this.renderer.drawNode(nodes[nid], true);
+    }
+
+    this.state.moveNodeIds = nodeIds;
+    this.state.moveX = vx;
+    this.state.moveY = vy;
+  }
+
+  endMoveNodes() {
+    this.state.moveNodeIds.length = 0;
+
+    this.renderer.clearMove();
+    this.renderer.draw(RedrawType.NODES_AND_EDGES);
+  }
+
+  beginDragLine() {
+    const { hoveredId, nodes } = this.state;
+
+    if (!hoveredId) return;
+
+    const node = nodes[hoveredId];
+
+    if (!node) return;
+
+    this.state.dragLineSourceNode = node;
+    this.state.dragLineX = node.x;
+    this.state.dragLineY = node.y;
+  }
+
+  endDragLine(): [Node, Node] | undefined {
+    const { hoveredId, nodes } = this.state;
+
+    this.renderer.clearDragLine();
+
+    if (!this.state.dragLineSourceNode) return;
+
+    const source = this.state.dragLineSourceNode;
+    this.state.dragLineSourceNode = undefined;
+
+    if (!hoveredId || hoveredId === source.id) return;
+
+    const target = nodes[hoveredId];
+
+    return target ? [source, target] : undefined;
   }
 
   viewPosFromWindowPos(
