@@ -20,15 +20,18 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
   private cp: [number, number] = [0, 0];
 
   private moveEdgeIds = new Set<number>();
+  private exludeIds: Set<number> | undefined = new Set<number>();
 
   constructor(view: GraphView<Node, Edge>, state: GraphState<Node, Edge>) {
     this.view = view;
     this.state = state;
   }
 
-  requestDraw(redrawType = RedrawType.ALL) {
+  requestDraw(redrawType = RedrawType.ALL, excludeIds?: Set<number>) {
     if (!this.isDrawing) {
       this.redrawType = redrawType;
+      this.exludeIds = excludeIds;
+
       requestAnimationFrame(this.requestDrawHandler);
     }
 
@@ -38,7 +41,7 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
   requestDrawHandler = () => {
     this.isDrawing = false;
 
-    this.draw(this.redrawType);
+    this.draw(this.redrawType, this.exludeIds);
   };
 
   applyTransform() {
@@ -74,6 +77,9 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
       edgeCtx.restore();
       edgeCtx.save();
 
+      dragCtx.restore();
+      dragCtx.save();
+
       moveCtx.restore();
       moveCtx.save();
 
@@ -91,6 +97,10 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
       edgeCtx.beginPath();
       edgeCtx.rect(dl, dt, dr - dl, db - dt);
       edgeCtx.clip();
+      dragCtx.clearRect(viewX, viewY, viewW, viewH);
+      dragCtx.beginPath();
+      dragCtx.rect(dl, dt, dr - dl, db - dt);
+      dragCtx.clip();
       moveCtx.clearRect(viewX, viewY, viewW, viewH);
       moveCtx.beginPath();
       moveCtx.rect(dl, dt, dr - dl, db - dt);
@@ -145,9 +155,10 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
     vw = this.state.viewW,
     vh = this.state.viewH
   ) => {
-    const { nodes, edges, nodeData, moveCtx } = this.state;
+    const { nodes, edges, nodeData, moveCtx, dragCtx } = this.state;
 
     moveCtx.clearRect(vx, vy, vw, vh);
+    dragCtx.clearRect(vx, vy, vw, vh);
 
     this.moveEdgeIds.clear();
 
@@ -235,9 +246,9 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
     vw = this.state.viewW,
     vh = this.state.viewH
   ) {
-    const { edgeCtx, moveCtx, options, edgeData } = this.state;
+    const { edgeCtx, dragCtx, options, edgeData } = this.state;
 
-    const ctx = isMove ? moveCtx : edgeCtx;
+    const ctx = isMove ? dragCtx : edgeCtx;
 
     const selected = this.state.selectedIds.has(edge.id);
     const hovered = this.state.hoveredId === edge.id;

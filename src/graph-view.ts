@@ -513,10 +513,6 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
 
     const affectedIds = new Set(nodeIds);
 
-    this.renderer.draw(RedrawType.NODES, affectedIds);
-
-    affectedIds.clear();
-
     for (const id of nodeIds) {
       const dd = nodeData[id];
 
@@ -529,14 +525,14 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
       }
     }
 
-    this.renderer.draw(RedrawType.EDGES, affectedIds);
+    this.renderer.requestDraw(RedrawType.NODES_AND_EDGES, affectedIds);
 
-    for (const eid of affectedIds) {
-      this.renderer.drawEdge(edges[eid], true);
+    for (const id of affectedIds) {
+      if (edges[id]) this.renderer.drawEdge(edges[id], true);
     }
 
-    for (const nid of nodeIds) {
-      this.renderer.drawNode(nodes[nid], true);
+    for (const id of nodeIds) {
+      this.renderer.drawNode(nodes[id], true);
     }
 
     this.state.moveNodeIds = nodeIds;
