@@ -51,9 +51,9 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
       translateY,
       bgCtx,
       nodeCtx,
-      dragCtx,
+      moveEdgeCtx,
       edgeCtx,
-      moveCtx
+      moveNodeCtx
     } = this.state;
 
     this.state.setView();
@@ -77,17 +77,17 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
       edgeCtx.restore();
       edgeCtx.save();
 
-      dragCtx.restore();
-      dragCtx.save();
+      moveEdgeCtx.restore();
+      moveEdgeCtx.save();
 
-      moveCtx.restore();
-      moveCtx.save();
+      moveNodeCtx.restore();
+      moveNodeCtx.save();
 
       bgCtx.setTransform(scale, 0, 0, scale, translateX, translateY);
       nodeCtx.setTransform(scale, 0, 0, scale, translateX, translateY);
-      dragCtx.setTransform(scale, 0, 0, scale, translateX, translateY);
+      moveEdgeCtx.setTransform(scale, 0, 0, scale, translateX, translateY);
       edgeCtx.setTransform(scale, 0, 0, scale, translateX, translateY);
-      moveCtx.setTransform(scale, 0, 0, scale, translateX, translateY);
+      moveNodeCtx.setTransform(scale, 0, 0, scale, translateX, translateY);
 
       nodeCtx.clearRect(viewX, viewY, viewW, viewH);
       nodeCtx.beginPath();
@@ -97,23 +97,23 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
       edgeCtx.beginPath();
       edgeCtx.rect(dl, dt, dr - dl, db - dt);
       edgeCtx.clip();
-      dragCtx.clearRect(viewX, viewY, viewW, viewH);
-      dragCtx.beginPath();
-      dragCtx.rect(dl, dt, dr - dl, db - dt);
-      dragCtx.clip();
-      moveCtx.clearRect(viewX, viewY, viewW, viewH);
-      moveCtx.beginPath();
-      moveCtx.rect(dl, dt, dr - dl, db - dt);
-      moveCtx.clip();
+      moveEdgeCtx.clearRect(viewX, viewY, viewW, viewH);
+      moveEdgeCtx.beginPath();
+      moveEdgeCtx.rect(dl, dt, dr - dl, db - dt);
+      moveEdgeCtx.clip();
+      moveNodeCtx.clearRect(viewX, viewY, viewW, viewH);
+      moveNodeCtx.beginPath();
+      moveNodeCtx.rect(dl, dt, dr - dl, db - dt);
+      moveNodeCtx.clip();
 
       return;
     }
 
     bgCtx.setTransform(scale, 0, 0, scale, translateX, translateY);
     nodeCtx.setTransform(scale, 0, 0, scale, translateX, translateY);
-    dragCtx.setTransform(scale, 0, 0, scale, translateX, translateY);
+    moveEdgeCtx.setTransform(scale, 0, 0, scale, translateX, translateY);
     edgeCtx.setTransform(scale, 0, 0, scale, translateX, translateY);
-    moveCtx.setTransform(scale, 0, 0, scale, translateX, translateY);
+    moveNodeCtx.setTransform(scale, 0, 0, scale, translateX, translateY);
   }
 
   draw = (
@@ -155,10 +155,10 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
     vw = this.state.viewW,
     vh = this.state.viewH
   ) => {
-    const { nodes, edges, nodeData, moveCtx, dragCtx } = this.state;
+    const { nodes, edges, nodeData, moveNodeCtx, moveEdgeCtx } = this.state;
 
-    moveCtx.clearRect(vx, vy, vw, vh);
-    dragCtx.clearRect(vx, vy, vw, vh);
+    moveNodeCtx.clearRect(vx, vy, vw, vh);
+    moveEdgeCtx.clearRect(vx, vy, vw, vh);
 
     this.moveEdgeIds.clear();
 
@@ -195,11 +195,11 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
     vw = this.state.viewW,
     vh = this.state.viewH
   ) {
-    const { nodeCtx, moveCtx, options, nodeData } = this.state;
+    const { nodeCtx, moveNodeCtx, options, nodeData } = this.state;
 
     if (!this.isNodeInView(node, vx, vy, vw, vh)) return;
 
-    const ctx = isMove ? moveCtx : nodeCtx;
+    const ctx = isMove ? moveNodeCtx : nodeCtx;
 
     const selected = this.state.selectedIds.has(node.id);
     const hovered = this.state.hoveredId === node.id;
@@ -246,9 +246,9 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
     vw = this.state.viewW,
     vh = this.state.viewH
   ) {
-    const { edgeCtx, dragCtx, options, edgeData } = this.state;
+    const { edgeCtx, moveEdgeCtx, options, edgeData } = this.state;
 
-    const ctx = isMove ? dragCtx : edgeCtx;
+    const ctx = isMove ? moveEdgeCtx : edgeCtx;
 
     const selected = this.state.selectedIds.has(edge.id);
     const hovered = this.state.hoveredId === edge.id;
@@ -373,8 +373,8 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
   }
 
   clearDragLine = () => {
-    const { dragCtx, viewX, viewY, viewW, viewH } = this.state;
-    dragCtx.clearRect(viewX, viewY, viewW, viewH);
+    const { moveEdgeCtx, viewX, viewY, viewW, viewH } = this.state;
+    moveEdgeCtx.clearRect(viewX, viewY, viewW, viewH);
   };
 
   isNodeInView(
@@ -693,7 +693,7 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
 
   drawDragLine = () => {
     const {
-      dragCtx,
+      moveEdgeCtx,
       options,
       dragLineSourceNode,
       dragLineX,
@@ -706,7 +706,7 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
 
     if (!dragLineSourceNode) return;
 
-    dragCtx.clearRect(viewX, viewY, viewW, viewH);
+    moveEdgeCtx.clearRect(viewX, viewY, viewW, viewH);
 
     const sx = dragLineSourceNode.x;
     const sy = dragLineSourceNode.y;
@@ -728,20 +728,20 @@ export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
     const lp2x = lsx - ll * sinr;
     const lp2y = lsy + ll * cosr;
 
-    dragCtx.lineWidth = options.edgeLineWidth;
-    dragCtx.strokeStyle = options.edgeLineColor;
-    dragCtx.fillStyle = options.edgeLineColor;
+    moveEdgeCtx.lineWidth = options.edgeLineWidth;
+    moveEdgeCtx.strokeStyle = options.edgeLineColor;
+    moveEdgeCtx.fillStyle = options.edgeLineColor;
 
-    dragCtx.beginPath();
-    dragCtx.moveTo(sx, sy);
-    dragCtx.lineTo(tx, ty);
-    dragCtx.stroke();
+    moveEdgeCtx.beginPath();
+    moveEdgeCtx.moveTo(sx, sy);
+    moveEdgeCtx.lineTo(tx, ty);
+    moveEdgeCtx.stroke();
 
-    dragCtx.beginPath();
-    dragCtx.moveTo(tx, ty);
-    dragCtx.lineTo(lp1x, lp1y);
-    dragCtx.lineTo(lp2x, lp2y);
-    dragCtx.closePath();
-    dragCtx.fill();
+    moveEdgeCtx.beginPath();
+    moveEdgeCtx.moveTo(tx, ty);
+    moveEdgeCtx.lineTo(lp1x, lp1y);
+    moveEdgeCtx.lineTo(lp2x, lp2y);
+    moveEdgeCtx.closePath();
+    moveEdgeCtx.fill();
   };
 }

@@ -41,9 +41,9 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
 
     container.appendChild(this.state.bgCtx.canvas);
     container.appendChild(this.state.edgeCtx.canvas);
-    container.appendChild(this.state.dragCtx.canvas);
+    container.appendChild(this.state.moveEdgeCtx.canvas);
     container.appendChild(this.state.nodeCtx.canvas);
-    container.appendChild(this.state.moveCtx.canvas);
+    container.appendChild(this.state.moveNodeCtx.canvas);
 
     const resizeObserver = new ResizeObserver(() => {
       this.resize();
@@ -65,8 +65,8 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     this.state.edgeCtx.canvas.height = this.state.container.clientHeight;
     this.state.nodeCtx.canvas.width = this.state.container.clientWidth;
     this.state.nodeCtx.canvas.height = this.state.container.clientHeight;
-    this.state.moveCtx.canvas.width = this.state.container.clientWidth;
-    this.state.moveCtx.canvas.height = this.state.container.clientHeight;
+    this.state.moveNodeCtx.canvas.width = this.state.container.clientWidth;
+    this.state.moveNodeCtx.canvas.height = this.state.container.clientHeight;
 
     this.state.boundingRect = this.state.container.getBoundingClientRect();
 

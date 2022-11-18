@@ -15,9 +15,9 @@ export class GraphState<Node extends GraphNode, Edge extends GraphEdge> {
   readonly container: HTMLElement;
   readonly bgCtx: CanvasRenderingContext2D;
   readonly edgeCtx: CanvasRenderingContext2D;
-  readonly dragCtx: CanvasRenderingContext2D;
+  readonly moveEdgeCtx: CanvasRenderingContext2D;
   readonly nodeCtx: CanvasRenderingContext2D;
-  readonly moveCtx: CanvasRenderingContext2D;
+  readonly moveNodeCtx: CanvasRenderingContext2D;
 
   nodes: Record<number, Node> = {};
   edges: Record<number, Edge> = {};
@@ -59,19 +59,19 @@ export class GraphState<Node extends GraphNode, Edge extends GraphEdge> {
 
     const bgCtx = this.initCtx(false);
     const edgeCtx = this.initCtx();
-    const dragCtx = this.initCtx();
+    const moveEdgeCtx = this.initCtx();
     const nodeCtx = this.initCtx();
-    const moveCtx = this.initCtx();
+    const moveNodeCtx = this.initCtx();
 
-    if (!bgCtx || !edgeCtx || !nodeCtx || !moveCtx || !dragCtx) {
+    if (!bgCtx || !edgeCtx || !nodeCtx || !moveNodeCtx || !moveEdgeCtx) {
       throw "Canvas is not supported in your browser.";
     }
 
     this.bgCtx = bgCtx;
     this.edgeCtx = edgeCtx;
-    this.dragCtx = dragCtx;
+    this.moveEdgeCtx = moveEdgeCtx;
     this.nodeCtx = nodeCtx;
-    this.moveCtx = moveCtx;
+    this.moveNodeCtx = moveNodeCtx;
 
     this.quad = createQuad(
       -this.options.width * 0.5,
