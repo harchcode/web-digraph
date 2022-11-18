@@ -34,6 +34,10 @@ function generate(nodeCount = 100) {
   graphView.clear();
 
   const columns = Math.ceil(Math.sqrt(nodeCount));
+  const rows = Math.floor(nodeCount / columns);
+
+  const startX = (1 - columns) * 160;
+  const startY = (1 - rows) * 160;
 
   for (let i = 0; i < nodeCount; i++) {
     const row = (i / columns) | 0;
@@ -42,8 +46,8 @@ function generate(nodeCount = 100) {
     graphView.addNode(
       {
         id,
-        x: col * 320,
-        y: row * 320
+        x: startX + col * 320,
+        y: startY + row * 320
       },
       nodeShapes[getRandomInt(0, nodeShapes.length)]
     );
