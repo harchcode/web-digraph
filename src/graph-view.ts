@@ -1,5 +1,5 @@
 import { GraphHandler } from "./graph-handler";
-import { GraphRenderer } from "./graph-renderer";
+import { GraphRenderer, RedrawType } from "./graph-renderer";
 import { GraphState } from "./graph-state";
 import {
   defaultEdgeShape,
@@ -8,8 +8,7 @@ import {
   GraphNode,
   GraphShape,
   GraphOptions,
-  GraphDataType,
-  NodeDrawData
+  GraphDataType
 } from "./types";
 
 export function createNodeShape(shape?: Partial<GraphShape>): GraphShape {
@@ -30,6 +29,7 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
   private state: GraphState<Node, Edge>;
   private renderer: GraphRenderer<Node, Edge>;
   private handler: GraphHandler<Node, Edge>;
+  private isBatching = false;
 
   constructor(container: HTMLElement, options: Partial<GraphOptions> = {}) {
     this.state = new GraphState(container, options);
@@ -37,7 +37,7 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     this.handler = new GraphHandler(this, this.state, this.renderer);
 
     this.renderer.applyTransform();
-    this.renderer.drawAll();
+    this.renderer.draw();
 
     container.appendChild(this.state.bgCtx.canvas);
     container.appendChild(this.state.edgeCtx.canvas);
@@ -71,7 +71,17 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     this.state.boundingRect = this.state.container.getBoundingClientRect();
 
     this.renderer.applyTransform();
-    this.renderer.drawAll();
+    this.renderer.draw();
+  }
+
+  startBatch() {
+    this.isBatching = true;
+  }
+
+  endBatch(redrawType: RedrawType = RedrawType.ALL) {
+    this.isBatching = false;
+
+    this.renderer.requestDraw(redrawType);
   }
 
   addNode(node: Node, shape: GraphShape): boolean {
@@ -96,52 +106,61 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
       shape.height
     );
 
-    this.renderer.drawNode(node);
+    if (!this.isBatching) this.renderer.drawNode(node);
 
     return true;
   }
 
-  // addEdge(edge: Edge, shape: GraphShape): boolean {
-  //   const { nodes, edges, drawData } = this.state;
+  addEdge(edge: Edge, shape: GraphShape): boolean {
+    const { nodes, edges, nodeData, edgeData } = this.state;
 
-  //   if (nodes[edge.id] || edges[edge.id]) return false;
-  //   if (!nodes[edge.sourceId] || !nodes[edge.targetId]) return false;
+    if (nodes[edge.id] || edges[edge.id]) return false;
+    if (!nodes[edge.sourceId] || !nodes[edge.targetId]) return false;
 
-  //   const snd = drawData[edge.sourceId] as NodeDrawData;
-  //   const tnd = drawData[edge.targetId] as NodeDrawData;
+    const snd = nodeData[edge.sourceId];
+    const tnd = nodeData[edge.targetId];
 
-  //   for (const eid of snd.sourceOfEdgeIds) {
-  //     if (edges[eid].targetId === edge.targetId) return false;
-  //   }
+    for (const eid of snd.sourceOfEdgeIds) {
+      if (edges[eid].targetId === edge.targetId) return false;
+    }
 
-  //   for (const eid of tnd.targetOfEdgeIds) {
-  //     if (edges[eid].sourceId === edge.sourceId) return false;
-  //   }
+    for (const eid of tnd.targetOfEdgeIds) {
+      if (edges[eid].sourceId === edge.sourceId) return false;
+    }
 
-  //   edges[edge.id] = edge;
+    edges[edge.id] = edge;
 
-  //   snd.sourceOfEdgeIds.add(edge.id);
-  //   tnd.targetOfEdgeIds.add(edge.id);
+    snd.sourceOfEdgeIds.add(edge.id);
+    tnd.targetOfEdgeIds.add(edge.id);
 
-  //   this.renderer.createEdgePath(edge, shape);
+    edgeData[edge.id] = {
+      type: GraphDataType.EDGE,
+      shape
+    };
 
-  //   const source = nodes[edge.sourceId];
-  //   const target = nodes[edge.targetId];
+    const source = nodes[edge.sourceId];
+    const target = nodes[edge.targetId];
 
-  //   this.state.quad.insert(
-  //     edge.id,
-  //     Math.min(source.x, target.x),
-  //     Math.min(source.y, target.y),
-  //     Math.max(Math.abs(source.x - target.x), shape.width),
-  //     Math.max(Math.abs(source.y - target.y), shape.height)
-  //   );
+    // console.log(
+    //   edge.id,
+    //   Math.min(source.x, target.x),
+    //   Math.min(source.y, target.y),
+    //   Math.max(Math.abs(source.x - target.x), shape.width),
+    //   Math.max(Math.abs(source.y - target.y), shape.height)
+    // );
 
-  //   this.renderer.drawEdge(edge);
+    this.state.quad.insert(
+      edge.id,
+      Math.min(source.x, target.x),
+      Math.min(source.y, target.y),
+      Math.max(Math.abs(source.x - target.x), shape.width),
+      Math.max(Math.abs(source.y - target.y), shape.height)
+    );
 
-  //   // console.log(this.state.quad);
+    if (!this.isBatching) this.renderer.drawEdge(edge);
 
-  //   return true;
-  // }
+    return true;
+  }
 
   clear() {
     this.state.nodes = {};
@@ -153,8 +172,10 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     this.state.dragLineSourceNode = undefined;
     this.state.quad.clear();
 
-    this.renderer.clearNodes();
-    this.renderer.clearEdges();
+    if (!this.isBatching) {
+      this.renderer.clearNodes();
+      this.renderer.clearEdges();
+    }
   }
 
   viewPosFromWindowPos(

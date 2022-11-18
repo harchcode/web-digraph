@@ -10,13 +10,6 @@ import {
 } from "./types";
 import { isLineInsideRect, lineIntersect, rectIntersect } from "./utils";
 
-export enum RedrawType {
-  ALL = 0,
-  NODES,
-  EDGES,
-  MOVE
-}
-
 export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
   private state: GraphState<Node, Edge>;
   private view: GraphView<Node, Edge>;

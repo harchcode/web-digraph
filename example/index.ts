@@ -30,6 +30,7 @@ const mode: "move" | "create" = "move";
 function generate(nodeCount = 100) {
   let id = 1;
 
+  graphView.startBatch();
   graphView.clear();
 
   const columns = Math.ceil(Math.sqrt(nodeCount));
@@ -49,19 +50,21 @@ function generate(nodeCount = 100) {
 
     id++;
 
-    // if (i > 0) {
-    //   graphView.addEdge(
-    //     {
-    //       id,
-    //       sourceId: id - (i > 1 ? 3 : 2),
-    //       targetId: id - 1
-    //     },
-    //     edgeShapes[getRandomInt(0, edgeShapes.length)]
-    //   );
+    if (i > 0) {
+      graphView.addEdge(
+        {
+          id,
+          sourceId: id - (i > 1 ? 3 : 2),
+          targetId: id - 1
+        },
+        edgeShapes[getRandomInt(0, edgeShapes.length)]
+      );
 
-    //   id++;
-    // }
+      id++;
+    }
   }
+
+  graphView.endBatch();
 
   lastId = id - 1;
 }

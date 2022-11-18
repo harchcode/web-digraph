@@ -29,12 +29,12 @@ export type EdgeDrawData = {
   path?: Path2D;
   linePath?: Path2D;
   arrowPath?: Path2D;
-  lineSourceX: number;
-  lineSourceY: number;
-  lineTargetX: number;
-  lineTargetY: number;
-  shapeX: number;
-  shapeY: number;
+  lineSourceX?: number;
+  lineSourceY?: number;
+  lineTargetX?: number;
+  lineTargetY?: number;
+  shapeX?: number;
+  shapeY?: number;
 };
 
 export type GraphShape = {
@@ -132,8 +132,8 @@ export type GraphOptions = {
 };
 
 export const defaultGraphOptions: GraphOptions = {
-  width: 100000,
-  height: 100000,
+  width: 10000,
+  height: 10000,
   bgColor: "#f1f5f9",
   bgDotColor: "#64748b",
   bgLineWidth: 4,

@@ -2,7 +2,7 @@
 
 import { rectIntersect } from "./utils";
 
-const MAX_DEPTH = 64;
+const MAX_DEPTH = 8;
 const DATA_PER_CHILD = 4;
 
 export type QuadData<T> = {
