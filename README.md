@@ -1,26 +1,36 @@
 # web-digraph
+
 > A library to create a simple directed graph editor. See the demo at [https://web-digraph.netlify.app/](https://web-digraph.netlify.app/).
 
+## :warning: This README is outdated! Will update it soon.
+
 ## Overview
+
 There is a really long story about how this library ends up being created. Please just pretend you already know the story and that it makes sense.
 This library is basically almost a copy of [react-digraph](https://github.com/uber/react-digraph), just less features, less polished, and less everything, but using canvas instead of svg for rendering, and also not using react, because we love imperative things. React is for the weak.
 
 ## Features
+
 - Built with Typescript.
 - Small size (at least compared to `react-digraph`, because of no D3 dependency, and much less features).
 - Imperative API and class-based (yes, this is a feature).
 
 ## Installation
+
 ```bash
 npm install --save web-digraph
 ```
 
 ## Usage
+
 - Import the GEView class and needed types.
+
 ```js
 import { GEView, GEShapeTypes, GEShapeName, GENode, GEEdge } from "web-digraph";
 ```
+
 - Define the node and edge types. I suggest putting this node and edge types definition in its own file because it may get long.
+
 ```js
 const nodeTypes = {
   empty: [
@@ -61,11 +71,15 @@ const edgeTypes = {
   ]
 };
 ```
+
 - Create a new instance of GEView class.
+
 ```js
 const graphView = new GEView();
 ```
+
 - Set options. This is the minimal needed options needed for the graph to work properly. For the event handler (like `handleCreateNode`), see the example for detail.
+
 ```js
 graphView.setOptions({
   nodeTypes,
@@ -77,12 +91,15 @@ graphView.setOptions({
   onMoveNode: handleMoveNode
 });
 ```
+
 - Init the graph view, passing it the parent element to put it into the dom.
+
 ```js
 graphView.init(document.body);
 ```
 
 ## Options
+
 ```typescript
 edgeArrowLength: number;
 edgeArrowRadian: number;
@@ -142,31 +159,35 @@ onHoverChange?: (
 ```
 
 ## GENode
+
 If you want to use your own Node data type, you can. Just make sure that your custom type have all the properties of GENode. The same also apply to GEEdge.
 
-| Prop                   | Type                       | Required     | Notes                                             |
-| ---------------------- | :------------------------: | :----------: | :-----------------------------------------------: |
-| `id`                   | `number`                   | `true`       | A unique identifier number.                       |
-| `text`                 | `string`                   | `true`       | The text inside the node.                         |
-| `x`                    | `number`                   | `true`       | X coordinate of the node.                         |
-| `y`                    | `number`                   | `true`       | Y coordinate of the node.                         |
-| `type`                 | `string`                   | `true`       | Node type, for displaying the shape               |
+| Prop   |   Type   | Required |                Notes                |
+| ------ | :------: | :------: | :---------------------------------: |
+| `id`   | `number` |  `true`  |     A unique identifier number.     |
+| `text` | `string` |  `true`  |      The text inside the node.      |
+| `x`    | `number` |  `true`  |      X coordinate of the node.      |
+| `y`    | `number` |  `true`  |      Y coordinate of the node.      |
+| `type` | `string` |  `true`  | Node type, for displaying the shape |
 
 ## GEEdge
-| Prop                   | Type                       | Required     | Notes                                             |
-| ---------------------- | :------------------------: | :----------: | :-----------------------------------------------: |
-| `id`                   | `number`                   | `true`       | A unique identifier number.                       |
-| `sourceNode`           | `GENode`                   | `true`       | The source node object                            |
-| `targetNode`           | `GENode`                   | `true`       | The target node object.                           |
-| `type`                 | `string`                   | `true`       | Edge type, for displaying the shape.              |
-| `text`                 | `string`                   | `true`       | Text to render on the edge.                       |
+
+| Prop         |   Type   | Required |                Notes                 |
+| ------------ | :------: | :------: | :----------------------------------: |
+| `id`         | `number` |  `true`  |     A unique identifier number.      |
+| `sourceNode` | `GENode` |  `true`  |        The source node object        |
+| `targetNode` | `GENode` |  `true`  |       The target node object.        |
+| `type`       | `string` |  `true`  | Edge type, for displaying the shape. |
+| `text`       | `string` |  `true`  |     Text to render on the edge.      |
 
 ## Limitations
+
 - Currently does not work on mobile.
 - No swap edge (`react-digraph` has it, but i don't think it is needed).
 - Only support circle, rectangle and polygon shape.
 
 ## FAQ
+
 **Q**: Why not just use react-digraph if this is basically an inferior version of react-digraph?  
 **A**: Size and performance are the main reasons. React-digraph depends on D3, which is heavy. Also they use react and svg, which is not performant when the nodes and edges count are really big. Try 1000 nodes on react-digraph's example and then try 9999 nodes on web-digraph's example and you will see the difference.
 
