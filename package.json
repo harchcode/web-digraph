@@ -28,6 +28,7 @@
     "start": "vite",
     "dev": "vite",
     "build": "vite build && npm run build-typedef",
+    "build:example": "BUILD_TYPE=example vite build",
     "build-typedef": "tsc ./src/vite-env.d.ts ./src/index.ts --declaration --emitDeclarationOnly --target ESNext --esModuleInterop --outDir dist",
     "test": "vitest --coverage",
     "lint": "eslint src test example",
