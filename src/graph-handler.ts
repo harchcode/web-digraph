@@ -21,17 +21,17 @@ export class GraphHandler<Node extends GraphNode, Edge extends GraphEdge> {
     this.renderer = renderer;
   }
 
-  handleMouseMove = (e: MouseEvent) => {
+  handleMove = (dwx: number, dwy: number, wx: number, wy: number) => {
     const { moveNodeIds, moveX, moveY, dragLineSourceNode, isMovingView } =
       this.state;
 
     if (isMovingView && !dragLineSourceNode && moveNodeIds.length === 0) {
-      this.view.moveBy(e.movementX, e.movementY);
+      this.view.moveBy(dwx, dwy);
 
       return;
     }
 
-    this.view.viewPosFromWindowPos(this.vp, e.x, e.y);
+    this.view.viewPosFromWindowPos(this.vp, wx, wy);
 
     if (dragLineSourceNode) {
       this.state.dragLineX = this.vp[0];
@@ -59,6 +59,10 @@ export class GraphHandler<Node extends GraphNode, Edge extends GraphEdge> {
     }
 
     this.view.endBatch(RedrawType.MOVE);
+  };
+
+  handleMouseMove = (e: MouseEvent) => {
+    this.handleMove(e.movementX, e.movementY, e.x, e.y);
   };
 
   private isEdgeHovered(x: number, y: number, edge: Edge): boolean {

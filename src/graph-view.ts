@@ -31,6 +31,9 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
   private handler: GraphHandler<Node, Edge>;
   private isBatching = false;
 
+  private nodeCount = 0;
+  private edgeCount = 0;
+
   constructor(container: HTMLElement, options: Partial<GraphOptions> = {}) {
     this.state = new GraphState(container, options);
     this.renderer = new GraphRenderer(this, this.state);
@@ -119,6 +122,8 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
       shape.height
     );
 
+    this.nodeCount += 1;
+
     if (!this.isBatching) this.renderer.drawNode(node);
 
     return true;
@@ -161,6 +166,8 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
       Math.max(Math.abs(source.x - target.x), shape.width),
       Math.max(Math.abs(source.y - target.y), shape.height)
     );
+
+    this.edgeCount += 1;
 
     if (!this.isBatching) this.renderer.drawEdge(edge);
 
@@ -386,6 +393,8 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     delete this.state.nodes[id];
     delete this.state.nodeData[id];
 
+    this.nodeCount -= 1;
+
     if (!this.isBatching) this.renderer.draw(RedrawType.NODES);
 
     return true;
@@ -418,6 +427,8 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     delete this.state.edges[id];
     delete this.state.edgeData[id];
 
+    this.edgeCount -= 1;
+
     if (!this.isBatching) this.renderer.draw(RedrawType.EDGES);
 
     return true;
@@ -436,6 +447,14 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     if (!this.isBatching) {
       this.renderer.draw(RedrawType.NODES_AND_EDGES);
     }
+  }
+
+  getNodeCount() {
+    return this.nodeCount;
+  }
+
+  getEdgeCount() {
+    return this.edgeCount;
   }
 
   getHoveredId() {
@@ -522,7 +541,7 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
   }
 
   beginMoveNodes(nodeIds: number[], vx: number, vy: number) {
-    const { nodeData, nodes, edges } = this.state;
+    const { nodeData } = this.state;
 
     const affectedIds = new Set(nodeIds);
 
@@ -538,26 +557,23 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
       }
     }
 
-    this.renderer.requestDraw(RedrawType.NODES_AND_EDGES, affectedIds);
-
-    for (const id of affectedIds) {
-      if (edges[id]) this.renderer.drawEdge(edges[id], true);
-    }
-
-    for (const id of nodeIds) {
-      this.renderer.drawNode(nodes[id], true);
-    }
-
     this.state.moveNodeIds = nodeIds;
     this.state.moveX = vx;
     this.state.moveY = vy;
+
+    requestAnimationFrame(() => {
+      this.renderer.draw(RedrawType.NODES_AND_EDGES, affectedIds);
+      this.renderer.draw(RedrawType.MOVE);
+    });
   }
 
   endMoveNodes() {
     this.state.moveNodeIds.length = 0;
 
-    this.renderer.draw(RedrawType.MOVE);
-    this.renderer.draw(RedrawType.NODES_AND_EDGES);
+    requestAnimationFrame(() => {
+      this.renderer.draw(RedrawType.MOVE);
+      this.renderer.draw(RedrawType.NODES_AND_EDGES);
+    });
   }
 
   beginDragLine() {
@@ -701,6 +717,10 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
 
   endMoveView() {
     this.state.isMovingView = false;
+  }
+
+  isMovingView() {
+    return this.state.isMovingView;
   }
 }
 
