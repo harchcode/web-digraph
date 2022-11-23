@@ -52,12 +52,6 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     container.appendChild(this.state.nodeCtx.canvas);
     container.appendChild(this.state.moveNodeCtx.canvas);
 
-    const resizeObserver = new ResizeObserver(() => {
-      this.resize();
-    });
-
-    resizeObserver.observe(container);
-
     this.handler.init();
   }
 
@@ -561,19 +555,15 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     this.state.moveX = vx;
     this.state.moveY = vy;
 
-    requestAnimationFrame(() => {
-      this.renderer.draw(RedrawType.NODES_AND_EDGES, affectedIds);
-      this.renderer.draw(RedrawType.MOVE);
-    });
+    this.renderer.draw(RedrawType.NODES_AND_EDGES, affectedIds);
+    this.renderer.draw(RedrawType.MOVE);
   }
 
   endMoveNodes() {
     this.state.moveNodeIds.length = 0;
 
-    requestAnimationFrame(() => {
-      this.renderer.draw(RedrawType.MOVE);
-      this.renderer.draw(RedrawType.NODES_AND_EDGES);
-    });
+    this.renderer.draw(RedrawType.MOVE);
+    this.renderer.draw(RedrawType.NODES_AND_EDGES);
   }
 
   beginDragLine() {

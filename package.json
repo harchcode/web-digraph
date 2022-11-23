@@ -26,7 +26,7 @@
   "sideEffects": false,
   "scripts": {
     "start": "vite",
-    "dev": "vite",
+    "dev": "vite --host",
     "build": "vite build && npm run build-typedef",
     "build:example": "BUILD_TYPE=example vite build",
     "build-typedef": "tsc ./src/vite-env.d.ts ./src/index.ts --declaration --emitDeclarationOnly --target ESNext --esModuleInterop --outDir dist",

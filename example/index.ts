@@ -145,6 +145,10 @@ function main() {
     updateCountText();
   });
 
+  window.addEventListener("resize", () => {
+    graphView.resize();
+  });
+
   const pos: [number, number] = [0, 0];
   graphDiv.addEventListener("mousedown", e => {
     graphView.viewPosFromWindowPos(pos, e.x, e.y);
@@ -181,7 +185,69 @@ function main() {
     }
   });
 
+  graphDiv.addEventListener("touchstart", e => {
+    e.preventDefault();
+    const t = e.targetTouches[0];
+
+    graphView.viewPosFromWindowPos(pos, t.clientX, t.clientY);
+    const hoveredId = graphView.getHoveredId();
+
+    if (hoveredId) {
+      if (isMultiselect) graphView.addSelection(hoveredId);
+      else graphView.select(hoveredId);
+    } else {
+      graphView.clearSelection();
+    }
+
+    if (mode === "move") {
+      if (!hoveredId) graphView.beginMoveView();
+      else
+        graphView.beginMoveNodes(
+          graphView.getSelectedNodeIds(),
+          pos[0],
+          pos[1]
+        );
+    } else if (mode === "create") {
+      if (!hoveredId) {
+        lastId++;
+
+        graphView.addNode(
+          { id: lastId, x: pos[0], y: pos[1] },
+          nodeShapes[getRandomInt(0, nodeShapes.length)]
+        );
+
+        updateCountText();
+      } else {
+        graphView.beginDragLine();
+      }
+    }
+  });
+
   graphDiv.addEventListener("mouseup", () => {
+    graphView.endMoveView();
+    graphView.endMoveNodes();
+
+    const dragLineNodes = graphView.endDragLine();
+
+    if (dragLineNodes) {
+      lastId++;
+
+      graphView.addEdge(
+        {
+          id: lastId,
+          sourceId: dragLineNodes[0].id,
+          targetId: dragLineNodes[1].id
+        },
+        edgeShapes[getRandomInt(0, edgeShapes.length)]
+      );
+
+      updateCountText();
+    }
+  });
+
+  graphDiv.addEventListener("touchend", e => {
+    e.preventDefault();
+
     graphView.endMoveView();
     graphView.endMoveNodes();
 
