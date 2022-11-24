@@ -67,3 +67,7 @@ export function lineIntersect(
 
   return true;
 }
+
+export function noop() {
+  // noop
+}

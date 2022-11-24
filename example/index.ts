@@ -1,4 +1,10 @@
-import { createGraphView, GraphEdge, GraphNode, GraphView } from "../src";
+import {
+  createGraphView,
+  GraphEdge,
+  GraphMode,
+  GraphNode,
+  GraphView
+} from "../src";
 import { edgeShapes, nodeShapes } from "./shapes";
 
 function getRandomInt(min: number, max: number) {
@@ -35,8 +41,6 @@ const zoomSlider = document.getElementById("zoom-slider") as HTMLInputElement;
 let graphView: GraphView<GraphNode, GraphEdge>;
 
 let lastId = 0;
-let mode: "move" | "create" = "move";
-let isMultiselect = false;
 
 function updateCountText() {
   nodeCountText.innerText = graphView.getNodeCount().toString();
@@ -96,8 +100,42 @@ function main() {
     width: 100000,
     height: 100000,
     minScale: 0.2,
-    maxScale: 3.0
+    maxScale: 3.0,
+    onViewZoom() {
+      zoomSlider.value = graphView.getScale().toString();
+    },
+    onCreateNode(x, y) {
+      lastId++;
+
+      graphView.addNode(
+        { id: lastId, x, y },
+        nodeShapes[getRandomInt(0, nodeShapes.length)]
+      );
+
+      updateCountText();
+    },
+    onCreateEdge(sourceId, targetId) {
+      lastId++;
+
+      graphView.addEdge(
+        {
+          id: lastId,
+          sourceId,
+          targetId
+        },
+        edgeShapes[getRandomInt(0, edgeShapes.length)]
+      );
+
+      updateCountText();
+    }
   });
+
+  graphView.modes = new Set([
+    GraphMode.MOVE_VIEW,
+    GraphMode.ZOOM,
+    GraphMode.MOVE_NODE,
+    GraphMode.SELECT
+  ]);
 
   generateButton.addEventListener("click", () => {
     const len = parseInt(nodeCountInput.value, 10);
@@ -112,23 +150,14 @@ function main() {
   });
 
   toggleModeButton.addEventListener("click", () => {
-    if (mode === "create") {
-      mode = "move";
-      toggleModeButton.classList.remove("active");
-    } else {
-      mode = "create";
-      toggleModeButton.classList.add("active");
-    }
+    toggleModeButton.classList.toggle("active");
+    graphView.toggleMode(GraphMode.CREATE_NODE);
+    graphView.toggleMode(GraphMode.CREATE_EDGE);
   });
 
   toggleMultiselectButton.addEventListener("click", () => {
-    if (isMultiselect) {
-      isMultiselect = false;
-      toggleMultiselectButton.classList.remove("active");
-    } else {
-      isMultiselect = true;
-      toggleMultiselectButton.classList.add("active");
-    }
+    toggleMultiselectButton.classList.toggle("active");
+    graphView.toggleMode(GraphMode.MULTISELECT);
   });
 
   deleteButton.addEventListener("click", () => {
@@ -148,134 +177,6 @@ function main() {
   window.addEventListener("resize", () => {
     graphView.resize();
   });
-
-  const pos: [number, number] = [0, 0];
-  graphDiv.addEventListener("mousedown", e => {
-    graphView.viewPosFromWindowPos(pos, e.x, e.y);
-    const hoveredId = graphView.getHoveredId();
-
-    if (hoveredId) {
-      if (isMultiselect) graphView.addSelection(hoveredId);
-      else graphView.select(hoveredId);
-    } else {
-      graphView.clearSelection();
-    }
-
-    if (mode === "move") {
-      if (!hoveredId) graphView.beginMoveView();
-      else
-        graphView.beginMoveNodes(
-          graphView.getSelectedNodeIds(),
-          pos[0],
-          pos[1]
-        );
-    } else if (mode === "create") {
-      if (!hoveredId) {
-        lastId++;
-
-        graphView.addNode(
-          { id: lastId, x: pos[0], y: pos[1] },
-          nodeShapes[getRandomInt(0, nodeShapes.length)]
-        );
-
-        updateCountText();
-      } else {
-        graphView.beginDragLine();
-      }
-    }
-  });
-
-  graphDiv.addEventListener("touchstart", e => {
-    e.preventDefault();
-    const t = e.targetTouches[0];
-
-    graphView.viewPosFromWindowPos(pos, t.clientX, t.clientY);
-    const hoveredId = graphView.getHoveredId();
-
-    if (hoveredId) {
-      if (isMultiselect) graphView.addSelection(hoveredId);
-      else graphView.select(hoveredId);
-    } else {
-      graphView.clearSelection();
-    }
-
-    if (mode === "move") {
-      if (!hoveredId) graphView.beginMoveView();
-      else
-        graphView.beginMoveNodes(
-          graphView.getSelectedNodeIds(),
-          pos[0],
-          pos[1]
-        );
-    } else if (mode === "create") {
-      if (!hoveredId) {
-        lastId++;
-
-        graphView.addNode(
-          { id: lastId, x: pos[0], y: pos[1] },
-          nodeShapes[getRandomInt(0, nodeShapes.length)]
-        );
-
-        updateCountText();
-      } else {
-        graphView.beginDragLine();
-      }
-    }
-  });
-
-  graphDiv.addEventListener("mouseup", () => {
-    graphView.endMoveView();
-    graphView.endMoveNodes();
-
-    const dragLineNodes = graphView.endDragLine();
-
-    if (dragLineNodes) {
-      lastId++;
-
-      graphView.addEdge(
-        {
-          id: lastId,
-          sourceId: dragLineNodes[0].id,
-          targetId: dragLineNodes[1].id
-        },
-        edgeShapes[getRandomInt(0, edgeShapes.length)]
-      );
-
-      updateCountText();
-    }
-  });
-
-  graphDiv.addEventListener("touchend", e => {
-    e.preventDefault();
-
-    graphView.endMoveView();
-    graphView.endMoveNodes();
-
-    const dragLineNodes = graphView.endDragLine();
-
-    if (dragLineNodes) {
-      lastId++;
-
-      graphView.addEdge(
-        {
-          id: lastId,
-          sourceId: dragLineNodes[0].id,
-          targetId: dragLineNodes[1].id
-        },
-        edgeShapes[getRandomInt(0, edgeShapes.length)]
-      );
-
-      updateCountText();
-    }
-  });
-
-  graphDiv.addEventListener(
-    "wheel",
-    () => {
-      zoomSlider.value = graphView.getScale().toString();
-    },
-    { passive: true }
-  );
 }
 
 main();

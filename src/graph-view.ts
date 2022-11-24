@@ -1,5 +1,5 @@
 import { GraphHandler } from "./graph-handler";
-import { GraphRenderer, RedrawType } from "./graph-renderer";
+import { GraphRenderer } from "./graph-renderer";
 import { GraphState } from "./graph-state";
 import {
   defaultEdgeShape,
@@ -8,7 +8,9 @@ import {
   GraphNode,
   GraphShape,
   GraphOptions,
-  GraphDataType
+  GraphDataType,
+  GraphMode,
+  RedrawType
 } from "./types";
 
 export function createNodeShape(shape?: Partial<GraphShape>): GraphShape {
@@ -33,6 +35,8 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
 
   private nodeCount = 0;
   private edgeCount = 0;
+
+  modes = new Set<GraphMode>();
 
   constructor(container: HTMLElement, options: Partial<GraphOptions> = {}) {
     this.state = new GraphState(container, options);
@@ -65,7 +69,7 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
       ...options
     };
 
-    if (!this.isBatching) this.renderer.requestDraw();
+    if (!this.isBatching) this.renderer.draw();
   }
 
   resize(): void {
@@ -438,6 +442,9 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
     this.state.dragLineSourceNode = undefined;
     this.state.quad.clear();
 
+    this.nodeCount = 0;
+    this.edgeCount = 0;
+
     if (!this.isBatching) {
       this.renderer.draw(RedrawType.NODES_AND_EDGES);
     }
@@ -711,6 +718,36 @@ export class GraphView<Node extends GraphNode, Edge extends GraphEdge> {
 
   isMovingView() {
     return this.state.isMovingView;
+  }
+
+  isEdgeHovered(x: number, y: number, edge: Edge): boolean {
+    const { edgeCtx, edgeData } = this.state;
+
+    const data = edgeData[edge.id];
+
+    if (!data.path || !data.linePath || !data.arrowPath) return false;
+
+    return (
+      edgeCtx.isPointInPath(data.path, x, y) ||
+      edgeCtx.isPointInStroke(data.linePath, x, y) ||
+      edgeCtx.isPointInPath(data.arrowPath, x, y)
+    );
+  }
+
+  isNodeHovered(x: number, y: number, node: Node): boolean {
+    const { nodeCtx, nodeData } = this.state;
+
+    const data = nodeData[node.id];
+
+    return data.path ? nodeCtx.isPointInPath(data.path, x, y) : false;
+  }
+
+  toggleMode(mode: GraphMode) {
+    if (this.modes.has(mode)) {
+      this.modes.delete(mode);
+    } else {
+      this.modes.add(mode);
+    }
   }
 }
 

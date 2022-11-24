@@ -1,3 +1,5 @@
+import { noop } from "./utils";
+
 export type GraphNode = {
   id: number;
   x: number;
@@ -95,6 +97,24 @@ export const defaultEdgeShape: GraphShape = {
   }
 };
 
+export enum GraphMode {
+  MOVE_VIEW,
+  ZOOM,
+  MOVE_NODE,
+  CREATE_NODE,
+  CREATE_EDGE,
+  SELECT,
+  MULTISELECT
+}
+
+export enum RedrawType {
+  ALL = 0,
+  NODES,
+  EDGES,
+  NODES_AND_EDGES,
+  MOVE
+}
+
 export type GraphOptions = {
   width: number;
   height: number;
@@ -132,6 +152,9 @@ export type GraphOptions = {
   nodeSelectedLineColor: string;
   nodeSelectedColor: string;
   nodeSelectedContentColor: string;
+  onViewZoom: () => void;
+  onCreateNode: (x: number, y: number) => void;
+  onCreateEdge: (sourceId: number, targetId: number) => void;
 };
 
 export const defaultGraphOptions: GraphOptions = {
@@ -170,5 +193,8 @@ export const defaultGraphOptions: GraphOptions = {
   nodeHoveredLineColor: "#3b82f6",
   nodeSelectedLineColor: "#2563eb",
   nodeSelectedColor: "#3b82f6",
-  nodeSelectedContentColor: "white"
+  nodeSelectedContentColor: "white",
+  onViewZoom: noop,
+  onCreateNode: noop,
+  onCreateEdge: noop
 };

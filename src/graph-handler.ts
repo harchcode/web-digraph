@@ -1,7 +1,13 @@
-import { GraphRenderer, RedrawType } from "./graph-renderer";
+import { GraphRenderer } from "./graph-renderer";
 import { GraphState } from "./graph-state";
 import { GraphView } from "./graph-view";
-import { GraphEdge, GraphNode, GraphDataType } from "./types";
+import {
+  GraphEdge,
+  GraphNode,
+  GraphDataType,
+  GraphMode,
+  RedrawType
+} from "./types";
 
 export class GraphHandler<Node extends GraphNode, Edge extends GraphEdge> {
   private state: GraphState<Node, Edge>;
@@ -11,9 +17,8 @@ export class GraphHandler<Node extends GraphNode, Edge extends GraphEdge> {
   private vp: [number, number] = [0, 0];
   private cp: [number, number] = [0, 0];
 
-  private prev: [number, number] = [0, 0];
-  private evCache: PointerEvent[] = [];
   private prevDiff = -1;
+  private evs: Map<number, PointerEvent> = new Map();
 
   constructor(
     view: GraphView<Node, Edge>,
@@ -25,17 +30,108 @@ export class GraphHandler<Node extends GraphNode, Edge extends GraphEdge> {
     this.renderer = renderer;
   }
 
-  handleMove = (dwx: number, dwy: number, wx: number, wy: number) => {
+  handlePointerDown = (e: PointerEvent) => {
+    const { moveNodeIds } = this.state;
+
+    this.evs.set(e.pointerId, e);
+    if (this.evs.size > 1) return;
+
+    this.view.viewPosFromWindowPos(this.vp, e.x, e.y);
+
+    if (moveNodeIds.length === 0) {
+      this.checkHover();
+    }
+
+    const { hoveredId } = this.state;
+
+    if (this.view.modes.has(GraphMode.SELECT)) {
+      if (this.state.hoveredId) {
+        if (this.view.modes.has(GraphMode.MULTISELECT)) {
+          this.view.addSelection(hoveredId);
+        } else {
+          this.view.select(this.state.hoveredId);
+        }
+      } else {
+        this.view.clearSelection();
+      }
+    }
+
+    if (!hoveredId) {
+      if (this.view.modes.has(GraphMode.CREATE_NODE)) {
+        this.state.options.onCreateNode(this.vp[0], this.vp[1]);
+      } else if (this.view.modes.has(GraphMode.MOVE_VIEW)) {
+        this.view.beginMoveView();
+      }
+    } else {
+      if (this.view.modes.has(GraphMode.CREATE_EDGE)) {
+        this.view.beginDragLine();
+      } else if (
+        this.view.modes.has(GraphMode.MOVE_NODE) &&
+        this.state.nodes[hoveredId]
+      ) {
+        this.view.beginMoveNodes(
+          this.view.getSelectedNodeIds(),
+          this.vp[0],
+          this.vp[1]
+        );
+      } else if (this.view.modes.has(GraphMode.MOVE_VIEW)) {
+        this.view.beginMoveView();
+      }
+    }
+  };
+
+  handlePointerMove = (e: PointerEvent) => {
     const { moveNodeIds, moveX, moveY, dragLineSourceNode, isMovingView } =
       this.state;
 
+    this.evs.set(e.pointerId, e);
+
+    if (this.evs.size > 2) return;
+
+    if (
+      this.evs.size === 2 &&
+      !dragLineSourceNode &&
+      moveNodeIds.length === 0
+    ) {
+      let e1: PointerEvent | undefined = undefined;
+      let e2: PointerEvent | undefined = undefined;
+
+      for (const x of this.evs.entries()) {
+        if (!e1) e1 = x[1];
+        else e2 = x[1];
+      }
+
+      if (!e1 || !e2) return;
+
+      const dx = e1.x - e2.x;
+      const dy = e1.y - e2.y;
+
+      const curDiff = dx * dx + dy * dy;
+
+      if (this.prevDiff > 0) {
+        const cx = (e1.x + e2.x) * 0.5;
+        const cy = (e1.y + e2.y) * 0.5;
+
+        this.view.viewPosFromWindowPos(this.vp, cx, cy);
+
+        const diff = curDiff - this.prevDiff;
+        this.view.zoomBy(diff * 0.00002, this.vp[0], this.vp[1]);
+
+        this.state.options.onViewZoom();
+      }
+
+      this.prevDiff = curDiff;
+    }
+
+    if (this.evs.size > 1) return;
+
     if (isMovingView && !dragLineSourceNode && moveNodeIds.length === 0) {
-      this.view.moveBy(dwx, dwy);
+      this.view.moveBy(e.movementX, e.movementY);
 
       return;
     }
 
-    this.view.viewPosFromWindowPos(this.vp, wx, wy);
+    this.view.viewPosFromWindowPos(this.vp, e.x, e.y);
 
     if (dragLineSourceNode) {
       this.state.dragLineX = this.vp[0];
@@ -65,147 +161,22 @@ export class GraphHandler<Node extends GraphNode, Edge extends GraphEdge> {
     this.view.endBatch(RedrawType.MOVE);
   };
 
-  handleMouseMove = (e: MouseEvent) => {
-    this.handleMove(e.movementX, e.movementY, e.x, e.y);
-  };
+  handlePointerUp = (e: PointerEvent) => {
+    this.evs.delete(e.pointerId);
 
-  handleMouseDown = (e: MouseEvent) => {
-    const { moveNodeIds } = this.state;
-
-    this.view.viewPosFromWindowPos(this.vp, e.x, e.y);
-
-    if (moveNodeIds.length === 0) {
-      this.checkHover();
-    }
-  };
-
-  handleTouchStart = (e: TouchEvent) => {
-    const { moveNodeIds } = this.state;
-
-    e.preventDefault();
-
-    const touch = e.targetTouches[0];
-
-    this.view.viewPosFromWindowPos(this.vp, touch.clientX, touch.clientY);
-
-    this.prev[0] = touch.clientX;
-    this.prev[1] = touch.clientY;
-
-    if (moveNodeIds.length === 0) {
-      this.checkHover();
-    }
-  };
-
-  handleTouchMove = (e: TouchEvent) => {
-    const touch = e.targetTouches[0];
-
-    const dx = touch.clientX - this.prev[0];
-    const dy = touch.clientY - this.prev[1];
-
-    this.prev[0] = touch.clientX;
-    this.prev[1] = touch.clientY;
-
-    this.handleMove(dx, dy, touch.clientX, touch.clientY);
-  };
-
-  pointerdownHandler = (ev: PointerEvent) => {
-    // The pointerdown event signals the start of a touch interaction.
-    // This event is cached to support 2-finger gestures
-    this.evCache.push(ev);
-  };
-
-  pointermoveHandler = (ev: PointerEvent) => {
-    // This function implements a 2-pointer horizontal pinch/zoom gesture.
-    //
-    // If the distance between the two pointers has increased (zoom in),
-    // the target element's background is changed to "pink" and if the
-    // distance is decreasing (zoom out), the color is changed to "lightblue".
-    //
-    // This function sets the target element's border to "dashed" to visually
-    // indicate the pointer's target received a move event.
-
-    // Find this event in the cache and update its record with this event
-    const index = this.evCache.findIndex(
-      cachedEv => cachedEv.pointerId === ev.pointerId
-    );
-    this.evCache[index] = ev;
-
-    // If two pointers are down, check for pinch gestures
-    if (this.evCache.length === 2) {
-      // Calculate the distance between the two pointers
-      const curDiff = Math.abs(
-        this.evCache[0].clientX - this.evCache[1].clientX
-      );
-
-      if (this.prevDiff > 0) {
-        const cx = (this.evCache[0].clientX + this.evCache[1].clientX) * 0.5;
-        const cy = (this.evCache[0].clientY + this.evCache[1].clientY) * 0.5;
-
-        this.view.viewPosFromWindowPos(this.vp, cx, cy);
-
-        if (curDiff > this.prevDiff) {
-          // The distance between the two pointers has increased
-
-          const diff = curDiff - this.prevDiff;
-
-          this.view.zoomBy(diff * 0.01, this.vp[0], this.vp[1]);
-        }
-        if (curDiff < this.prevDiff) {
-          // The distance between the two pointers has decreased
-
-          const diff = this.prevDiff - curDiff;
-
-          this.view.zoomBy(-diff * 0.01, this.vp[0], this.vp[1]);
-        }
-      }
-
-      // Cache the distance for the next move event
-      this.prevDiff = curDiff;
-    }
-  };
-
-  pointerupHandler = (ev: PointerEvent) => {
-    // Remove this pointer from the cache and reset the target's
-    // background and border
-    this.removeEvent(ev);
-    this.state.container.style.background = "white";
-    this.state.container.style.border = "1px solid black";
-
-    // If the number of pointers down is less than two then reset diff tracker
-    if (this.evCache.length < 2) {
+    if (this.evs.size < 2) {
       this.prevDiff = -1;
     }
+
+    this.view.endMoveView();
+    this.view.endMoveNodes();
+
+    const dragLineNodes = this.view.endDragLine();
+
+    if (dragLineNodes) {
+      this.state.options.onCreateEdge(dragLineNodes[0].id, dragLineNodes[1].id);
+    }
   };
-
-  removeEvent = (ev: PointerEvent) => {
-    // Remove this event from the target's cache
-    const index = this.evCache.findIndex(
-      cachedEv => cachedEv.pointerId === ev.pointerId
-    );
-    this.evCache.splice(index, 1);
-  };
-
-  private isEdgeHovered(x: number, y: number, edge: Edge): boolean {
-    const { edgeCtx, edgeData } = this.state;
-
-    const data = edgeData[edge.id];
-
-    if (!data.path || !data.linePath || !data.arrowPath) return false;
-
-    return (
-      edgeCtx.isPointInPath(data.path, x, y) ||
-      edgeCtx.isPointInStroke(data.linePath, x, y) ||
-      edgeCtx.isPointInPath(data.arrowPath, x, y)
-    );
-  }
-
-  private isNodeHovered(x: number, y: number, node: Node): boolean {
-    const { nodeCtx, nodeData } = this.state;
-
-    const data = nodeData[node.id];
-
-    return data.path ? nodeCtx.isPointInPath(data.path, x, y) : false;
-  }
 
   private checkHover = () => {
     const { nodes, edges } = this.state;
@@ -223,10 +194,16 @@ export class GraphHandler<Node extends GraphNode, Edge extends GraphEdge> {
     );
 
     for (const id of this.state.drawIds) {
-      if (nodes[id] && this.isNodeHovered(this.cp[0], this.cp[1], nodes[id]))
+      if (
+        nodes[id] &&
+        this.view.isNodeHovered(this.cp[0], this.cp[1], nodes[id])
+      )
         this.state.hoveredId = id;
 
-      if (edges[id] && this.isEdgeHovered(this.cp[0], this.cp[1], edges[id]))
+      if (
+        edges[id] &&
+        this.view.isEdgeHovered(this.cp[0], this.cp[1], edges[id])
+      )
         this.state.hoveredId = id;
     }
 
@@ -254,32 +231,39 @@ export class GraphHandler<Node extends GraphNode, Edge extends GraphEdge> {
   };
 
   handleWheel = (e: WheelEvent) => {
-    this.view.viewPosFromWindowPos(this.vp, e.x, e.y);
+    if (!this.view.modes.has(GraphMode.ZOOM)) return;
 
+    this.view.viewPosFromWindowPos(this.vp, e.x, e.y);
     this.view.zoomBy(-e.deltaY * 0.001, this.vp[0], this.vp[1]);
+
+    this.state.options.onViewZoom();
   };
 
   init() {
     const { container } = this.state;
 
-    container.addEventListener("mousedown", this.handleMouseDown);
-    container.addEventListener("mousemove", this.handleMouseMove);
-    container.addEventListener("touchstart", this.handleTouchStart);
-    container.addEventListener("touchmove", this.handleTouchMove);
-    container.addEventListener("wheel", this.handleWheel, { passive: true });
+    container.style.touchAction = "none";
 
-    container.addEventListener("pointerdown", this.pointerdownHandler);
-    container.addEventListener("pointermove", this.pointermoveHandler);
-    container.addEventListener("pointerup", this.pointerupHandler);
-    container.addEventListener("pointercancel", this.pointerupHandler);
-    container.addEventListener("pointerout", this.pointerupHandler);
-    container.addEventListener("pointerleave", this.pointerupHandler);
+    container.addEventListener("wheel", this.handleWheel, { passive: true });
+    container.addEventListener("pointerdown", this.handlePointerDown);
+    container.addEventListener("pointermove", this.handlePointerMove);
+    container.addEventListener("pointerup", this.handlePointerUp);
+    container.addEventListener("pointercancel", this.handlePointerUp);
+    container.addEventListener("pointerout", this.handlePointerUp);
+    container.addEventListener("pointerleave", this.handlePointerUp);
   }
 
   destroy() {
     const { container } = this.state;
 
-    container.removeEventListener("mousemove", this.handleMouseMove);
+    container.style.touchAction = "auto";
+
     container.removeEventListener("wheel", this.handleWheel);
+    container.removeEventListener("pointerdown", this.handlePointerDown);
+    container.removeEventListener("pointermove", this.handlePointerMove);
+    container.removeEventListener("pointerup", this.handlePointerUp);
+    container.removeEventListener("pointercancel", this.handlePointerUp);
+    container.removeEventListener("pointerout", this.handlePointerUp);
+    container.removeEventListener("pointerleave", this.handlePointerUp);
   }
 }

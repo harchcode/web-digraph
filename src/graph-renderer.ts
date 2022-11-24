@@ -1,15 +1,7 @@
 import { GraphState } from "./graph-state";
 import { GraphView } from "./graph-view";
-import { GraphEdge, GraphNode, GraphShape } from "./types";
+import { GraphEdge, GraphNode, GraphShape, RedrawType } from "./types";
 import { isLineInsideRect, lineIntersect, rectIntersect } from "./utils";
-
-export enum RedrawType {
-  ALL = 0,
-  NODES,
-  EDGES,
-  NODES_AND_EDGES,
-  MOVE
-}
 
 export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
   private state: GraphState<Node, Edge>;
