@@ -9,7 +9,7 @@ Initially, this library was basically a copy of [react-digraph](https://github.c
 ## Features
 
 - Built with Typescript.
-- Small size (at least compared to `react-digraph`, because of no D3 dependency, and much less features).
+- Small size (~8KB minified and gzipped, compared to `react-digraph` ~100KB minified and gzipped).
 - Imperative API and class-based (yes, this is a feature).
 - Touch input support.
 
@@ -24,159 +24,178 @@ npm install --save web-digraph
 - Import the GraphView class and needed types.
 
 ```js
-import { GEView, GEShapeTypes, GEShapeName, GENode, GEEdge } from "web-digraph";
+import {
+  createGraphView,
+  GraphEdge,
+  GraphMode,
+  GraphNode,
+  GraphView,
+  createEdgeShape,
+  createNodeShape,
+  defaultEdgeShape,
+  defaultNodeShape
+} from "web-digraph";
 ```
 
 - Define the node and edge types. I suggest putting this node and edge types definition in its own file because it may get long.
 
 ```js
-const nodeTypes = {
-  empty: [
-    {
-      shape: GEShapeName.CIRCLE,
-      r: 80
-    }
-  ],
-  complex: [
-    {
-      shape: GEShapeName.CIRCLE,
-      r: 80
-    },
-    {
-      shape: GEShapeName.CIRCLE,
-      r: 60,
-      color: "pink"
-    },
-    {
-      shape: GEShapeName.CIRCLE,
-      r: 40,
-      color: "white"
-    }
-  ]
-};
+const rectNodeShape = createNodeShape({
+  width: 160,
+  height: 120,
+  createPath: (x, y, w, h) => {
+    const p = new Path2D();
 
-const edgeTypes = {
-  normal: [
-    {
-      shape: GEShapeName.POLYGON,
-      points: [
-        [0, -25],
-        [25, 0],
-        [0, 25],
-        [-25, 0]
-      ]
-    }
-  ]
-};
+    p.rect(x - w * 0.5, y - h * 0.5, w, h);
+    p.closePath();
+
+    return p;
+  }
+});
+
+const starNodeShape = createNodeShape({
+  width: 218,
+  height: 205,
+  createPath: (x, y, w, h) => {
+    const p = new Path2D();
+
+    const l = x - w * 0.5;
+    const t = y - h * 0.5;
+
+    p.moveTo(l + 108, t + 0.0);
+    p.lineTo(l + 141, t + 70);
+    p.lineTo(l + 218, t + 78.3);
+    p.lineTo(l + 162, t + 131);
+    p.lineTo(l + 175, t + 205);
+    p.lineTo(l + 108, t + 170);
+    p.lineTo(l + 41.2, t + 205);
+    p.lineTo(l + 55, t + 131);
+    p.lineTo(l + 0, t + 78);
+    p.lineTo(l + 75, t + 68);
+    p.lineTo(l + 108, t + 0);
+    p.closePath();
+
+    return p;
+  }
+});
+
+const circleEdgeShape = createEdgeShape({
+  width: 48,
+  height: 48,
+  createPath: (x, y, w) => {
+    const p = new Path2D();
+
+    p.arc(x, y, w * 0.5, 0, 2 * Math.PI);
+    p.closePath();
+
+    return p;
+  }
+});
+
+const nodeShapes = [
+  defaultNodeShape,
+  rectNodeShape,
+  starNodeShape,
+  wowNodeShape
+];
+
+const edgeShapes = [defaultEdgeShape, circleEdgeShape];
 ```
 
-- Create a new instance of GEView class.
+- Create a new instance of GraphView class. The first parameter is the container, and second parameter is the options. Please see the example for the options' detail.
 
 ```js
-const graphView = new GEView();
-```
-
-- Set options. This is the minimal needed options needed for the graph to work properly. For the event handler (like `handleCreateNode`), see the example for detail.
-
-```js
-graphView.setOptions({
-  nodeTypes,
-  edgeTypes,
+const graphDiv = document.getElementById("graph-div");
+const graphView = new GraphView<GraphNode, GraphEdge>(graphDiv, {
+  width: 100000,
+  height: 100000,
+  minScale: 0.2,
+  maxScale: 3.0,
+  onViewZoom: handleViewZoom,
   onCreateNode: handleCreateNode,
-  onCreateEdge: handleCreateEdge,
-  onDeleteNode: handleDeleteNode,
-  onDeleteEdge: handleDeleteEdge,
-  onMoveNode: handleMoveNode
+  onCreateEdge: handleCreateEdge
 });
 ```
 
-- Init the graph view, passing it the parent element to put it into the dom.
+- Do some operations. See the example for more detail.
 
 ```js
-graphView.init(document.body);
+graphView.addNode(
+  {
+    id: 1,
+    x: 0
+    y: 0
+  },
+  nodeShapes[getRandomInt(0, nodeShapes.length)]
+);
 ```
 
 ## Options
 
 ```typescript
-edgeArrowLength: number;
-edgeArrowRadian: number;
-backgroundColor: string;
-showGrid: boolean;
-gridType: GEGridType;
-gridColor: string;
-gridLineWidth: number;
-gridGap: number;
-defaultSubShapeColor: string;
-nodeLineWidth: number;
-nodeColor: string;
-nodeSelectedColor: string;
-nodeStrokeColor: string;
-nodeTextColor: string;
-nodeSelectedTextColor: string;
-nodeTextStyle: string;
-edgeLineWidth: number;
-edgeLineColor: string;
-edgeLineSelectedColor: string;
-edgeShapeFillColor: string;
-edgeTextColor: string;
-edgeSelectedTextColor: string;
-edgeTextStyle: string;
+width: number;
+height: number;
+bgColor: string;
+bgDotColor: string;
+bgLineWidth: number;
+bgLineGap: number;
+bgShowDots: boolean;
+bgBorderWidth: number;
+bgBorderColor: string;
+bgOutboundColor: string;
 minScale: number;
 maxScale: number;
-cursorGrab: string;
-cursorPointer: string;
-cursorCrosshair: string;
-nodeTypes: GEShapeTypes;
-edgeTypes: GEShapeTypes;
-onViewMoved?: () => void;
-onViewZoom?: () => void;
-onCreateNode?: (x: number, y: number, evt: MouseEvent) => void;
-onMoveNode?: (node: GENode, newX: number, newY: number) => void;
-onDeleteNode?: (node: GENode) => void;
-onCreateEdge?: (
-  sourceNode: GENode,
-  targetNode: GENode,
-  evt: MouseEvent
-) => void;
-onDeleteEdge?: (edge: GEEdge, sourceNode: GENode, targetNode: GENode) => void;
-onSelectionChange?: (
-  selectedNode: GENode | undefined,
-  selectedEdge: GEEdge | undefined
-) => void;
-onHoverChange?: (
-  hoveredNode: GENode | undefined,
-  hoveredEdge: GEEdge | undefined,
-  viewX: number,
-  viewY: number,
-  canvasX: number,
-  canvasY: number,
-  clientX: number,
-  clientY: number
-) => void;
+edgeLineWidth: number;
+edgeLineColor: string;
+edgeArrowHeight: number;
+edgeArrowWidth: number;
+edgeShapeColor: string;
+edgeContentColor: string;
+edgeTextAlign: CanvasTextAlign;
+edgeTextBaseline: CanvasTextBaseline;
+edgeFont: string;
+edgeHoveredLineColor: string;
+edgeSelectedLineColor: string;
+edgeSelectedShapeColor: string;
+edgeSelectedContentColor: string;
+nodeLineWidth: number;
+nodeLineColor: string;
+nodeColor: string;
+nodeContentColor: string;
+nodeTextAlign: CanvasTextAlign;
+nodeTextBaseline: CanvasTextBaseline;
+nodeFont: string;
+nodeHoveredLineColor: string;
+nodeSelectedLineColor: string;
+nodeSelectedColor: string;
+nodeSelectedContentColor: string;
+onViewZoom: () => void;
+onCreateNode: (x: number, y: number) => void;
+onCreateEdge: (sourceId: number, targetId: number) => void;
 ```
 
-## GENode
+## GraphNode
 
-If you want to use your own Node data type, you can. Just make sure that your custom type have all the properties of GENode. The same also apply to GEEdge.
+If you want to use your own Node data type, you can. Just make sure that your custom type have all the properties of GraphNode. The same also apply to GraphEdge.
 
-| Prop   |   Type   | Required |                Notes                |
-| ------ | :------: | :------: | :---------------------------------: |
-| `id`   | `number` |  `true`  |     A unique identifier number.     |
-| `text` | `string` |  `true`  |      The text inside the node.      |
-| `x`    | `number` |  `true`  |      X coordinate of the node.      |
-| `y`    | `number` |  `true`  |      Y coordinate of the node.      |
-| `type` | `string` |  `true`  | Node type, for displaying the shape |
+| Prop |   Type   | Required |            Notes            |
+| ---- | :------: | :------: | :-------------------------: |
+| `id` | `number` |  `true`  | A unique identifier number. |
+| `x`  | `number` |  `true`  |  X coordinate of the node.  |
+| `y`  | `number` |  `true`  |  Y coordinate of the node.  |
 
-## GEEdge
+## GraphEdge
 
-| Prop         |   Type   | Required |                Notes                 |
-| ------------ | :------: | :------: | :----------------------------------: |
-| `id`         | `number` |  `true`  |     A unique identifier number.      |
-| `sourceNode` | `GENode` |  `true`  |        The source node object        |
-| `targetNode` | `GENode` |  `true`  |       The target node object.        |
-| `type`       | `string` |  `true`  | Edge type, for displaying the shape. |
-| `text`       | `string` |  `true`  |     Text to render on the edge.      |
+| Prop       |   Type   | Required |            Notes            |
+| ---------- | :------: | :------: | :-------------------------: |
+| `id`       | `number` |  `true`  | A unique identifier number. |
+| `sourceId` | `number` |  `true`  |     The source node id      |
+| `targetId` | `number` |  `true`  |     The target node id.     |
+
+## Notes
+
+- Nodes' and edges' ids must be unique or there will be unexpected behaviors.
+- Nodes' and edges' ids must be greater than 0.
 
 ## Limitations
 
@@ -184,11 +203,18 @@ If you want to use your own Node data type, you can. Just make sure that your cu
 
 ## FAQ
 
-**Q**: Why not just use react-digraph if this is basically an inferior version of react-digraph?  
-**A**: Size and performance are the main reasons. React-digraph depends on D3 and other dependencies, which make it heavy. Also they use react and svg, which is not performant when the nodes and edges count are really big. Try 1000 nodes on react-digraph's example and then try 999999 (i am not joking) nodes on web-digraph's example and you will see the difference.
+**Q**: Why not just use `react-digraph` if this is basically an inferior version of `react-digraph`?  
+**A**: Size and performance are the main reasons. `react-digraph` depends on D3 and other dependencies, which make it heavy. Also they use react and svg, which is not performant when the nodes and edges count are really big. Try 1000 nodes on react-digraph's example and then try 999999 (i am not joking) nodes on web-digraph's example and you will see the difference.
 
-**Q**: Why not use react?  
-**A**: I am not an expert on React. Never really liked React anyway, it's all just for the job. But I actually tried React first, with SVG. It ends up very slow on high node or edge count (maybe because of all the diffing and garbage created). Then I optimized it by using React.memo and update the component manually. It ends up looking just like imperative code, except far more complicated. So I decided to just throw React into the trash bin. And then after doing all that, I then found out about react-digraph and i feel like I just wasted my time. So I got angry and just go rewrite it without React, and use canvas to be cool and different.
+**Q**: Why no react?  
+**A**: There are some reasons for this:
 
-**Q**: Why not use D3?  
-**A**: I think we don't need any D3 feature to create this...
+- First, `react-digraph` already use React, so why should we do the same?
+- I am not a fan nor an expert of React. I just use React because of job's requirements xD
+- Well, actually I tried to use React at first xD But it is not performing as well as I wanted and the code becomes ugly very quick (maybe i am just not good with React). And I didn't even know about `react-digraph` at first. So after knowing about `react-digraph`, I immediately redo from scratch without React and copies `react-digraph`. xD
+
+**Q**: Is it production ready?  
+**A**: Not sure, maybe not. xD If you find any bugs, please let me know or create a PR. xD
+
+**Q**: There are some missing event that I need, like `onViewMoved`, `onHoverChange`, etc.
+**A**: Well, please let me know or create a PR. xD
