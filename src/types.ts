@@ -1,115 +1,200 @@
-export type Point = [number, number];
+import { noop } from "./utils";
 
-export enum GEShapeName {
-  CIRCLE,
-  RECTANGLE,
-  POLYGON
-}
-
-export type GECircleShape = {
-  shape: GEShapeName.CIRCLE;
-  r: number;
-  color?: string;
-};
-
-export type GERectangleShape = {
-  shape: GEShapeName.RECTANGLE;
-  width: number;
-  height: number;
-  color?: string;
-};
-
-export type GEPolygonShape = {
-  shape: GEShapeName.POLYGON;
-  points: Point[];
-  color?: string;
-};
-
-export type GEShape = GECircleShape | GERectangleShape | GEPolygonShape;
-
-export type GEShapes = { 0: GEShape } & GEShape[];
-
-export type GEShapeTypes = Record<string, GEShapes>;
-
-export type GENode = {
+export type GraphNode = {
   id: number;
   x: number;
   y: number;
-  text: string;
-  type: string;
 };
 
-export type GEEdge = {
+export type GraphEdge = {
   id: number;
-  text: string;
-  sourceNode: GENode;
-  targetNode: GENode;
-  type: string;
+  sourceId: number;
+  targetId: number;
 };
 
-export enum GEGridType {
-  LINES,
-  DOTS
+export enum GraphDataType {
+  NODE,
+  EDGE
 }
 
-export type GEViewOptions = {
-  edgeArrowLength: number;
-  edgeArrowRadian: number;
-  backgroundColor: string;
-  showGrid: boolean;
-  gridType: GEGridType;
-  gridColor: string;
-  gridLineWidth: number;
-  gridGap: number;
-  defaultSubShapeColor: string;
-  nodeLineWidth: number;
-  nodeColor: string;
-  nodeSelectedColor: string;
-  nodeStrokeColor: string;
-  nodeTextColor: string;
-  nodeSelectedTextColor: string;
-  nodeTextStyle: string;
-  edgeLineWidth: number;
-  edgeLineColor: string;
-  edgeLineSelectedColor: string;
-  edgeShapeFillColor: string;
-  edgeTextColor: string;
-  edgeSelectedTextColor: string;
-  edgeTextStyle: string;
-  minScale: number;
-  maxScale: number;
-  cursorGrab: string;
-  cursorPointer: string;
-  cursorCrosshair: string;
-  nodeTypes: GEShapeTypes;
-  edgeTypes: GEShapeTypes;
-  onViewMoved?: () => void;
-  onViewZoom?: () => void;
-  onCreateNode?: (x: number, y: number, evt: MouseEvent) => void;
-  onMoveNode?: (node: GENode, newX: number, newY: number) => void;
-  onDeleteNode?: (node: GENode) => void;
-  onCreateEdge?: (
-    sourceNode: GENode,
-    targetNode: GENode,
-    evt: MouseEvent
-  ) => void;
-  onDeleteEdge?: (edge: GEEdge, sourceNode: GENode, targetNode: GENode) => void;
-  onSelectionChange?: (
-    selectedNode: GENode | undefined,
-    selectedEdge: GEEdge | undefined
-  ) => void;
-  onHoverChange?: (
-    hoveredNode: GENode | undefined,
-    hoveredEdge: GEEdge | undefined,
-    viewX: number,
-    viewY: number,
-    canvasX: number,
-    canvasY: number,
-    clientX: number,
-    clientY: number
-  ) => void;
+export type NodeDrawData = {
+  type: GraphDataType.NODE;
+  sourceOfEdgeIds: Set<number>;
+  targetOfEdgeIds: Set<number>;
+  path?: Path2D;
+  shape: GraphShape;
 };
 
-export type GEViewOptionsParams = {
-  [T in keyof GEViewOptions]?: GEViewOptions[T];
+export type EdgeDrawData = {
+  type: GraphDataType.EDGE;
+  shape: GraphShape;
+  path?: Path2D;
+  linePath?: Path2D;
+  arrowPath?: Path2D;
+  lineSourceX?: number;
+  lineSourceY?: number;
+  lineTargetX?: number;
+  lineTargetY?: number;
+  shapeX?: number;
+  shapeY?: number;
+};
+
+export type GraphShape = {
+  width: number;
+  height: number;
+  drawContent: (
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    id: number
+  ) => void;
+  createPath: (
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    id: number
+  ) => Path2D;
+};
+
+export const defaultNodeShape: GraphShape = {
+  width: 160,
+  height: 160,
+  drawContent: (ctx, x, y, w, _h, id) => {
+    ctx.fillText(`Node ID: ${id}`, x, y, w);
+  },
+  createPath: (x, y, w) => {
+    const p = new Path2D();
+
+    p.arc(x, y, w * 0.5, 0, Math.PI * 2);
+    p.closePath();
+
+    return p;
+  }
+};
+
+export const defaultEdgeShape: GraphShape = {
+  width: 48,
+  height: 48,
+  drawContent: (ctx, x, y, w, _h, id) => {
+    ctx.fillText(id.toString(), x, y, w);
+  },
+  createPath: (x, y, w, h) => {
+    const wh = w * 0.5;
+    const hh = h * 0.5;
+
+    const p = new Path2D();
+
+    p.moveTo(x - wh, y);
+    p.lineTo(x, y + wh);
+    p.lineTo(x + wh, y);
+    p.lineTo(x, y - hh);
+    p.closePath();
+
+    return p;
+  }
+};
+
+export enum GraphMode {
+  MOVE_VIEW,
+  ZOOM,
+  MOVE_NODE,
+  CREATE_NODE,
+  CREATE_EDGE,
+  SELECT,
+  MULTISELECT
+}
+
+export enum RedrawType {
+  ALL = 0,
+  NODES,
+  EDGES,
+  NODES_AND_EDGES,
+  MOVE
+}
+
+export type GraphOptions = {
+  width: number;
+  height: number;
+  bgColor: string;
+  bgDotColor: string;
+  bgLineWidth: number;
+  bgLineGap: number;
+  bgShowDots: boolean;
+  bgBorderWidth: number;
+  bgBorderColor: string;
+  bgOutboundColor: string;
+  minScale: number;
+  maxScale: number;
+  edgeLineWidth: number;
+  edgeLineColor: string;
+  edgeArrowHeight: number;
+  edgeArrowWidth: number;
+  edgeShapeColor: string;
+  edgeContentColor: string;
+  edgeTextAlign: CanvasTextAlign;
+  edgeTextBaseline: CanvasTextBaseline;
+  edgeFont: string;
+  edgeHoveredLineColor: string;
+  edgeSelectedLineColor: string;
+  edgeSelectedShapeColor: string;
+  edgeSelectedContentColor: string;
+  nodeLineWidth: number;
+  nodeLineColor: string;
+  nodeColor: string;
+  nodeContentColor: string;
+  nodeTextAlign: CanvasTextAlign;
+  nodeTextBaseline: CanvasTextBaseline;
+  nodeFont: string;
+  nodeHoveredLineColor: string;
+  nodeSelectedLineColor: string;
+  nodeSelectedColor: string;
+  nodeSelectedContentColor: string;
+  onViewZoom: () => void;
+  onCreateNode: (x: number, y: number) => void;
+  onCreateEdge: (sourceId: number, targetId: number) => void;
+};
+
+export const defaultGraphOptions: GraphOptions = {
+  width: 10000,
+  height: 10000,
+  bgColor: "#f1f5f9",
+  bgDotColor: "#64748b",
+  bgLineWidth: 4,
+  bgLineGap: 64,
+  bgShowDots: true,
+  bgBorderWidth: 8,
+  bgBorderColor: "#0f172a",
+  bgOutboundColor: "#93c5fd",
+  minScale: 0.25,
+  maxScale: 10,
+  edgeLineColor: "black",
+  edgeLineWidth: 2,
+  edgeArrowHeight: 20,
+  edgeArrowWidth: 18,
+  edgeShapeColor: "white",
+  edgeContentColor: "black",
+  edgeTextAlign: "center",
+  edgeTextBaseline: "middle",
+  edgeFont: "16px sans-serif",
+  edgeHoveredLineColor: "#3b82f6",
+  edgeSelectedLineColor: "#2563eb",
+  edgeSelectedShapeColor: "#3b82f6",
+  edgeSelectedContentColor: "white",
+  nodeLineColor: "black",
+  nodeLineWidth: 2,
+  nodeColor: "white",
+  nodeContentColor: "black",
+  nodeTextAlign: "center",
+  nodeTextBaseline: "middle",
+  nodeFont: "16px sans-serif",
+  nodeHoveredLineColor: "#3b82f6",
+  nodeSelectedLineColor: "#2563eb",
+  nodeSelectedColor: "#3b82f6",
+  nodeSelectedContentColor: "white",
+  onViewZoom: noop,
+  onCreateNode: noop,
+  onCreateEdge: noop
 };

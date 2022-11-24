@@ -1,37 +1,76 @@
 {
   "name": "web-digraph",
-  "version": "0.1.0",
-  "description": "A web component to create directed graph editor.",
+  "version": "0.1.1",
+  "description": "A library to create directed graph editor on the web.",
+  "author": "Hartono Chandra",
   "repository": {
     "url": "https://github.com/harchcode/web-digraph"
   },
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "keywords": ["graph", "digraph"],
+  "main": "dist/web-digraph.umd.cjs",
+  "module": "dist/web-digraph.js",
   "license": "MIT",
+  "typings": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "import": "./dist/web-digraph.js",
+      "require": "./dist/web-digraph.umd.cjs"
+    }
+  },
+  "engines": {
+    "node": ">=14"
+  },
+  "type": "module",
+  "sideEffects": false,
   "scripts": {
-    "dev:example": "parcel src/example/index.html --port 1234 --hmr-port 1235",
-    "build:example": "rm -rf dist-example && parcel build src/example/index.html --out-dir dist-example",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "rm -rf dist && tsc src/index.ts --outDir dist --declaration",
-    "format": "prettier --write \"src/**/*.ts\" \"src/**/*.js\"",
-    "lint": "eslint './{src,test}/**/*.{js,ts}'"
+    "start": "vite",
+    "dev": "vite --host",
+    "preview": "BUILD_TYPE=example vite preview --host",
+    "build": "vite build && npm run build-typedef",
+    "build:example": "BUILD_TYPE=example vite build",
+    "build-typedef": "tsc ./src/vite-env.d.ts ./src/index.ts --declaration --emitDeclarationOnly --target ESNext --esModuleInterop --outDir dist",
+    "test": "vitest --coverage",
+    "lint": "eslint src test example",
+    "lint-staged": "lint-staged",
+    "prepare": "husky install",
+    "size": "size-limit",
+    "analyze": "size-limit --why",
+    "release": "standard-version"
   },
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^4.1.1",
-    "@typescript-eslint/parser": "^4.1.1",
-    "@webcomponents/custom-elements": "^1.4.2",
-    "eslint": "^7.9.0",
-    "eslint-config-prettier": "^6.11.0",
-    "eslint-plugin-prettier": "^3.1.4",
-    "husky": "^4.3.0",
-    "parcel-bundler": "^1.12.4",
-    "prettier": "^2.1.2",
-    "typescript": "^4.0.3"
+    "@size-limit/preset-small-lib": "^8.1.0",
+    "@types/node": "^18.11.7",
+    "@typescript-eslint/eslint-plugin": "^5.40.1",
+    "@typescript-eslint/parser": "^5.40.1",
+    "@vitest/coverage-c8": "^0.24.3",
+    "eslint": "^8.26.0",
+    "eslint-config-prettier": "^8.5.0",
+    "eslint-plugin-prettier": "^4.2.1",
+    "husky": "^8.0.1",
+    "jsdom": "^20.0.1",
+    "lint-staged": "^13.0.3",
+    "prettier": "^2.7.1",
+    "size-limit": "^8.1.0",
+    "standard-version": "^9.5.0",
+    "typescript": "^4.8.4",
+    "vite": "^3.2.1",
+    "vitest": "^0.24.3"
   },
-  "husky": {
-    "hooks": {
-      "pre-commit": "npm run lint"
+  "lint-staged": {
+    "{src,test,example}/**/*.{js,ts}": [
+      "eslint"
+    ]
+  },
+  "size-limit": [
+    {
+      "path": "dist/web-digraph.umd.cjs",
+      "limit": "10 KB"
+    },
+    {
+      "path": "dist/web-digraph.js",
+      "limit": "10 KB"
     }
-  }
+  ]
 }

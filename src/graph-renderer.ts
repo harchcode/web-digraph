@@ -1,548 +1,734 @@
-import {
-  GENode,
-  GEEdge,
-  GEGridType,
-  GEShapes,
-  GEShape,
-  GEShapeName
-} from "./types";
-import { GEState } from "./state";
-import {
-  intersectLineCircleCenter,
-  intersectLineRectCenter,
-  instersectLinePolygonCenter
-} from "./intersections";
+import { GraphState } from "./graph-state";
+import { GraphView } from "./graph-view";
+import { GraphEdge, GraphNode, GraphShape, RedrawType } from "./types";
+import { isLineInsideRect, lineIntersect, rectIntersect } from "./utils";
 
-const TEXT_ALIGN = "center";
-const TEXT_BASELINE = "middle";
-const LINE_CAP_ROUND = "round";
-const LINE_CAP_SQUARE = "square";
+export class GraphRenderer<Node extends GraphNode, Edge extends GraphEdge> {
+  private state: GraphState<Node, Edge>;
+  private view: GraphView<Node, Edge>;
 
-const tmpPoint: [number, number] = [0, 0];
+  private isDrawing = false;
+  private redrawType = RedrawType.ALL;
+  private cp: [number, number] = [0, 0];
 
-export class GEGraphRenderer {
-  state: GEState;
-  canvas: HTMLCanvasElement;
-  ctx: CanvasRenderingContext2D;
+  private moveEdgeIds = new Set<number>();
+  private exludeIds: Set<number> | undefined = new Set<number>();
 
-  constructor(view: GEState, canvas: HTMLCanvasElement) {
-    this.state = view;
-    this.canvas = canvas;
-    this.ctx = canvas.getContext("2d", { alpha: false });
+  constructor(view: GraphView<Node, Edge>, state: GraphState<Node, Edge>) {
+    this.view = view;
+    this.state = state;
   }
 
-  requestDraw(): void {
-    if (!this.state.isDrawing) {
-      requestAnimationFrame(this.draw);
+  requestDraw(redrawType = RedrawType.ALL, excludeIds?: Set<number>) {
+    if (!this.isDrawing) {
+      this.redrawType = redrawType;
+      this.exludeIds = excludeIds;
+
+      requestAnimationFrame(this.requestDrawHandler);
     }
 
-    this.state.isDrawing = true;
+    this.isDrawing = true;
   }
 
-  draw = (): void => {
-    this.state.isDrawing = false;
+  requestDrawHandler = () => {
+    this.isDrawing = false;
 
-    this.drawBackground();
-
-    this.ctx.transform(
-      this.state.scale,
-      0,
-      0,
-      this.state.scale,
-      this.state.translateX,
-      this.state.translateY
-    );
-
-    this.drawGraph();
-
-    this.ctx.resetTransform();
+    this.draw(this.redrawType, this.exludeIds);
   };
 
-  drawBackground(): void {
-    const { canvas, ctx } = this;
-    const { translateX, translateY, scale, options } = this.state;
+  applyClip(
+    ctx: CanvasRenderingContext2D,
+    dx: number,
+    dy: number,
+    dw: number,
+    dh: number
+  ) {
+    const { scale, translateX, translateY, viewX, viewY, viewW, viewH } =
+      this.state;
 
-    ctx.fillStyle = options.backgroundColor;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
+    ctx.save();
 
-    if (!options.showGrid) return;
+    ctx.setTransform(scale, 0, 0, scale, translateX, translateY);
 
-    const lw = options.gridLineWidth * scale;
-    const gap = options.gridGap * scale;
-
-    const offsetX = (translateX % gap) - lw;
-    const offsetY = (translateY % gap) - lw;
-
-    ctx.strokeStyle = options.gridColor;
-    ctx.lineWidth = lw;
-
-    if (options.gridType === GEGridType.DOTS) {
-      ctx.beginPath();
-
-      for (let i = offsetX; i < canvas.width + lw; i += gap) {
-        ctx.moveTo(i, offsetY);
-        ctx.lineTo(i, canvas.height + lw);
-      }
-
-      ctx.lineCap = LINE_CAP_ROUND;
-      ctx.setLineDash([0, gap]);
-      ctx.stroke();
-      ctx.setLineDash([0]);
-      ctx.lineCap = LINE_CAP_SQUARE;
-    } else {
-      ctx.beginPath();
-
-      for (let i = offsetX; i < canvas.width + lw; i += gap) {
-        ctx.moveTo(i, 0);
-        ctx.lineTo(i, canvas.height);
-      }
-
-      for (let i = offsetY; i < canvas.height + lw; i += gap) {
-        ctx.moveTo(0, i);
-        ctx.lineTo(canvas.width, i);
-      }
-
-      ctx.stroke();
-    }
-  }
-
-  drawGraph(): void {
-    const { nodes, edges, options } = this.state;
-
-    const prevhoveredNode = this.state.hoveredNode;
-    const prevhoveredEdge = this.state.hoveredEdge;
-
-    this.state.hoveredNode = undefined;
-    this.state.hoveredEdge = undefined;
-
-    edges.forEach(this.drawEdge);
-    this.drawDragLine();
-    nodes.forEach(this.drawNode);
-
-    // This event is done here because we are using canvas to check hover.
-    // Please let me know if there is a better way.
-    if (
-      !this.state.isMovingNode() &&
-      !this.state.isMovingView() &&
-      (this.state.hoveredNode !== prevhoveredNode ||
-        this.state.hoveredEdge !== prevhoveredEdge)
-    ) {
-      options.onHoverChange?.(
-        this.state.hoveredNode,
-        this.state.hoveredEdge,
-        this.state.pointerViewX,
-        this.state.pointerViewY,
-        this.state.pointerCanvasX,
-        this.state.pointerCanvasY,
-        this.state.pointerScreenX,
-        this.state.pointerScreenY
-      );
-    }
-  }
-
-  getShapeBound(shapes: GEShapes): number {
-    const shape = shapes[0];
-
-    if (shape.shape === GEShapeName.CIRCLE) return shape.r;
-    if (shape.shape === GEShapeName.RECTANGLE)
-      return Math.max(shape.width, shape.height);
-
-    let r = 0;
-
-    shape.points.forEach(p => {
-      r = Math.max(r, Math.max(p[0], p[1]));
-    });
-
-    return r;
-  }
-
-  isNodeOutOfView(node: GENode): boolean {
-    const { canvas } = this;
-    const { translateX, translateY, scale, options } = this.state;
-
-    const r = this.getShapeBound(options.nodeTypes[node.type]);
-
-    return (
-      (node.x + r) * scale + translateX < 0 ||
-      (node.y + r) * scale + translateY < 0 ||
-      (node.x - r) * scale + translateX > canvas.width ||
-      (node.y - r) * scale + translateY > canvas.height
-    );
-  }
-
-  isEdgeOutOfView(edge: GEEdge): boolean {
-    const { canvas } = this;
-    const { translateX, translateY, scale, options } = this.state;
-
-    const source = edge.sourceNode;
-    const target = edge.targetNode;
-
-    const sourceX = source.x * scale + translateX;
-    const sourceY = source.y * scale + translateY;
-    const targetX = target.x * scale + translateX;
-    const targetY = target.y * scale + translateY;
-
-    const r = this.getShapeBound(options.edgeTypes[edge.type]);
-
-    return (
-      (sourceX < -r && targetX < -r) ||
-      (sourceY < -r && targetY < -r) ||
-      (sourceX > canvas.width + r && targetX > canvas.width + r) ||
-      (sourceY > canvas.height + r && targetY > canvas.height + r)
-    );
-  }
-
-  shapePath = (x: number, y: number, shape: GEShape): void => {
-    const { ctx } = this;
-
-    if (shape.shape === GEShapeName.CIRCLE) {
-      ctx.arc(x, y, shape.r, 0, Math.PI * 2);
-    } else if (shape.shape === GEShapeName.RECTANGLE) {
-      ctx.rect(
-        x - shape.width * 0.5,
-        y - shape.height * 0.5,
-        shape.width,
-        shape.height
-      );
-    } else {
-      ctx.moveTo(x + shape.points[0][0], y + shape.points[0][1]);
-
-      for (let i = 1; i < shape.points.length; i++) {
-        ctx.lineTo(x + shape.points[i][0], y + shape.points[i][1]);
-      }
-
-      ctx.lineTo(x + shape.points[0][0], y + shape.points[0][1]);
-
-      ctx.closePath();
-    }
-  };
-
-  drawDragLine(): void {
-    if (!this.state.isCreatingEdge) return;
-
-    const { ctx } = this;
-    const { pointerViewX, pointerViewY, options } = this.state;
-
-    const targetX = pointerViewX;
-    const targetY = pointerViewY;
-
-    const source = this.state.dragLineSourceNode;
-    const dx = targetX - source.x;
-    const dy = targetY - source.y;
-
-    const rad = Math.atan2(dy, dx);
-    const sinr = Math.sin(rad);
-    const cosr = Math.cos(rad);
-
-    // calculate the start and end points of the line
-    const startX = source.x;
-    const startY = source.y;
-    const endX = targetX - cosr * 3;
-    const endY = targetY - sinr * 3;
-    const edgeLineOffset =
-      options.edgeArrowLength * Math.cos(options.edgeArrowRadian);
-    const lineEndX = targetX - cosr * edgeLineOffset;
-    const lineEndY = targetY - sinr * edgeLineOffset;
-
-    ctx.lineWidth = options.edgeLineWidth;
-
+    ctx.clearRect(viewX, viewY, viewW, viewH);
     ctx.beginPath();
-    ctx.moveTo(startX, startY);
-    ctx.lineTo(lineEndX, lineEndY);
-    ctx.moveTo(endX, endY);
-    ctx.lineTo(
-      endX - options.edgeArrowLength * Math.cos(rad - options.edgeArrowRadian),
-      endY - options.edgeArrowLength * Math.sin(rad - options.edgeArrowRadian)
-    );
-    ctx.lineTo(
-      endX - options.edgeArrowLength * Math.cos(rad + options.edgeArrowRadian),
-      endY - options.edgeArrowLength * Math.sin(rad + options.edgeArrowRadian)
-    );
-    ctx.lineTo(endX, endY);
-    ctx.closePath();
-
-    ctx.strokeStyle = options.edgeLineColor;
-    ctx.fillStyle = options.edgeLineColor;
-
-    ctx.stroke();
-    ctx.fill();
+    ctx.rect(dx, dy, dw, dh);
+    ctx.clip();
   }
 
-  getInstersectionPoint = (
-    sourceX: number,
-    sourceY: number,
-    targetX: number,
-    targetY: number,
-    shape: GEShape
-  ): [number, number] => {
-    if (shape.shape === GEShapeName.CIRCLE) {
-      const int = intersectLineCircleCenter(
-        sourceX,
-        sourceY,
-        targetX,
-        targetY,
-        shape.r,
-        tmpPoint
-      );
-
-      if (int) return tmpPoint;
-    } else if (shape.shape === GEShapeName.RECTANGLE) {
-      const int = intersectLineRectCenter(
-        sourceX,
-        sourceY,
-        targetX,
-        targetY,
-        shape.width,
-        shape.height,
-        tmpPoint
-      );
-
-      if (int) return tmpPoint;
-    } else {
-      const int = instersectLinePolygonCenter(
-        sourceX,
-        sourceY,
-        targetX,
-        targetY,
-        shape.points,
-        tmpPoint
-      );
-
-      if (int) return tmpPoint;
-    }
-
-    return [targetX, targetY];
-  };
-
-  drawSubShapes = (shapes: GEShapes, x: number, y: number): void => {
-    const { ctx } = this;
-    const { options } = this.state;
-
-    if (shapes.length <= 1) return;
-
-    for (let i = 1; i < shapes.length; i++) {
-      const sh = shapes[i];
-
-      ctx.beginPath();
-      this.shapePath(x, y, sh);
-
-      ctx.fillStyle = sh.color ? sh.color : options.defaultSubShapeColor;
-      ctx.fill();
-    }
-  };
-
-  drawSelectedShape = (
-    shape: GEShape,
-    x: number,
-    y: number,
-    color: string
-  ): void => {
-    const { ctx } = this;
-
-    ctx.beginPath();
-    this.shapePath(x, y, shape);
-    ctx.fillStyle = color;
-    ctx.globalAlpha = 0.8;
-    ctx.fill();
-    ctx.globalAlpha = 1.0;
-  };
-
-  drawNode = (node: GENode): void => {
-    if (this.isNodeOutOfView(node)) return;
-
-    const { ctx } = this;
+  applyTransform() {
     const {
-      pointerCanvasX,
-      pointerCanvasY,
-      options,
-      moveNodeX,
-      moveNodeY,
-      selectedNode
+      scale,
+      translateX,
+      translateY,
+      bgCtx,
+      nodeCtx,
+      moveEdgeCtx,
+      edgeCtx,
+      moveNodeCtx
     } = this.state;
 
-    const isMovingNode = this.state.isMovingNode() && selectedNode === node;
-    const x = isMovingNode ? moveNodeX : node.x;
-    const y = isMovingNode ? moveNodeY : node.y;
+    this.state.setView();
 
-    const shapes = options.nodeTypes[node.type];
+    const { options, viewX, viewY, viewW, viewH } = this.state;
 
-    ctx.strokeStyle = options.nodeStrokeColor;
+    const xt = -options.height * 0.5;
+    const xr = options.width * 0.5;
+    const xb = options.height * 0.5;
+    const xl = -options.width * 0.5;
+
+    const dl = Math.max(viewX, xl);
+    const dt = Math.max(viewY, xt);
+    const dr = Math.min(viewX + viewW, xr);
+    const db = Math.min(viewY + viewH, xb);
+
+    if (dl > viewX || dt > viewY || dr < viewX + viewW || db < viewY + viewH) {
+      bgCtx.setTransform(scale, 0, 0, scale, translateX, translateY);
+      this.applyClip(nodeCtx, dl, dt, dr - dl, db - dt);
+      this.applyClip(edgeCtx, dl, dt, dr - dl, db - dt);
+      this.applyClip(moveNodeCtx, dl, dt, dr - dl, db - dt);
+      this.applyClip(moveEdgeCtx, dl, dt, dr - dl, db - dt);
+    } else {
+      bgCtx.setTransform(scale, 0, 0, scale, translateX, translateY);
+      nodeCtx.setTransform(scale, 0, 0, scale, translateX, translateY);
+      moveEdgeCtx.setTransform(scale, 0, 0, scale, translateX, translateY);
+      edgeCtx.setTransform(scale, 0, 0, scale, translateX, translateY);
+      moveNodeCtx.setTransform(scale, 0, 0, scale, translateX, translateY);
+    }
+  }
+
+  draw = (
+    redrawType = RedrawType.ALL,
+    excludeIds?: Set<number>,
+    vx = this.state.viewX,
+    vy = this.state.viewY,
+    vw = this.state.viewW,
+    vh = this.state.viewH
+  ) => {
+    const { edgeCtx, nodeCtx, nodes, edges } = this.state;
+
+    if (redrawType === RedrawType.MOVE) {
+      this.drawMove();
+      return;
+    }
+
+    if (redrawType === RedrawType.ALL) this.drawBackground(vx, vy, vw, vh);
+
+    this.state.quad.getDataInRegion(vx, vy, vw, vh, this.state.drawIds);
+
+    if (redrawType !== RedrawType.EDGES) nodeCtx.clearRect(vx, vy, vw, vh);
+    if (redrawType !== RedrawType.NODES) edgeCtx.clearRect(vx, vy, vw, vh);
+
+    for (const id of this.state.drawIds) {
+      if (excludeIds && excludeIds.has(id)) continue;
+
+      if (redrawType !== RedrawType.EDGES && nodes[id])
+        this.drawNode(nodes[id], false, vx, vy, vw, vh);
+
+      if (redrawType !== RedrawType.NODES && edges[id])
+        this.drawEdge(edges[id], false, vx, vy, vw, vh);
+    }
+  };
+
+  drawMove = (
+    vx = this.state.viewX,
+    vy = this.state.viewY,
+    vw = this.state.viewW,
+    vh = this.state.viewH
+  ) => {
+    const { nodes, edges, nodeData, moveNodeCtx, moveEdgeCtx } = this.state;
+
+    moveNodeCtx.clearRect(vx, vy, vw, vh);
+    moveEdgeCtx.clearRect(vx, vy, vw, vh);
+
+    this.moveEdgeIds.clear();
+
+    for (const nodeId of this.state.moveNodeIds) {
+      const ndd = nodeData[nodeId];
+
+      for (const eid of ndd.sourceOfEdgeIds) {
+        this.moveEdgeIds.add(eid);
+      }
+
+      for (const eid of ndd.targetOfEdgeIds) {
+        this.moveEdgeIds.add(eid);
+      }
+    }
+
+    for (const id of this.moveEdgeIds) {
+      const edge = edges[id];
+
+      this.drawEdge(edge, true, vx, vy, vw, vh);
+    }
+
+    for (const id of this.state.moveNodeIds) {
+      const node = nodes[id];
+
+      this.drawNode(node, true, vx, vy, vw, vh);
+    }
+  };
+
+  drawNode(
+    node: Node,
+    isMove = false,
+    vx = this.state.viewX,
+    vy = this.state.viewY,
+    vw = this.state.viewW,
+    vh = this.state.viewH
+  ) {
+    const { nodeCtx, moveNodeCtx, options, nodeData } = this.state;
+
+    if (!this.isNodeInView(node, vx, vy, vw, vh)) return;
+
+    const ctx = isMove ? moveNodeCtx : nodeCtx;
+
+    const selected = this.state.selectedIds.has(node.id);
+    const hovered = this.state.hoveredId === node.id;
+
+    const data = nodeData[node.id];
+
+    // check is in view
+    const shape = data.shape;
+
+    // draw shape
+    ctx.strokeStyle = selected
+      ? options.nodeSelectedLineColor
+      : hovered
+      ? options.nodeHoveredLineColor
+      : options.nodeLineColor;
+    ctx.fillStyle = selected ? options.nodeSelectedColor : options.nodeColor;
     ctx.lineWidth = options.nodeLineWidth;
 
-    ctx.beginPath();
-    this.shapePath(x, y, shapes[0]);
-
-    if (ctx.isPointInPath(pointerCanvasX, pointerCanvasY)) {
-      this.state.hoveredNode = node;
+    if (!data.path) {
+      this.createNodePath(node);
     }
 
-    const selected = node === this.state.selectedNode;
-    const hovered = node === this.state.hoveredNode;
-
-    ctx.strokeStyle =
-      selected || hovered ? options.nodeSelectedColor : options.nodeStrokeColor;
-    ctx.fillStyle = shapes[0].color || options.nodeColor;
-
-    ctx.fill();
-    ctx.stroke();
-
-    this.drawSubShapes(shapes, x, y);
-
-    if (selected) {
-      this.drawSelectedShape(shapes[0], x, y, options.nodeSelectedColor);
+    if (data.path) {
+      ctx.fill(data.path);
+      ctx.stroke(data.path);
     }
 
-    if (selected) {
-      ctx.fillStyle = options.nodeSelectedTextColor;
-    } else {
-      ctx.fillStyle = options.nodeTextColor;
+    // draw content
+    ctx.fillStyle = selected
+      ? options.nodeSelectedContentColor
+      : options.nodeContentColor;
+    ctx.textAlign = options.nodeTextAlign;
+    ctx.textBaseline = options.nodeTextBaseline;
+    ctx.font = options.nodeFont;
+
+    shape.drawContent(ctx, node.x, node.y, shape.width, shape.height, node.id);
+  }
+
+  drawEdge(
+    edge: Edge,
+    isMove = false,
+    vx = this.state.viewX,
+    vy = this.state.viewY,
+    vw = this.state.viewW,
+    vh = this.state.viewH
+  ) {
+    const { edgeCtx, moveEdgeCtx, options, edgeData } = this.state;
+
+    const ctx = isMove ? moveEdgeCtx : edgeCtx;
+
+    const selected = this.state.selectedIds.has(edge.id);
+    const hovered = this.state.hoveredId === edge.id;
+
+    const data = edgeData[edge.id];
+
+    ctx.lineWidth = options.edgeLineWidth;
+    ctx.strokeStyle = selected
+      ? options.edgeSelectedLineColor
+      : hovered
+      ? options.edgeHoveredLineColor
+      : options.edgeLineColor;
+
+    // draw edge line
+    if (this.isEdgeLineInView(edge, vx, vy, vw, vh)) {
+      if (data.linePath) ctx.stroke(data.linePath);
     }
 
-    ctx.font = options.nodeTextStyle;
-    ctx.textAlign = TEXT_ALIGN;
-    ctx.textBaseline = TEXT_BASELINE;
+    // draw edge arrow
+    if (this.isEdgeArrowInView(edge, vx, vy, vw, vh)) {
+      ctx.fillStyle = selected
+        ? options.edgeSelectedLineColor
+        : hovered
+        ? options.edgeHoveredLineColor
+        : options.edgeLineColor;
 
-    ctx.fillText(node.text, x, y);
+      if (data.arrowPath) ctx.fill(data.arrowPath);
+    }
+
+    // draw shape and content
+    const shape = data.shape;
+
+    if (this.isEdgeShapeInView(edge, vx, vy, vw, vh)) {
+      if (!data.path || !data.shapeX || !data.shapeY) return;
+
+      // draw shape
+      ctx.fillStyle = selected
+        ? options.edgeSelectedShapeColor
+        : options.edgeShapeColor;
+
+      ctx.fill(data.path);
+      ctx.stroke(data.path);
+
+      // draw content
+      ctx.fillStyle = selected
+        ? options.edgeSelectedContentColor
+        : options.edgeContentColor;
+      ctx.textAlign = options.edgeTextAlign;
+      ctx.textBaseline = options.edgeTextBaseline;
+      ctx.font = options.edgeFont;
+
+      shape.drawContent(
+        ctx,
+        data.shapeX,
+        data.shapeY,
+        shape.width,
+        shape.height,
+        edge.id
+      );
+    }
+  }
+
+  drawBackground(
+    vx = this.state.viewX,
+    vy = this.state.viewY,
+    vw = this.state.viewW,
+    vh = this.state.viewH
+  ) {
+    const { bgCtx, options } = this.state;
+
+    const xt = -options.height * 0.5;
+    const xr = options.width * 0.5;
+    const xb = options.height * 0.5;
+    const xl = -options.width * 0.5;
+
+    const dl = Math.max(vx, xl);
+    const dt = Math.max(vy, xt);
+    const dr = Math.min(vx + vw, xr);
+    const db = Math.min(vy + vh, xb);
+
+    if (dl > vx || dt > vy || dr < vx + vw || db < vy + vh) {
+      bgCtx.fillStyle = options.bgOutboundColor;
+      bgCtx.fillRect(vx, vy, vw, vh);
+
+      bgCtx.fillStyle = options.bgBorderColor;
+      bgCtx.fillRect(
+        dl - options.bgBorderWidth,
+        dt - options.bgBorderWidth,
+        dr - dl + options.bgBorderWidth * 2,
+        db - dt + options.bgBorderWidth * 2
+      );
+    }
+
+    bgCtx.fillStyle = options.bgColor;
+    bgCtx.fillRect(dl, dt, dr - dl, db - dt);
+
+    if (!options.bgShowDots) return;
+
+    const lw = options.bgLineWidth;
+    const gap = options.bgLineGap;
+
+    bgCtx.strokeStyle = options.bgDotColor;
+    bgCtx.lineWidth = lw;
+
+    const bl = dl - lw * 0.5;
+    const br = dr + lw * 0.5;
+    const bt = dt - lw * 0.5;
+    const bb = db + lw * 0.5;
+
+    const ll = bl - (((bl % gap) - gap) % gap);
+    const lr = br - (((br % gap) + gap) % gap);
+    const lt = bt - (((bt % gap) - gap) % gap);
+    const lb = bb - (((bb % gap) + gap) % gap);
+
+    bgCtx.beginPath();
+
+    for (let i = ll; i <= lr; i += gap) {
+      bgCtx.moveTo(i, lt);
+      bgCtx.lineTo(i, lb + gap);
+    }
+
+    bgCtx.lineCap = "round";
+    bgCtx.setLineDash([0, gap]);
+    bgCtx.stroke();
+    bgCtx.setLineDash([]);
+    bgCtx.lineCap = "square";
+  }
+
+  clearDragLine = () => {
+    const { moveEdgeCtx, viewX, viewY, viewW, viewH } = this.state;
+    moveEdgeCtx.clearRect(viewX, viewY, viewW, viewH);
   };
 
-  drawEdge = (edge: GEEdge): void => {
-    if (this.isEdgeOutOfView(edge)) return;
+  isNodeInView(
+    node: Node,
+    vx = this.state.viewX,
+    vy = this.state.viewY,
+    vw = this.state.viewW,
+    vh = this.state.viewH
+  ) {
+    const { nodeData } = this.state;
 
-    const { ctx } = this;
-    const {
-      pointerCanvasX,
-      pointerCanvasY,
-      options,
-      selectedNode,
-      moveNodeX,
-      moveNodeY
-    } = this.state;
+    const { shape } = nodeData[node.id];
 
-    const source = edge.sourceNode;
-    const target = edge.targetNode;
+    return rectIntersect(
+      node.x - shape.width * 0.5,
+      node.y - shape.height * 0.5,
+      shape.width,
+      shape.height,
+      vx,
+      vy,
+      vw,
+      vh
+    );
+  }
 
-    const isMovingSourceNode =
-      this.state.isMovingNode() && source === selectedNode;
+  createNodePath(node: Node) {
+    const { nodeData } = this.state;
 
-    const sourceX = isMovingSourceNode ? moveNodeX : source.x;
-    const sourceY = isMovingSourceNode ? moveNodeY : source.y;
+    const data = nodeData[node.id];
 
-    const isMovingTargetNode =
-      this.state.isMovingNode() && target === selectedNode;
+    data.path = data.shape.createPath(
+      node.x,
+      node.y,
+      data.shape.width,
+      data.shape.height,
+      node.id
+    );
+  }
 
-    const targetX = isMovingTargetNode ? moveNodeX : target.x;
-    const targetY = isMovingTargetNode ? moveNodeY : target.y;
+  isEdgeInView(
+    edge: Edge,
+    vx = this.state.viewX,
+    vy = this.state.viewY,
+    vw = this.state.viewW,
+    vh = this.state.viewH
+  ) {
+    return (
+      this.isEdgeArrowInView(edge, vx, vy, vw, vh) ||
+      this.isEdgeLineInView(edge, vx, vy, vw, vh) ||
+      this.isEdgeShapeInView(edge, vx, vy, vw, vh)
+    );
+  }
 
-    const dx = targetX - sourceX;
-    const dy = targetY - sourceY;
+  isEdgeLineInView(
+    edge: Edge,
+    vx = this.state.viewX,
+    vy = this.state.viewY,
+    vw = this.state.viewW,
+    vh = this.state.viewH
+  ) {
+    const { options, edgeData } = this.state;
+
+    const data = edgeData[edge.id];
+
+    if (
+      data.lineSourceX === undefined ||
+      data.lineSourceY === undefined ||
+      data.lineTargetX === undefined ||
+      data.lineTargetY === undefined
+    )
+      this.createEdgePath(edge, data.shape);
+
+    if (
+      data.lineSourceX === undefined ||
+      data.lineSourceY === undefined ||
+      data.lineTargetX === undefined ||
+      data.lineTargetY === undefined
+    )
+      return;
+
+    const sx = data.lineSourceX;
+    const sy = data.lineSourceY;
+    const tx = data.lineTargetX;
+    const ty = data.lineTargetY;
+
+    const lsz = Math.max(options.edgeLineWidth, options.nodeLineWidth);
+    vx -= lsz;
+    vy -= lsz;
+    vw += lsz * 2;
+    vh += lsz * 2;
+
+    return (
+      isLineInsideRect(sx, sy, tx, ty, vx, vy, vw, vh) ||
+      lineIntersect(sx, sy, tx, ty, vx, vy, vx, vy + vh) ||
+      lineIntersect(sx, sy, tx, ty, vx, vy + vh, vx + vw, vy + vh) ||
+      lineIntersect(sx, sy, tx, ty, vx + vw, vy + vh, vx + vw, vy) ||
+      lineIntersect(sx, sy, tx, ty, vx + vw, vy, vx, vy)
+    );
+  }
+
+  isEdgeArrowInView(
+    edge: Edge,
+    vx = this.state.viewX,
+    vy = this.state.viewY,
+    vw = this.state.viewW,
+    vh = this.state.viewH
+  ) {
+    const { options, edgeData } = this.state;
+
+    const data = edgeData[edge.id];
+
+    if (data.lineTargetX === undefined || data.lineTargetY === undefined)
+      this.createEdgePath(edge, data.shape);
+    if (data.lineTargetX === undefined || data.lineTargetY === undefined)
+      return;
+
+    const tx = data.lineTargetX;
+    const ty = data.lineTargetY;
+
+    const lsz = Math.max(options.edgeLineWidth, options.nodeLineWidth);
+    vx -= lsz;
+    vy -= lsz;
+    vw += lsz * 2;
+    vh += lsz * 2;
+    const sz = Math.max(options.edgeArrowWidth, options.edgeArrowHeight);
+
+    return rectIntersect(tx - sz, ty - sz, sz * 2, sz * 2, vx, vy, vw, vh);
+  }
+
+  isEdgeShapeInView(
+    edge: Edge,
+    vx = this.state.viewX,
+    vy = this.state.viewY,
+    vw = this.state.viewW,
+    vh = this.state.viewH
+  ) {
+    const { options, edgeData } = this.state;
+
+    const data = edgeData[edge.id];
+
+    if (data.shapeX === undefined || data.shapeY === undefined)
+      this.createEdgePath(edge, data.shape);
+    if (data.shapeX === undefined || data.shapeY === undefined) return;
+
+    const lsz = Math.max(options.edgeLineWidth, options.nodeLineWidth);
+    vx -= lsz;
+    vy -= lsz;
+    vw += lsz * 2;
+    vh += lsz * 2;
+
+    const shape = data.shape;
+
+    return rectIntersect(
+      data.shapeX - shape.width * 0.5,
+      data.shapeY - shape.height * 0.5,
+      shape.width,
+      shape.height,
+      vx,
+      vy,
+      vw,
+      vh
+    );
+  }
+
+  createEdgePath(edge: Edge, shape: GraphShape) {
+    const { options, nodes, nodeData, edgeData } = this.state;
+    const { sourceId, targetId } = edge;
+
+    const source = nodes[sourceId];
+    const sourceData = nodeData[sourceId];
+
+    const target = nodes[targetId];
+    const targetData = nodeData[targetId];
+
+    if (!sourceData.path) this.createNodePath(source);
+    if (!targetData.path) this.createNodePath(target);
+
+    if (!sourceData.path) return;
+    if (!targetData.path) return;
+
+    const dx = target.x - source.x;
+    const dy = target.y - source.y;
 
     const rad = Math.atan2(dy, dx);
     const sinr = Math.sin(rad);
     const cosr = Math.cos(rad);
 
-    // calculate the start and end points of the line
-    const [startX, startY] = this.getInstersectionPoint(
-      targetX,
-      targetY,
-      sourceX,
-      sourceY,
-      options.nodeTypes[source.type][0]
+    const sip = this.getIntersectionPoint(
+      target.x,
+      target.y,
+      source.x,
+      source.y,
+      sourceData.path
     );
-    const [endX0, endY0] = this.getInstersectionPoint(
-      sourceX,
-      sourceY,
-      targetX,
-      targetY,
-      options.nodeTypes[target.type][0]
+    const lineSourceX =
+      target.x - sip * dx + options.nodeLineWidth * cosr * 0.5;
+    const lineSourceY =
+      target.y - sip * dy + options.nodeLineWidth * sinr * 0.5;
+
+    const tip = this.getIntersectionPoint(
+      source.x,
+      source.y,
+      target.x,
+      target.y,
+      targetData.path
+    );
+    const lineTargetX =
+      source.x + tip * dx - options.nodeLineWidth * cosr * 0.5;
+    const lineTargetY =
+      source.y + tip * dy - options.nodeLineWidth * sinr * 0.5;
+
+    const shapeX =
+      (lineSourceX + lineTargetX - options.edgeArrowHeight * cosr) * 0.5;
+    const shapeY =
+      (lineSourceY + lineTargetY - options.edgeArrowHeight * sinr) * 0.5;
+
+    const path = shape.createPath(
+      shapeX,
+      shapeY,
+      shape.width,
+      shape.height,
+      edge.id
     );
 
-    const endX = endX0 - cosr * 3;
-    const endY = endY0 - sinr * 3;
-    const edgeLineOffset =
-      options.edgeArrowLength * Math.cos(options.edgeArrowRadian);
-    const lineEndX = endX - cosr * edgeLineOffset;
-    const lineEndY = endY - sinr * edgeLineOffset;
-
-    ctx.lineWidth = options.edgeLineWidth;
-
-    const midX = (startX + endX) * 0.5;
-    const midY = (startY + endY) * 0.5;
-
-    // this is just to check if the rect is hovered
-    ctx.beginPath();
-    this.shapePath(midX, midY, options.edgeTypes[edge.type][0]);
-
-    if (
-      ctx.isPointInPath(pointerCanvasX, pointerCanvasY) ||
-      ctx.isPointInStroke(pointerCanvasX, pointerCanvasY)
-    ) {
-      this.state.hoveredEdge = edge;
-    }
-
-    ctx.beginPath();
-    ctx.moveTo(startX, startY);
-    ctx.lineTo(lineEndX, lineEndY);
-    ctx.moveTo(endX, endY);
-    ctx.lineTo(
-      endX - options.edgeArrowLength * Math.cos(rad - options.edgeArrowRadian),
-      endY - options.edgeArrowLength * Math.sin(rad - options.edgeArrowRadian)
+    const linePath = this.createEdgeLinePath(
+      lineSourceX,
+      lineSourceY,
+      lineTargetX - options.edgeArrowHeight * cosr,
+      lineTargetY - options.edgeArrowHeight * sinr
     );
-    ctx.lineTo(
-      endX - options.edgeArrowLength * Math.cos(rad + options.edgeArrowRadian),
-      endY - options.edgeArrowLength * Math.sin(rad + options.edgeArrowRadian)
+
+    const arrowPath = this.createEdgeArrowPath(
+      lineTargetX,
+      lineTargetY,
+      sinr,
+      cosr
     );
-    ctx.lineTo(endX, endY);
-    ctx.closePath();
 
-    if (
-      ctx.isPointInPath(pointerCanvasX, pointerCanvasY) ||
-      ctx.isPointInStroke(pointerCanvasX, pointerCanvasY)
-    ) {
-      this.state.hoveredEdge = edge;
+    const data = edgeData[edge.id];
+
+    data.path = path;
+    data.linePath = linePath;
+    data.arrowPath = arrowPath;
+    data.lineSourceX = lineSourceX;
+    data.lineSourceY = lineSourceY;
+    data.lineTargetX = lineTargetX;
+    data.lineTargetY = lineTargetY;
+    data.shapeX = shapeX;
+    data.shapeY = shapeY;
+  }
+
+  createEdgeLinePath(sx: number, sy: number, tx: number, ty: number) {
+    const p = new Path2D();
+
+    p.moveTo(sx, sy);
+    p.lineTo(tx, ty);
+
+    return p;
+  }
+
+  createEdgeArrowPath(ix: number, iy: number, sinr: number, cosr: number) {
+    const { options } = this.state;
+
+    const ll = options.edgeArrowWidth * 0.5;
+    const lsx = ix - options.edgeArrowHeight * cosr;
+    const lsy = iy - options.edgeArrowHeight * sinr;
+    const lp1x = lsx + ll * sinr;
+    const lp1y = lsy - ll * cosr;
+    const lp2x = lsx - ll * sinr;
+    const lp2y = lsy + ll * cosr;
+
+    const p = new Path2D();
+
+    p.moveTo(ix, iy);
+    p.lineTo(lp1x, lp1y);
+    p.lineTo(lp2x, lp2y);
+    p.closePath();
+
+    return p;
+  }
+
+  getIntersectionPoint(
+    sx: number,
+    sy: number,
+    tx: number,
+    ty: number,
+    path: Path2D
+  ) {
+    const { bgCtx } = this.state;
+
+    const dx = tx - sx;
+    const dy = ty - sy;
+
+    const e = (Math.abs(dx) + Math.abs(dy)) | 0;
+
+    let start = 0;
+    let end = e;
+
+    while (start <= end) {
+      const mid = ((start + end) / 2) | 0;
+
+      const x = sx + (mid / e) * dx;
+      const y = sy + (mid / e) * dy;
+
+      this.view.canvasPosFromViewPos(this.cp, x, y);
+
+      if (bgCtx.isPointInPath(path, this.cp[0], this.cp[1])) {
+        end = mid - 1;
+      } else {
+        start = mid + 1;
+      }
     }
 
-    const selected = edge === this.state.selectedEdge;
-    const hovered = edge === this.state.hoveredEdge;
-    const shapes = options.edgeTypes[edge.type];
+    return start / e;
+  }
 
-    if (selected || hovered) {
-      ctx.strokeStyle = options.edgeLineSelectedColor;
-      ctx.fillStyle = options.edgeLineSelectedColor;
-    } else {
-      ctx.strokeStyle = options.edgeLineColor;
-      ctx.fillStyle = options.edgeLineColor;
-    }
+  drawDragLine = () => {
+    const {
+      moveEdgeCtx,
+      options,
+      dragLineSourceNode,
+      dragLineX,
+      dragLineY,
+      viewX,
+      viewY,
+      viewW,
+      viewH
+    } = this.state;
 
-    ctx.stroke();
-    ctx.fill();
+    if (!dragLineSourceNode) return;
 
-    ctx.beginPath();
-    this.shapePath(midX, midY, shapes[0]);
+    moveEdgeCtx.clearRect(viewX, viewY, viewW, viewH);
 
-    ctx.fillStyle = shapes[0].color || options.edgeShapeFillColor;
+    const sx = dragLineSourceNode.x;
+    const sy = dragLineSourceNode.y;
+    const tx = dragLineX;
+    const ty = dragLineY;
 
-    ctx.fill();
-    ctx.stroke();
+    const dx = tx - sx;
+    const dy = ty - sy;
 
-    this.drawSubShapes(shapes, midX, midY);
+    const rad = Math.atan2(dy, dx);
+    const sinr = Math.sin(rad);
+    const cosr = Math.cos(rad);
 
-    if (selected) {
-      this.drawSelectedShape(
-        shapes[0],
-        midX,
-        midY,
-        options.edgeLineSelectedColor
-      );
-    }
+    const ll = options.edgeArrowWidth * 0.5;
+    const lsx = tx - options.edgeArrowHeight * cosr;
+    const lsy = ty - options.edgeArrowHeight * sinr;
+    const lp1x = lsx + ll * sinr;
+    const lp1y = lsy - ll * cosr;
+    const lp2x = lsx - ll * sinr;
+    const lp2y = lsy + ll * cosr;
 
-    if (selected) {
-      ctx.fillStyle = options.edgeSelectedTextColor;
-    } else {
-      ctx.fillStyle = options.edgeTextColor;
-    }
-    ctx.font = options.edgeTextStyle;
-    ctx.textAlign = TEXT_ALIGN;
-    ctx.textBaseline = TEXT_BASELINE;
-    ctx.fillText(edge.text, midX, midY);
+    moveEdgeCtx.lineWidth = options.edgeLineWidth;
+    moveEdgeCtx.strokeStyle = options.edgeLineColor;
+    moveEdgeCtx.fillStyle = options.edgeLineColor;
+
+    moveEdgeCtx.beginPath();
+    moveEdgeCtx.moveTo(sx, sy);
+    moveEdgeCtx.lineTo(tx, ty);
+    moveEdgeCtx.stroke();
+
+    moveEdgeCtx.beginPath();
+    moveEdgeCtx.moveTo(tx, ty);
+    moveEdgeCtx.lineTo(lp1x, lp1y);
+    moveEdgeCtx.lineTo(lp2x, lp2y);
+    moveEdgeCtx.closePath();
+    moveEdgeCtx.fill();
   };
 }

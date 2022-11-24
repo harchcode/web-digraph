@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Library to create a directed graph editor."
+    />
+
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        font-size: 16px;
+        overflow: hidden;
+      }
+
+      body,
+      div,
+      input,
+      button {
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      .full {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+      }
+
+      .action-button {
+        padding: 0.5rem 1rem;
+        cursor: pointer;
+        width: 8rem;
+        background-color: white;
+        border: 1px solid black;
+      }
+
+      .action-button.active {
+        background-color: black;
+        color: white;
+      }
+    </style>
+
+    <title>Web Digraph example</title>
+  </head>
+  <body>
+    <div id="graph" class="full" style="background-color: cornflowerblue"></div>
+
+    <div style="position: absolute; top: 1rem; left: 1rem">
+      <div>
+        <input
+          id="node-count-input"
+          type="text"
+          value="100"
+          maxlength="6"
+          style="padding: 0.5rem; width: 5rem; text-align: right"
+          aria-label="Node Count"
+        />
+        <button
+          id="generate-button"
+          type="button"
+          class="action-button"
+          style="width: 6rem"
+        >
+          Generate
+        </button>
+      </div>
+    </div>
+
+    <div style="position: absolute; top: 4rem; left: 1rem">
+      <div>
+        <input
+          id="zoom-slider"
+          type="range"
+          title="Zoom range slider"
+          min="0.2"
+          max="3.0"
+          step="0.01"
+          value="1.0"
+        />
+      </div>
+
+      <div style="margin-top: 1rem">
+        <div>
+          <button
+            id="toggle-mode-button"
+            type="button"
+            class="action-button"
+            title="Toggle create mode for creating nodes and edges"
+          >
+            Create Mode
+          </button>
+        </div>
+        <div style="margin-top: 1rem">
+          <button
+            id="toggle-multiselect-button"
+            type="button"
+            class="action-button"
+            title="Toggle multiple selection"
+          >
+            Multi-select
+          </button>
+        </div>
+        <div style="margin-top: 1rem">
+          <button id="delete-button" type="button" class="action-button">
+            Delete selected
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      style="
+        position: absolute;
+        bottom: 1rem;
+        left: 1rem;
+        -webkit-text-stroke: 1px white;
+        font-size: 1.2rem;
+        font-weight: bold;
+      "
+    >
+      <div>Node count: <span id="node-count-text">0</span></div>
+      <div>Edge count: <span id="edge-count-text">0</span></div>
+    </div>
+
+    <script type="module" src="/example/index.ts"></script>
+  </body>
+</html>

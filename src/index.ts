@@ -1,2 +1,2 @@
-export * from "./types";
 export * from "./graph-view";
+export * from "./types";
