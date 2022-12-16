@@ -4,7 +4,7 @@
 
 ## Overview
 
-Initially, this library was basically a copy of [react-digraph](https://github.com/uber/react-digraph), but with less features, less polished, and less everything. but using canvas instead of svg for rendering, and also not using react, because we love imperative things. React is for the weak.
+This is a library for creating a simple directed graph. It is heavily inspired by [react-digraph](https://github.com/uber/react-digraph), but with less features, less polished, and less everything, but using canvas instead of svg for rendering, and also not using react, because we love imperative things. React is for the weak! (just kidding xD)
 
 ## Features
 
