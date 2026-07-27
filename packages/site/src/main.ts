@@ -4,6 +4,10 @@ document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
   <div style="font-family: sans-serif; padding: 20px;">
     <h2>Web Digraph - Step 1</h2>
     <p>We should see two default rectangular nodes below:</p>
+    <div style="margin-bottom: 12px; display: flex; gap: 8px;">
+      <input id="node-count" type="number" value="100" style="padding: 8px; font-size: 14px; width: 100px;" />
+      <button id="btn-generate" style="padding: 8px 16px; font-size: 14px; cursor: pointer;">Generate Grid</button>
+    </div>
     <canvas id="graph-canvas" width="800" height="600" style="border: 1px solid #ddd; background-color: #fafafa; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);"></canvas>
   </div>
 `;
@@ -91,24 +95,34 @@ const stopPanning = (e: PointerEvent) => {
 canvas.addEventListener("pointerup", stopPanning);
 canvas.addEventListener("pointercancel", stopPanning);
 
-// 7. Testing 10k nodes
-const btn = document.createElement("button");
-btn.innerText = "Spawn 10k Nodes";
-btn.style.position = "absolute";
-btn.style.top = "10px";
-btn.style.left = "10px";
-btn.style.padding = "10px 20px";
-btn.style.fontSize = "16px";
-btn.style.zIndex = "100";
-btn.style.cursor = "pointer";
-document.body.appendChild(btn);
+// 7. Dynamic Spawner UI
+const input = document.getElementById("node-count") as HTMLInputElement;
+const btn = document.getElementById("btn-generate") as HTMLButtonElement;
 
 btn.addEventListener("click", () => {
-  for (let i = 0; i < 1000000; i++) {
-    const x = Math.random() * 100000 - 50000;
-    const y = Math.random() * 100000 - 50000;
-    renderer.addNode(x, y, defaultShape);
+  const count = parseInt(input.value, 10) || 0;
+  if (count <= 0) return;
+
+  console.log(`Spawning ${count} nodes...`);
+  const nodeIds: number[] = [];
+  const cols = Math.ceil(Math.sqrt(count));
+  const spacing = 150; // spacing between nodes
+
+  for (let i = 0; i < count; i++) {
+    const row = Math.floor(i / cols);
+    const col = i % cols;
+    const x = col * spacing;
+    const y = row * spacing;
+    nodeIds.push(renderer.addNode(x, y, defaultShape));
   }
+
+  // Edges connect to the next node sequentially
+  for (let i = 0; i < count - 1; i++) {
+    renderer.addEdge(nodeIds[i], nodeIds[i + 1], circleShape);
+  }
+
   renderer.flush();
-  console.log("Spawned 10,000 nodes!");
+  console.log(
+    `Spawned ${count} nodes in a ${cols}x${Math.ceil(count / cols)} grid!`
+  );
 });
