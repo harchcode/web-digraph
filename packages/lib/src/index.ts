@@ -4,7 +4,8 @@ import type {
   GraphShape,
   GraphNode,
   GraphEdge,
-  Pos
+  Pos,
+  GraphOptions
 } from "./types.js";
 
 export * from "./types.js";
@@ -14,7 +15,7 @@ function generateId(): number {
   return nextId++;
 }
 
-export function createGraphRenderer(_options?: any): GraphRenderer {
+export function createGraphRenderer(options?: GraphOptions): GraphRenderer {
   const nodes: Record<number, GraphNode> = {};
   const edges: Record<number, GraphEdge> = {};
   let canvas: HTMLCanvasElement | null = null;
@@ -143,6 +144,35 @@ export function createGraphRenderer(_options?: any): GraphRenderer {
       ctx.save();
       ctx.translate(cameraX, cameraY);
       ctx.scale(zoom, zoom);
+
+      if (options?.drawGrid) {
+        const gridSize = options.gridSize ?? 50;
+        const dpr = window.devicePixelRatio || 1;
+        const logicalWidth = canvas.width / dpr;
+        const logicalHeight = canvas.height / dpr;
+
+        const left = -cameraX / zoom;
+        const top = -cameraY / zoom;
+        const right = left + logicalWidth / zoom;
+        const bottom = top + logicalHeight / zoom;
+
+        const startX = Math.floor(left / gridSize) * gridSize;
+        const startY = Math.floor(top / gridSize) * gridSize;
+
+        ctx.beginPath();
+        for (let x = startX; x < right; x += gridSize) {
+          ctx.moveTo(x, top);
+          ctx.lineTo(x, bottom);
+        }
+        for (let y = startY; y < bottom; y += gridSize) {
+          ctx.moveTo(left, y);
+          ctx.lineTo(right, y);
+        }
+
+        ctx.lineWidth = 1 / zoom;
+        ctx.strokeStyle = "#e8e8e8";
+        ctx.stroke();
+      }
 
       // Draw all nodes
       for (const nodeId in nodes) {

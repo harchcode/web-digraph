@@ -11,7 +11,7 @@ document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
 const canvas = document.getElementById("graph-canvas") as HTMLCanvasElement;
 
 // 1. Create renderer
-const renderer = createGraphRenderer();
+const renderer = createGraphRenderer({ drawGrid: true });
 
 // 2. Mount to canvas
 renderer.mount(canvas);

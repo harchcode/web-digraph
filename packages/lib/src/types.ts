@@ -1,5 +1,10 @@
 export type Pos = { x: number; y: number };
 
+export type GraphOptions = {
+  drawGrid?: boolean;
+  gridSize?: number;
+};
+
 export type GraphShape = {
   w: number;
   h: number;
