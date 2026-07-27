@@ -83,10 +83,7 @@ export function createGraphRenderer(
       const px = cx + (mid / e) * dx;
       const py = cy + (mid / e) * dy;
 
-      const sx = ((px - cameraX) * zoom + halfWidth) * dpr;
-      const sy = ((py - cameraY) * zoom + halfHeight) * dpr;
-
-      if (ctx!.isPointInPath(path, sx, sy)) {
+      if (ctx!.isPointInPath(path, px * dpr, py * dpr)) {
         // Inside the shape, so boundary is further towards source (ox, oy)
         start = mid + 1;
       } else {
@@ -119,6 +116,71 @@ export function createGraphRenderer(
     }
     node.cells = [];
   };
+
+  function updateEdgeGeometry(edgeId: number) {
+    const edge = edges[edgeId];
+    if (!edge) return;
+    const sourceNode = nodes[edge.source];
+    const targetNode = nodes[edge.target];
+    if (!sourceNode || !targetNode) return;
+
+    const targetIntersection = getBoundaryIntersection(
+      targetNode.path,
+      targetNode.x,
+      targetNode.y,
+      sourceNode.x,
+      sourceNode.y
+    );
+
+    const dx = targetIntersection.x - sourceNode.x;
+    const dy = targetIntersection.y - sourceNode.y;
+    const angle = Math.atan2(dy, dx);
+    const arrowSize = 10;
+
+    const lineEndX = targetIntersection.x - Math.cos(angle) * (arrowSize - 2);
+    const lineEndY = targetIntersection.y - Math.sin(angle) * (arrowSize - 2);
+
+    edge.line.sx = sourceNode.x;
+    edge.line.sy = sourceNode.y;
+    edge.line.tx = lineEndX;
+    edge.line.ty = lineEndY;
+    edge.line.path = new Path2D();
+    edge.line.path.moveTo(edge.line.sx, edge.line.sy);
+    edge.line.path.lineTo(edge.line.tx, edge.line.ty);
+
+    edge.arrow.x = targetIntersection.x;
+    edge.arrow.y = targetIntersection.y;
+    edge.arrow.angle = angle;
+    edge.arrow.path = new Path2D();
+
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    const rotatePoint = (lx: number, ly: number) => ({
+      x: edge.arrow.x + (lx * cos - ly * sin),
+      y: edge.arrow.y + (lx * sin + ly * cos)
+    });
+
+    const p1 = rotatePoint(0, 0);
+    const p2 = rotatePoint(-arrowSize, -arrowSize / 2);
+    const p3 = rotatePoint(-arrowSize, arrowSize / 2);
+
+    edge.arrow.path.moveTo(p1.x, p1.y);
+    edge.arrow.path.lineTo(p2.x, p2.y);
+    edge.arrow.path.lineTo(p3.x, p3.y);
+    edge.arrow.path.closePath();
+
+    if (edge.label) {
+      edge.label.x = (sourceNode.x + targetIntersection.x) / 2;
+      edge.label.y = (sourceNode.y + targetIntersection.y) / 2;
+      edge.label.path = edge.label.shape.createPath(
+        edge.label.x,
+        edge.label.y,
+        edge.label.shape.w,
+        edge.label.shape.h,
+        edge.id
+      );
+    }
+  }
 
   return {
     nodes,
@@ -201,6 +263,8 @@ export function createGraphRenderer(
       if (nodes[sourceId]) nodes[sourceId].outgoingEdges.add(edgeId);
       if (nodes[targetId]) nodes[targetId].incomingEdges.add(edgeId);
 
+      updateEdgeGeometry(edgeId);
+
       return edgeId;
     },
 
@@ -218,6 +282,9 @@ export function createGraphRenderer(
         node.id
       );
       insertNodeToGrid(node);
+
+      for (const edgeId of node.incomingEdges) updateEdgeGeometry(edgeId);
+      for (const edgeId of node.outgoingEdges) updateEdgeGeometry(edgeId);
     },
     moveNodeBy(id: number, dx: number, dy: number) {
       const node = nodes[id];
@@ -233,6 +300,9 @@ export function createGraphRenderer(
         node.id
       );
       insertNodeToGrid(node);
+
+      for (const edgeId of node.incomingEdges) updateEdgeGeometry(edgeId);
+      for (const edgeId of node.outgoingEdges) updateEdgeGeometry(edgeId);
     },
     removeItem(_id: number) {},
     removeNode(id: number) {
@@ -374,41 +444,22 @@ export function createGraphRenderer(
             continue;
           }
 
-          const targetIntersection = getBoundaryIntersection(
-            targetNode.path,
-            targetNode.x,
-            targetNode.y,
-            sourceNode.x,
-            sourceNode.y
-          );
+          // Draw the cached Paths
+          ctx.stroke(edge.line.path);
+          ctx.fill(edge.arrow.path);
 
-          // Arrowhead math
-          const dx = targetIntersection.x - sourceNode.x;
-          const dy = targetIntersection.y - sourceNode.y;
-          const angle = Math.atan2(dy, dx);
-          const arrowSize = 10;
-
-          // Draw Line (pull it back slightly so the thick line doesn't poke through the sharp arrow tip)
-          const lineEndX =
-            targetIntersection.x - Math.cos(angle) * (arrowSize - 2);
-          const lineEndY =
-            targetIntersection.y - Math.sin(angle) * (arrowSize - 2);
-
-          ctx.beginPath();
-          ctx.moveTo(sourceNode.x, sourceNode.y);
-          ctx.lineTo(lineEndX, lineEndY);
-          ctx.stroke();
-
-          ctx.save();
-          ctx.translate(targetIntersection.x, targetIntersection.y);
-          ctx.rotate(angle);
-          ctx.beginPath();
-          ctx.moveTo(0, 0);
-          ctx.lineTo(-arrowSize, -arrowSize / 2);
-          ctx.lineTo(-arrowSize, arrowSize / 2);
-          ctx.closePath();
-          ctx.fill();
-          ctx.restore();
+          // Draw Label if it exists
+          if (edge.label) {
+            edge.label.shape.draw(
+              ctx,
+              edge.label.x,
+              edge.label.y,
+              edge.label.shape.w,
+              edge.label.shape.h,
+              edge.label.path,
+              edge.id
+            );
+          }
         }
 
         // Set default styles for all nodes

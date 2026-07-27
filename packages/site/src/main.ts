@@ -1,4 +1,4 @@
-import { createGraphRenderer, defaultShape } from "web-digraph";
+import { createGraphRenderer, defaultShape, createShape } from "web-digraph";
 
 document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
   <div style="font-family: sans-serif; padding: 20px;">
@@ -17,13 +17,35 @@ const renderer = createGraphRenderer({ drawGrid: true });
 renderer.mount(canvas);
 
 // 3. Define a shape
+const circleShape = createShape({
+  w: 24,
+  h: 24,
+  createPath: (x, y, w) => {
+    const path = new Path2D();
+    path.arc(x, y, w / 2, 0, Math.PI * 2);
+    return path;
+  },
+  draw: (ctx, x, y, _w, _h, path, id) => {
+    ctx.save();
+    ctx.fillStyle = "#ffffff";
+    ctx.fill(path);
+    ctx.stroke(path);
+
+    ctx.fillStyle = "#333333";
+    ctx.font = "600 11px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(`${id}`, x, y);
+    ctx.restore();
+  }
+});
 
 // 4. Add nodes to the renderer's state
 const n1 = renderer.addNode(200, 200, defaultShape);
 const n2 = renderer.addNode(400, 300, defaultShape);
 
 // Add an edge
-renderer.addEdge(n1, n2, defaultShape);
+renderer.addEdge(n1, n2, circleShape);
 
 // 5. Draw!
 renderer.flush();
