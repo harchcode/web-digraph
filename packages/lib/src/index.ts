@@ -62,6 +62,64 @@ export function createGraphRenderer(
     return cells;
   };
 
+  const getCellsForLine = (
+    x0: number,
+    y0: number,
+    x1: number,
+    y1: number,
+    thickness: number
+  ): string[] => {
+    const cells = new Set<string>();
+    const dx = x1 - x0;
+    const dy = y1 - y0;
+    const len = Math.sqrt(dx * dx + dy * dy);
+
+    if (len === 0) {
+      cells.add(
+        `${Math.floor(x0 / opts.shgCellSize)},${Math.floor(y0 / opts.shgCellSize)}`
+      );
+      return Array.from(cells);
+    }
+
+    // Step along the line in small increments to sample intersected cells.
+    // A step size of (cellSize / 4) guarantees we won't skip over any cell corners.
+    const step = opts.shgCellSize / 4;
+    const steps = Math.ceil(len / step);
+
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const px = x0 + dx * t;
+      const py = y0 + dy * t;
+
+      const cx = Math.floor(px / opts.shgCellSize);
+      const cy = Math.floor(py / opts.shgCellSize);
+      cells.add(`${cx},${cy}`);
+
+      // Expand into adjacent cells if we are near the cell boundary
+      const localX = px - cx * opts.shgCellSize;
+      const localY = py - cy * opts.shgCellSize;
+
+      if (localX < thickness) cells.add(`${cx - 1},${cy}`);
+      if (localX > opts.shgCellSize - thickness) cells.add(`${cx + 1},${cy}`);
+      if (localY < thickness) cells.add(`${cx},${cy - 1}`);
+      if (localY > opts.shgCellSize - thickness) cells.add(`${cx},${cy + 1}`);
+
+      if (localX < thickness && localY < thickness)
+        cells.add(`${cx - 1},${cy - 1}`);
+      if (localX > opts.shgCellSize - thickness && localY < thickness)
+        cells.add(`${cx + 1},${cy - 1}`);
+      if (localX < thickness && localY > opts.shgCellSize - thickness)
+        cells.add(`${cx - 1},${cy + 1}`);
+      if (
+        localX > opts.shgCellSize - thickness &&
+        localY > opts.shgCellSize - thickness
+      )
+        cells.add(`${cx + 1},${cy + 1}`);
+    }
+
+    return Array.from(cells);
+  };
+
   function getBoundaryIntersection(
     path: Path2D,
     cx: number,
@@ -96,24 +154,32 @@ export function createGraphRenderer(
     return { x: cx + finalT * dx, y: cy + finalT * dy };
   }
 
+  const insertToGrid = (id: number, cells: string[]) => {
+    for (const cell of cells) {
+      if (!spatialGrid[cell]) spatialGrid[cell] = new Set();
+      spatialGrid[cell].add(id);
+    }
+  };
+
+  const removeFromGrid = (id: number, cells: string[]) => {
+    if (!cells) return;
+    for (const cell of cells) {
+      spatialGrid[cell]?.delete(id);
+      if (spatialGrid[cell]?.size === 0) delete spatialGrid[cell];
+    }
+  };
+
   const insertNodeToGrid = (node: GraphNode) => {
     const left = node.x - node.shape.w / 2;
     const right = node.x + node.shape.w / 2;
     const top = node.y - node.shape.h / 2;
     const bottom = node.y + node.shape.h / 2;
     node.cells = getCellsForBounds(left, top, right, bottom);
-    for (const cell of node.cells) {
-      if (!spatialGrid[cell]) spatialGrid[cell] = new Set();
-      spatialGrid[cell].add(node.id);
-    }
+    insertToGrid(node.id, node.cells);
   };
 
   const removeNodeFromGrid = (node: GraphNode) => {
-    if (!node.cells) return;
-    for (const cell of node.cells) {
-      spatialGrid[cell]?.delete(node.id);
-      if (spatialGrid[cell]?.size === 0) delete spatialGrid[cell];
-    }
+    removeFromGrid(node.id, node.cells);
     node.cells = [];
   };
 
@@ -137,6 +203,10 @@ export function createGraphRenderer(
     const angle = Math.atan2(dy, dx);
     const arrowSize = 10;
 
+    removeFromGrid(edge.id, edge.line.cells);
+    removeFromGrid(edge.id, edge.arrow.cells);
+    if (edge.label) removeFromGrid(edge.id, edge.label.cells);
+
     const lineEndX = targetIntersection.x - Math.cos(angle) * (arrowSize - 2);
     const lineEndY = targetIntersection.y - Math.sin(angle) * (arrowSize - 2);
 
@@ -147,6 +217,15 @@ export function createGraphRenderer(
     edge.line.path = new Path2D();
     edge.line.path.moveTo(edge.line.sx, edge.line.sy);
     edge.line.path.lineTo(edge.line.tx, edge.line.ty);
+
+    edge.line.cells = getCellsForLine(
+      edge.line.sx,
+      edge.line.sy,
+      edge.line.tx,
+      edge.line.ty,
+      4
+    );
+    insertToGrid(edge.id, edge.line.cells);
 
     edge.arrow.x = targetIntersection.x;
     edge.arrow.y = targetIntersection.y;
@@ -169,6 +248,18 @@ export function createGraphRenderer(
     edge.arrow.path.lineTo(p3.x, p3.y);
     edge.arrow.path.closePath();
 
+    const arrowMinX = edge.arrow.x - 10;
+    const arrowMaxX = edge.arrow.x + 10;
+    const arrowMinY = edge.arrow.y - 10;
+    const arrowMaxY = edge.arrow.y + 10;
+    edge.arrow.cells = getCellsForBounds(
+      arrowMinX,
+      arrowMinY,
+      arrowMaxX,
+      arrowMaxY
+    );
+    insertToGrid(edge.id, edge.arrow.cells);
+
     if (edge.label) {
       edge.label.x = (sourceNode.x + targetIntersection.x) / 2;
       edge.label.y = (sourceNode.y + targetIntersection.y) / 2;
@@ -179,6 +270,18 @@ export function createGraphRenderer(
         edge.label.shape.h,
         edge.id
       );
+
+      const labelMinX = edge.label.x - edge.label.shape.w / 2;
+      const labelMaxX = edge.label.x + edge.label.shape.w / 2;
+      const labelMinY = edge.label.y - edge.label.shape.h / 2;
+      const labelMaxY = edge.label.y + edge.label.shape.h / 2;
+      edge.label.cells = getCellsForBounds(
+        labelMinX,
+        labelMinY,
+        labelMaxX,
+        labelMaxY
+      );
+      insertToGrid(edge.id, edge.label.cells);
     }
   }
 
@@ -407,13 +510,15 @@ export function createGraphRenderer(
           ctx.stroke();
         }
 
-        // Collect visible nodes from the SHG
+        // Collect visible entities from the SHG
         const visibleCells = getCellsForBounds(left, top, right, bottom);
         const visibleNodes = new Set<number>();
+        const visibleEdges = new Set<number>();
         for (const cell of visibleCells) {
           if (spatialGrid[cell]) {
             for (const id of spatialGrid[cell]) {
-              visibleNodes.add(id);
+              if (nodes[id]) visibleNodes.add(id);
+              else if (edges[id]) visibleEdges.add(id);
             }
           }
         }
@@ -423,26 +528,8 @@ export function createGraphRenderer(
         ctx.fillStyle = "#999999";
         ctx.lineWidth = 2;
 
-        for (const edgeId in edges) {
+        for (const edgeId of visibleEdges) {
           const edge = edges[edgeId];
-          const sourceNode = nodes[edge.source];
-          const targetNode = nodes[edge.target];
-          if (!sourceNode || !targetNode) continue;
-
-          // Simple AABB viewport culling for edges
-          const minX = Math.min(sourceNode.x, targetNode.x);
-          const maxX = Math.max(sourceNode.x, targetNode.x);
-          const minY = Math.min(sourceNode.y, targetNode.y);
-          const maxY = Math.max(sourceNode.y, targetNode.y);
-
-          if (
-            maxX < left - 100 ||
-            minX > right + 100 ||
-            maxY < top - 100 ||
-            minY > bottom + 100
-          ) {
-            continue;
-          }
 
           // Draw the cached Paths
           ctx.stroke(edge.line.path);
