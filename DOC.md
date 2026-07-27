@@ -13,8 +13,8 @@ A library to for rendering a Directed Graph (DG). Note that this is just made fo
 - The physical Canvas element must be limited to the viewport size (for performance and memory limits).
 - The virtual coordinate space is completely infinite and bounding-box free, powered by a Spatial Hash Grid for hit detection and culling (much better for edges than a Quad Tree).
 - Explore the possibility of using Web Worker to offload all rendering (maybe offscreencanvas?) and processing to another thread. (Note: Recommend keeping on main thread initially to prevent input latency during drags).
-- Edges should be Orthogonal (horizontal/vertical). This vastly simplifies hit detection and bounding box math.
-- For arrows connecting to nodes, use explicit Connection Ports (top, bottom, left, right) on the shape. Because edges are orthogonal, boundary intersection requires zero complex math (no `isPointInPath` needed).
+- Edges should be rendered as simple straight lines connecting the center of two nodes.
+- For hit detection and arrowheads, use binary search with `isPointInPath` along the straight line to mathematically find the exact intersection point with the target node's boundary.
 - When idle, should not do anything (render loop should only happen when need rendering like moving node around etc)
 - Use a single Canvas layer for nodes and edges to avoid browser compositing overhead. If needed later, a separate canvas can be added just for the static background grid.
 - Use batching. All operations wont be redrawn until `flush` is called.
@@ -30,7 +30,7 @@ type GraphShape:
   w: float
   h: float
   createPath: (x, y, w, h, id) => Path2D
-  drawContent: (ctx, x, y, w, h, id) => void
+  draw: (ctx, x, y, w, h, path, id) => void
 
 type GraphNode:
   id: uint
@@ -65,8 +65,8 @@ type GraphRenderer:
   select: (ids: uint[]) => void // append selection, not removing existing selection
   zoomTo: (value, targetX?, targetY?) => void // zoom to the target value, centered on targetX and targetY if given
   zoomBy: (dv, targetX?, targetY?) => void
-  moveTo: (x, y) => void;
-  moveBy: (dx, dy) => void;
+  panTo: (x, y) => void;
+  panBy: (dx, dy) => void;
   screenToGraph: (x, y) => Pos // Convert DOM coordinates to graph space
   graphToScreen: (x, y) => Pos // Convert graph space to DOM coordinates
   flush: () => void // update and redraw all the changes
