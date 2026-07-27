@@ -19,8 +19,11 @@ renderer.mount(canvas);
 // 3. Define a shape
 
 // 4. Add nodes to the renderer's state
-renderer.addNode(200, 200, defaultShape);
-renderer.addNode(400, 300, defaultShape);
+const n1 = renderer.addNode(200, 200, defaultShape);
+const n2 = renderer.addNode(400, 300, defaultShape);
+
+// Add an edge
+renderer.addEdge(n1, n2, defaultShape);
 
 // 5. Draw!
 renderer.flush();

@@ -39,6 +39,7 @@ export function createGraphRenderer(
   let halfWidth = 0;
   let halfHeight = 0;
   let isDirty = false;
+  let dpr = 1;
 
   const spatialGrid: Record<string, Set<number>> = {};
 
@@ -60,6 +61,43 @@ export function createGraphRenderer(
     }
     return cells;
   };
+
+  function getBoundaryIntersection(
+    path: Path2D,
+    cx: number,
+    cy: number,
+    ox: number,
+    oy: number
+  ): Pos {
+    const dx = ox - cx;
+    const dy = oy - cy;
+    const e = (Math.abs(dx) + Math.abs(dy)) | 0;
+
+    if (e === 0) return { x: cx, y: cy };
+
+    let start = 0;
+    let end = e;
+
+    while (start <= end) {
+      const mid = ((start + end) / 2) | 0;
+      const px = cx + (mid / e) * dx;
+      const py = cy + (mid / e) * dy;
+
+      const sx = ((px - cameraX) * zoom + halfWidth) * dpr;
+      const sy = ((py - cameraY) * zoom + halfHeight) * dpr;
+
+      if (ctx!.isPointInPath(path, sx, sy)) {
+        // Inside the shape, so boundary is further towards source (ox, oy)
+        start = mid + 1;
+      } else {
+        // Outside the shape, so boundary is further towards target (cx, cy)
+        end = mid - 1;
+      }
+    }
+
+    const finalT = start / e;
+    return { x: cx + finalT * dx, y: cy + finalT * dy };
+  }
 
   const insertNodeToGrid = (node: GraphNode) => {
     const left = node.x - node.shape.w / 2;
@@ -88,7 +126,7 @@ export function createGraphRenderer(
 
     resize() {
       if (!ctx || !canvas) return;
-      const dpr = window.devicePixelRatio || 1;
+      dpr = window.devicePixelRatio || 1;
       const rect = canvas.getBoundingClientRect();
       logicalWidth = rect.width;
       logicalHeight = rect.height;
@@ -283,6 +321,69 @@ export function createGraphRenderer(
               visibleNodes.add(id);
             }
           }
+        }
+
+        // Draw Edges (behind nodes)
+        ctx.strokeStyle = "#999999";
+        ctx.fillStyle = "#999999";
+        ctx.lineWidth = 2;
+
+        for (const edgeId in edges) {
+          const edge = edges[edgeId];
+          const sourceNode = nodes[edge.source];
+          const targetNode = nodes[edge.target];
+          if (!sourceNode || !targetNode) continue;
+
+          // Simple AABB viewport culling for edges
+          const minX = Math.min(sourceNode.x, targetNode.x);
+          const maxX = Math.max(sourceNode.x, targetNode.x);
+          const minY = Math.min(sourceNode.y, targetNode.y);
+          const maxY = Math.max(sourceNode.y, targetNode.y);
+
+          if (
+            maxX < left - 100 ||
+            minX > right + 100 ||
+            maxY < top - 100 ||
+            minY > bottom + 100
+          ) {
+            continue;
+          }
+
+          const targetIntersection = getBoundaryIntersection(
+            targetNode.path,
+            targetNode.x,
+            targetNode.y,
+            sourceNode.x,
+            sourceNode.y
+          );
+
+          // Arrowhead math
+          const dx = targetIntersection.x - sourceNode.x;
+          const dy = targetIntersection.y - sourceNode.y;
+          const angle = Math.atan2(dy, dx);
+          const arrowSize = 10;
+
+          // Draw Line (pull it back slightly so the thick line doesn't poke through the sharp arrow tip)
+          const lineEndX =
+            targetIntersection.x - Math.cos(angle) * (arrowSize - 2);
+          const lineEndY =
+            targetIntersection.y - Math.sin(angle) * (arrowSize - 2);
+
+          ctx.beginPath();
+          ctx.moveTo(sourceNode.x, sourceNode.y);
+          ctx.lineTo(lineEndX, lineEndY);
+          ctx.stroke();
+
+          ctx.save();
+          ctx.translate(targetIntersection.x, targetIntersection.y);
+          ctx.rotate(angle);
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.lineTo(-arrowSize, -arrowSize / 2);
+          ctx.lineTo(-arrowSize, arrowSize / 2);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
         }
 
         // Set default styles for all nodes
