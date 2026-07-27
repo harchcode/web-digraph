@@ -15,7 +15,8 @@
   },
   "scripts": {
     "build": "tsup src/index.ts --format esm,cjs --dts --clean",
-    "dev": "tsup src/index.ts --format esm,cjs --watch --dts"
+    "dev": "tsup src/index.ts --format esm,cjs --watch --dts",
+    "test": "vitest run"
   },
   "devDependencies": {
     "tsup": "^8.5.1",

@@ -1,3 +1,5 @@
-export function createGraphRenderer(options: any) {
-  console.log("Hello World from Web Digraph!");
+export function createGraphRenderer() {
+  return {
+    version: "0.1.0"
+  };
 }
