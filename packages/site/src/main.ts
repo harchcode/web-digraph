@@ -80,9 +80,9 @@ btn.style.cursor = "pointer";
 document.body.appendChild(btn);
 
 btn.addEventListener("click", () => {
-  for (let i = 0; i < 10000; i++) {
-    const x = Math.random() * 20000 - 10000;
-    const y = Math.random() * 20000 - 10000;
+  for (let i = 0; i < 1000000; i++) {
+    const x = Math.random() * 100000 - 50000;
+    const y = Math.random() * 100000 - 50000;
     renderer.addNode(x, y, createShape());
   }
   renderer.flush();

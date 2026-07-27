@@ -24,6 +24,10 @@ export function createGraphRenderer(options?: GraphOptions): GraphRenderer {
   let cameraX = 0;
   let cameraY = 0;
   let zoom = 1;
+  let logicalWidth = 0;
+  let logicalHeight = 0;
+  let halfWidth = 0;
+  let halfHeight = 0;
 
   const spatialGrid: Record<string, Set<number>> = {};
   const shgCellSize = options?.shgCellSize ?? 500;
@@ -76,8 +80,10 @@ export function createGraphRenderer(options?: GraphOptions): GraphRenderer {
       if (!ctx || !canvas) return;
       const dpr = window.devicePixelRatio || 1;
       const rect = canvas.getBoundingClientRect();
-      const logicalWidth = rect.width;
-      const logicalHeight = rect.height;
+      logicalWidth = rect.width;
+      logicalHeight = rect.height;
+      halfWidth = logicalWidth / 2;
+      halfHeight = logicalHeight / 2;
 
       const targetPhysicalWidth = Math.round(logicalWidth * dpr);
       const targetPhysicalHeight = Math.round(logicalHeight * dpr);
@@ -166,16 +172,16 @@ export function createGraphRenderer(options?: GraphOptions): GraphRenderer {
       const newZoom = Math.max(minZoom, Math.min(maxZoom, value));
       if (newZoom === zoom) return;
 
-      const cx = targetX ?? canvas.getBoundingClientRect().width / 2;
-      const cy = targetY ?? canvas.getBoundingClientRect().height / 2;
+      const cx = targetX ?? halfWidth;
+      const cy = targetY ?? halfHeight;
 
-      const gx = (cx - cameraX) / zoom;
-      const gy = (cy - cameraY) / zoom;
+      const gx = (cx - halfWidth) / zoom + cameraX;
+      const gy = (cy - halfHeight) / zoom + cameraY;
 
       zoom = newZoom;
 
-      cameraX = cx - gx * zoom;
-      cameraY = cy - gy * zoom;
+      cameraX = gx - (cx - halfWidth) / zoom;
+      cameraY = gy - (cy - halfHeight) / zoom;
     },
     zoomBy(dv: number, targetX?: number, targetY?: number) {
       this.zoomTo(zoom + dv, targetX, targetY);
@@ -185,15 +191,21 @@ export function createGraphRenderer(options?: GraphOptions): GraphRenderer {
       cameraY = y;
     },
     panBy(dx: number, dy: number) {
-      cameraX += dx;
-      cameraY += dy;
+      cameraX -= dx / zoom;
+      cameraY -= dy / zoom;
     },
 
     screenToGraph(x: number, y: number): Pos {
-      return { x: (x - cameraX) / zoom, y: (y - cameraY) / zoom };
+      return {
+        x: (x - halfWidth) / zoom + cameraX,
+        y: (y - halfHeight) / zoom + cameraY
+      };
     },
     graphToScreen(x: number, y: number): Pos {
-      return { x: x * zoom + cameraX, y: y * zoom + cameraY };
+      return {
+        x: (x - cameraX) * zoom + halfWidth,
+        y: (y - cameraY) * zoom + halfHeight
+      };
     },
 
     flush() {
@@ -201,17 +213,15 @@ export function createGraphRenderer(options?: GraphOptions): GraphRenderer {
       this.clear();
 
       ctx.save();
-      ctx.translate(cameraX, cameraY);
+
+      ctx.translate(halfWidth, halfHeight);
       ctx.scale(zoom, zoom);
+      ctx.translate(-cameraX, -cameraY);
 
-      const dpr = window.devicePixelRatio || 1;
-      const logicalWidth = canvas.width / dpr;
-      const logicalHeight = canvas.height / dpr;
-
-      const left = -cameraX / zoom;
-      const top = -cameraY / zoom;
-      const right = left + logicalWidth / zoom;
-      const bottom = top + logicalHeight / zoom;
+      const left = -halfWidth / zoom + cameraX;
+      const top = -halfHeight / zoom + cameraY;
+      const right = halfWidth / zoom + cameraX;
+      const bottom = halfHeight / zoom + cameraY;
 
       if (options?.drawGrid) {
         const gridSize = options.gridSize ?? 50;
