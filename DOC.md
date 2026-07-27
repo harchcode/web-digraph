@@ -10,8 +10,8 @@ A library to for rendering a Directed Graph (DG). Note that this is just made fo
 - Touch input supported.
 - Imperative style API (yes, this is a feature).
 - Draw only what is visible on screen
-- Do not use unlimited canvas size, limit canvas size (for better optimization)
-- Use a Spatial Hash Grid to optimize hit detection and knowing which nodes/edges to draw (much better for edges than a Quad Tree).
+- The physical Canvas element must be limited to the viewport size (for performance and memory limits).
+- The virtual coordinate space is completely infinite and bounding-box free, powered by a Spatial Hash Grid for hit detection and culling (much better for edges than a Quad Tree).
 - Explore the possibility of using Web Worker to offload all rendering (maybe offscreencanvas?) and processing to another thread. (Note: Recommend keeping on main thread initially to prevent input latency during drags).
 - Edges should be Orthogonal (horizontal/vertical). This vastly simplifies hit detection and bounding box math.
 - For arrows connecting to nodes, use explicit Connection Ports (top, bottom, left, right) on the shape. Because edges are orthogonal, boundary intersection requires zero complex math (no `isPointInPath` needed).
