@@ -161,7 +161,16 @@ export function createGraphRenderer(
     addNode(x: number, y: number, shape: GraphShape): number {
       const nodeId = generateId();
       const path = shape.createPath(x, y, shape.w, shape.h, nodeId);
-      const node: GraphNode = { id: nodeId, x, y, shape, path, cells: [] };
+      const node: GraphNode = {
+        id: nodeId,
+        x,
+        y,
+        shape,
+        path,
+        cells: [],
+        incomingEdges: new Set(),
+        outgoingEdges: new Set()
+      };
       nodes[nodeId] = node;
       insertNodeToGrid(node);
       return nodeId;
@@ -173,8 +182,8 @@ export function createGraphRenderer(
         id: edgeId,
         source: sourceId,
         target: targetId,
-        line: { sx: 0, sy: 0, tx: 0, ty: 0, cells: [] },
-        arrow: { x: 0, y: 0, cells: [] }
+        line: { sx: 0, sy: 0, tx: 0, ty: 0, path: new Path2D(), cells: [] },
+        arrow: { x: 0, y: 0, angle: 0, path: new Path2D(), cells: [] }
       };
 
       if (label) {
@@ -188,6 +197,10 @@ export function createGraphRenderer(
       }
 
       edges[edgeId] = edge;
+
+      if (nodes[sourceId]) nodes[sourceId].outgoingEdges.add(edgeId);
+      if (nodes[targetId]) nodes[targetId].incomingEdges.add(edgeId);
+
       return edgeId;
     },
 

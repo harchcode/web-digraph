@@ -34,6 +34,8 @@ export type GraphNode = {
   shape: GraphShape;
   path: Path2D;
   cells: string[];
+  incomingEdges: Set<number>;
+  outgoingEdges: Set<number>;
 };
 
 export type GraphEdgeLabel = {
@@ -49,12 +51,15 @@ export type GraphEdgeLine = {
   sy: number;
   tx: number;
   ty: number;
+  path: Path2D;
   cells: string[];
 };
 
 export type GraphEdgeArrow = {
   x: number;
   y: number;
+  angle: number;
+  path: Path2D;
   cells: string[];
 };
 
