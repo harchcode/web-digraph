@@ -1,9 +1,9 @@
 export type Pos = { x: number; y: number };
 
 export type GraphOptions = {
-  drawGrid?: boolean;
-  gridSize?: number;
-  shgCellSize?: number;
+  drawGrid: boolean;
+  gridSize: number;
+  shgCellSize: number;
 };
 
 export type GraphShape = {

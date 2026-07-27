@@ -15,7 +15,17 @@ function generateId(): number {
   return nextId++;
 }
 
-export function createGraphRenderer(options?: GraphOptions): GraphRenderer {
+export const defaultGraphOptions: GraphOptions = {
+  drawGrid: true,
+  gridSize: 50,
+  shgCellSize: 500
+};
+
+export function createGraphRenderer(
+  options?: Partial<GraphOptions>
+): GraphRenderer {
+  const opts = { ...defaultGraphOptions, ...options };
+
   const nodes: Record<number, GraphNode> = {};
   const edges: Record<number, GraphEdge> = {};
   let canvas: HTMLCanvasElement | null = null;
@@ -31,7 +41,6 @@ export function createGraphRenderer(options?: GraphOptions): GraphRenderer {
   let isDirty = false;
 
   const spatialGrid: Record<string, Set<number>> = {};
-  const shgCellSize = options?.shgCellSize ?? 500;
 
   const getCellsForBounds = (
     left: number,
@@ -40,10 +49,10 @@ export function createGraphRenderer(options?: GraphOptions): GraphRenderer {
     bottom: number
   ): string[] => {
     const cells: string[] = [];
-    const minX = Math.floor(left / shgCellSize);
-    const maxX = Math.floor(right / shgCellSize);
-    const minY = Math.floor(top / shgCellSize);
-    const maxY = Math.floor(bottom / shgCellSize);
+    const minX = Math.floor(left / opts.shgCellSize);
+    const maxX = Math.floor(right / opts.shgCellSize);
+    const minY = Math.floor(top / opts.shgCellSize);
+    const maxY = Math.floor(bottom / opts.shgCellSize);
     for (let x = minX; x <= maxX; x++) {
       for (let y = minY; y <= maxY; y++) {
         cells.push(`${x},${y}`);
@@ -228,13 +237,9 @@ export function createGraphRenderer(options?: GraphOptions): GraphRenderer {
         const top = -halfHeight / zoom + cameraY;
         const right = halfWidth / zoom + cameraX;
         const bottom = halfHeight / zoom + cameraY;
+        const gridSize = opts.gridSize;
 
-        if (options?.drawGrid) {
-          let gridSize = options.gridSize ?? 50;
-          const minPhysicalGridSize = 10;
-          while (gridSize * zoom < minPhysicalGridSize) {
-            gridSize *= 2;
-          }
+        if (opts.drawGrid && gridSize * zoom >= 10) {
           const startX = Math.floor(left / gridSize) * gridSize;
           const startY = Math.floor(top / gridSize) * gridSize;
 
