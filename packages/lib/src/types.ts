@@ -1,6 +1,6 @@
 export type Pos = { x: number; y: number };
 
-export interface GraphShape {
+export type GraphShape = {
   w: number;
   h: number;
   createPath?: (
@@ -18,27 +18,27 @@ export interface GraphShape {
     h: number,
     id: number
   ) => void;
-}
+};
 
-export interface GraphNode {
+export type GraphNode = {
   id: number;
   x: number;
   y: number;
   shape: GraphShape;
   path?: Path2D;
-}
+};
 
-export interface GraphEdge {
+export type GraphEdge = {
   id: number;
   source: number;
   target: number;
   shape: GraphShape;
   path?: Path2D;
-}
+};
 
 export type GraphItem = GraphNode | GraphEdge;
 
-export interface GraphRenderer {
+export type GraphRenderer = {
   nodes: Record<number, GraphNode>;
   edges: Record<number, GraphEdge>;
 
@@ -71,4 +71,4 @@ export interface GraphRenderer {
   endDragNode: () => Pos;
   beginDragEdge: (sourceId: number) => void;
   endDragEdge: () => number | undefined;
-}
+};
