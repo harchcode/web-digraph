@@ -20,6 +20,10 @@ export function createGraphRenderer(_options?: any): GraphRenderer {
   let canvas: HTMLCanvasElement | null = null;
   let ctx: CanvasRenderingContext2D | null = null;
 
+  let cameraX = 0;
+  let cameraY = 0;
+  let zoom = 1;
+
   return {
     nodes,
     edges,
@@ -94,21 +98,51 @@ export function createGraphRenderer(_options?: any): GraphRenderer {
 
     unselect(_ids?: number[]) {},
     select(_ids: number[]) {},
-    zoomTo(_value: number, _targetX?: number, _targetY?: number) {},
-    zoomBy(_dv: number, _targetX?: number, _targetY?: number) {},
-    moveTo(_x: number, _y: number) {},
-    moveBy(_dx: number, _dy: number) {},
+    zoomTo(value: number, targetX?: number, targetY?: number) {
+      if (!canvas) return;
+      const minZoom = 0.1;
+      const maxZoom = 5.0;
+
+      const newZoom = Math.max(minZoom, Math.min(maxZoom, value));
+      if (newZoom === zoom) return;
+
+      const cx = targetX ?? canvas.getBoundingClientRect().width / 2;
+      const cy = targetY ?? canvas.getBoundingClientRect().height / 2;
+
+      const gx = (cx - cameraX) / zoom;
+      const gy = (cy - cameraY) / zoom;
+
+      zoom = newZoom;
+
+      cameraX = cx - gx * zoom;
+      cameraY = cy - gy * zoom;
+    },
+    zoomBy(dv: number, targetX?: number, targetY?: number) {
+      this.zoomTo(zoom + dv, targetX, targetY);
+    },
+    panTo(x: number, y: number) {
+      cameraX = x;
+      cameraY = y;
+    },
+    panBy(dx: number, dy: number) {
+      cameraX += dx;
+      cameraY += dy;
+    },
 
     screenToGraph(x: number, y: number): Pos {
-      return { x, y };
+      return { x: (x - cameraX) / zoom, y: (y - cameraY) / zoom };
     },
     graphToScreen(x: number, y: number): Pos {
-      return { x, y };
+      return { x: x * zoom + cameraX, y: y * zoom + cameraY };
     },
 
     flush() {
       if (!ctx || !canvas) return;
       this.clear();
+
+      ctx.save();
+      ctx.translate(cameraX, cameraY);
+      ctx.scale(zoom, zoom);
 
       // Draw all nodes
       for (const nodeId in nodes) {
@@ -122,11 +156,13 @@ export function createGraphRenderer(_options?: any): GraphRenderer {
           node.id
         );
       }
+
+      ctx.restore();
     },
 
     beginDragNode(_id: number) {},
-    endDragNode(): [number, number] {
-      return [0, 0];
+    endDragNode(): Pos {
+      return { x: 0, y: 0 };
     },
     beginDragEdge(_sourceId: number) {},
     endDragEdge(): number | undefined {

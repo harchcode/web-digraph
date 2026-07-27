@@ -60,15 +60,15 @@ export interface GraphRenderer {
   select: (ids: number[]) => void;
   zoomTo: (value: number, targetX?: number, targetY?: number) => void;
   zoomBy: (dv: number, targetX?: number, targetY?: number) => void;
-  moveTo: (x: number, y: number) => void;
-  moveBy: (dx: number, dy: number) => void;
+  panTo: (x: number, y: number) => void;
+  panBy: (dx: number, dy: number) => void;
   screenToGraph: (x: number, y: number) => Pos;
   graphToScreen: (x: number, y: number) => Pos;
   flush: () => void;
   resize: () => void;
 
   beginDragNode: (id: number) => void;
-  endDragNode: () => [number, number];
+  endDragNode: () => Pos;
   beginDragEdge: (sourceId: number) => void;
   endDragEdge: () => number | undefined;
 }

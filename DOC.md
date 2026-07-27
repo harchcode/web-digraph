@@ -72,7 +72,7 @@ type GraphRenderer:
   flush: () => void // update and redraw all the changes
 
   beginDragNode(id: uint) => void // start moving node around, this wont update the actual node position until endDragNode is called
-  endDragNode() => [float, float] // end the node(s) dragging and return final node position (can be used to update the actual node position)
+  endDragNode() => Pos // end the node(s) dragging and return final node position (can be used to update the actual node position)
   beginDragEdge(sourceId: uint) => void // start dragging an edge from source node. This wont create an edge until endDragLine is called
   endDragEdge() => targetId? // end the edge dragging, and return the target node id if exist (can be used to create the actual edge)
 ```

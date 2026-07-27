@@ -25,3 +25,44 @@ renderer.addNode(400, 300, defaultShape);
 
 // 5. Draw!
 renderer.flush();
+
+// 6. Hook up Panning and Zooming
+canvas.addEventListener("wheel", e => {
+  e.preventDefault();
+  const zoomSensitivity = 0.002;
+  const dv = -e.deltaY * zoomSensitivity;
+  renderer.zoomBy(dv, e.offsetX, e.offsetY);
+  renderer.flush();
+});
+
+let isPanning = false;
+let lastX = 0;
+let lastY = 0;
+
+canvas.addEventListener("pointerdown", e => {
+  // For now, dragging anywhere pans the camera
+  isPanning = true;
+  lastX = e.clientX;
+  lastY = e.clientY;
+  canvas.setPointerCapture(e.pointerId);
+  canvas.style.cursor = "grabbing";
+});
+
+canvas.addEventListener("pointermove", e => {
+  if (!isPanning) return;
+  const dx = e.clientX - lastX;
+  const dy = e.clientY - lastY;
+  lastX = e.clientX;
+  lastY = e.clientY;
+
+  renderer.panBy(dx, dy);
+  renderer.flush();
+});
+
+const stopPanning = (e: PointerEvent) => {
+  isPanning = false;
+  canvas.releasePointerCapture(e.pointerId);
+  canvas.style.cursor = "default";
+};
+canvas.addEventListener("pointerup", stopPanning);
+canvas.addEventListener("pointercancel", stopPanning);
