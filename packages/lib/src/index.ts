@@ -136,15 +136,15 @@ export function createGraphRenderer(
     let start = 0;
     let end = e;
 
+    // Temporarily reset matrix to identity to guarantee pure un-scaled raycast testing
+    ctx!.setTransform(1, 0, 0, 1, 0, 0);
+
     while (start <= end) {
       const mid = ((start + end) / 2) | 0;
       const px = cx + (mid / e) * dx;
       const py = cy + (mid / e) * dy;
 
-      // The canvas context has a base transform of scale(dpr, dpr) outside of flush().
-      // So we just multiply our local coordinates by dpr to match that base transform,
-      // completely avoiding any save(), restore(), or setTransform() calls!
-      if (ctx!.isPointInPath(path, (px - cx) * dpr, (py - cy) * dpr)) {
+      if (ctx!.isPointInPath(path, px - cx, py - cy)) {
         // Inside the shape, so boundary is further towards source (ox, oy)
         start = mid + 1;
       } else {
@@ -152,6 +152,9 @@ export function createGraphRenderer(
         end = mid - 1;
       }
     }
+
+    // Restore the base DPR matrix that exists outside of flush()
+    ctx!.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     const finalT = start / e;
     return { x: cx + finalT * dx, y: cy + finalT * dy };
@@ -227,14 +230,31 @@ export function createGraphRenderer(
     );
     insertToGrid(edge.id, edge.line.cells);
 
-    edge.arrow.x = targetIntersection.x;
-    edge.arrow.y = targetIntersection.y;
-    edge.arrow.angle = angle;
+    const arrowX = targetIntersection.x;
+    const arrowY = targetIntersection.y;
 
-    const arrowMinX = edge.arrow.x - 10;
-    const arrowMaxX = edge.arrow.x + 10;
-    const arrowMinY = edge.arrow.y - 10;
-    const arrowMaxY = edge.arrow.y + 10;
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    const rotatePoint = (lx: number, ly: number) => ({
+      x: arrowX + (lx * cos - ly * sin),
+      y: arrowY + (lx * sin + ly * cos)
+    });
+
+    const p1 = rotatePoint(0, 0);
+    const p2 = rotatePoint(-arrowSize, -arrowSize / 2);
+    const p3 = rotatePoint(-arrowSize, arrowSize / 2);
+
+    edge.arrow.p1x = p1.x;
+    edge.arrow.p1y = p1.y;
+    edge.arrow.p2x = p2.x;
+    edge.arrow.p2y = p2.y;
+    edge.arrow.p3x = p3.x;
+    edge.arrow.p3y = p3.y;
+
+    const arrowMinX = arrowX - 10;
+    const arrowMaxX = arrowX + 10;
+    const arrowMinY = arrowY - 10;
+    const arrowMaxY = arrowY + 10;
     edge.arrow.cells = getCellsForBounds(
       arrowMinX,
       arrowMinY,
@@ -325,7 +345,7 @@ export function createGraphRenderer(
         source: sourceId,
         target: targetId,
         line: { sx: 0, sy: 0, tx: 0, ty: 0, cells: [] },
-        arrow: { x: 0, y: 0, angle: 0, cells: [] }
+        arrow: { p1x: 0, p1y: 0, p2x: 0, p2y: 0, p3x: 0, p3y: 0, cells: [] }
       };
 
       if (label) {
@@ -503,21 +523,19 @@ export function createGraphRenderer(
         }
         ctx.stroke();
 
-        // 2. Draw Arrows and Labels
+        // 2. Batch draw all edge arrows
+        ctx.beginPath();
         for (const edgeId of visibleEdges) {
           const edge = edges[edgeId];
+          ctx.moveTo(edge.arrow.p1x, edge.arrow.p1y);
+          ctx.lineTo(edge.arrow.p2x, edge.arrow.p2y);
+          ctx.lineTo(edge.arrow.p3x, edge.arrow.p3y);
+        }
+        ctx.fill();
 
-          ctx.setTransform(
-            zoom * dpr,
-            0,
-            0,
-            zoom * dpr,
-            (edge.arrow.x * zoom + offsetX) * dpr,
-            (edge.arrow.y * zoom + offsetY) * dpr
-          );
-          ctx.rotate(edge.arrow.angle);
-          ctx.fill(sharedArrowPath);
-
+        // 3. Draw Labels
+        for (const edgeId of visibleEdges) {
+          const edge = edges[edgeId];
           if (edge.label) {
             ctx.setTransform(
               zoom * dpr,
@@ -549,6 +567,9 @@ export function createGraphRenderer(
           );
           node.shape.draw(ctx, node.shape.path, node.id);
         }
+
+        // Reset to base transform so any outside context usage is unaffected
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       });
     },
 
@@ -562,12 +583,6 @@ export function createGraphRenderer(
     }
   };
 }
-
-const sharedArrowPath = new Path2D();
-sharedArrowPath.moveTo(0, 0);
-sharedArrowPath.lineTo(-10, -5);
-sharedArrowPath.lineTo(-10, 5);
-sharedArrowPath.closePath();
 
 const defaultPath = new Path2D();
 defaultPath.roundRect(-50, -25, 100, 50, 8);
