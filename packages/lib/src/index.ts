@@ -167,15 +167,27 @@ export function createGraphRenderer(
       return nodeId;
     },
 
-    addEdge(sourceId: number, targetId: number, shape: GraphShape): number {
+    addEdge(sourceId: number, targetId: number, label?: GraphShape): number {
       const edgeId = generateId();
-      edges[edgeId] = {
+      const edge: GraphEdge = {
         id: edgeId,
         source: sourceId,
         target: targetId,
-        shape,
-        path: new Path2D()
+        line: { sx: 0, sy: 0, tx: 0, ty: 0, cells: [] },
+        arrow: { x: 0, y: 0, cells: [] }
       };
+
+      if (label) {
+        edge.label = {
+          shape: label,
+          path: new Path2D(),
+          x: 0,
+          y: 0,
+          cells: []
+        };
+      }
+
+      edges[edgeId] = edge;
       return edgeId;
     },
 
@@ -426,7 +438,7 @@ export function createGraphRenderer(
 export const defaultShape: GraphShape = {
   w: 100,
   h: 50,
-  createPath: (x, y, w, h, id) => {
+  createPath: (x, y, w, h, _id) => {
     const path = new Path2D();
     const left = x - w / 2;
     const top = y - h / 2;
@@ -434,7 +446,7 @@ export const defaultShape: GraphShape = {
 
     return path;
   },
-  draw: (ctx, x, y, w, h, path, id) => {
+  draw: (ctx, x, y, _w, _h, path, id) => {
     ctx.save();
     ctx.fill(path);
     ctx.stroke(path);

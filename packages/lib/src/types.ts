@@ -36,12 +36,35 @@ export type GraphNode = {
   cells: string[];
 };
 
+export type GraphEdgeLabel = {
+  shape: GraphShape;
+  path: Path2D;
+  x: number;
+  y: number;
+  cells: string[];
+};
+
+export type GraphEdgeLine = {
+  sx: number;
+  sy: number;
+  tx: number;
+  ty: number;
+  cells: string[];
+};
+
+export type GraphEdgeArrow = {
+  x: number;
+  y: number;
+  cells: string[];
+};
+
 export type GraphEdge = {
   id: number;
   source: number;
   target: number;
-  shape: GraphShape;
-  path: Path2D;
+  label?: GraphEdgeLabel;
+  line: GraphEdgeLine;
+  arrow: GraphEdgeArrow;
 };
 
 export type GraphItem = GraphNode | GraphEdge;
@@ -55,7 +78,7 @@ export type GraphRenderer = {
   addEdge: (
     sourceId: number,
     targetId: number,
-    shape: GraphShape,
+    label?: GraphShape,
     id?: number
   ) => number;
   moveNodeTo: (id: number, x: number, y: number) => void;
