@@ -21,16 +21,14 @@ const renderer = createGraphRenderer({ drawGrid: true });
 renderer.mount(canvas);
 
 // 3. Define a shape
+const circlePath = new Path2D();
+circlePath.arc(0, 0, 12, 0, Math.PI * 2);
+
 const circleShape = createShape({
   w: 24,
   h: 24,
-  createPath: (x, y, w) => {
-    const path = new Path2D();
-    path.arc(x, y, w / 2, 0, Math.PI * 2);
-    return path;
-  },
-  draw: (ctx, x, y, _w, _h, path, id) => {
-    ctx.save();
+  path: circlePath,
+  draw: (ctx, path, id) => {
     ctx.fillStyle = "#ffffff";
     ctx.fill(path);
     ctx.stroke(path);
@@ -39,8 +37,7 @@ const circleShape = createShape({
     ctx.font = "600 11px sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(`${id}`, x, y);
-    ctx.restore();
+    ctx.fillText(`${id}`, 0, 0);
   }
 });
 

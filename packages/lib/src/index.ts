@@ -141,7 +141,12 @@ export function createGraphRenderer(
       const px = cx + (mid / e) * dx;
       const py = cy + (mid / e) * dy;
 
-      if (ctx!.isPointInPath(path, px * dpr, py * dpr)) {
+      ctx!.save();
+      ctx!.setTransform(1, 0, 0, 1, 0, 0);
+      const isInside = ctx!.isPointInPath(path, px - cx, py - cy);
+      ctx!.restore();
+
+      if (isInside) {
         // Inside the shape, so boundary is further towards source (ox, oy)
         start = mid + 1;
       } else {
@@ -191,7 +196,7 @@ export function createGraphRenderer(
     if (!sourceNode || !targetNode) return;
 
     const targetIntersection = getBoundaryIntersection(
-      targetNode.path,
+      targetNode.shape.path,
       targetNode.x,
       targetNode.y,
       sourceNode.x,
@@ -214,9 +219,6 @@ export function createGraphRenderer(
     edge.line.sy = sourceNode.y;
     edge.line.tx = lineEndX;
     edge.line.ty = lineEndY;
-    edge.line.path = new Path2D();
-    edge.line.path.moveTo(edge.line.sx, edge.line.sy);
-    edge.line.path.lineTo(edge.line.tx, edge.line.ty);
 
     edge.line.cells = getCellsForLine(
       edge.line.sx,
@@ -230,23 +232,6 @@ export function createGraphRenderer(
     edge.arrow.x = targetIntersection.x;
     edge.arrow.y = targetIntersection.y;
     edge.arrow.angle = angle;
-    edge.arrow.path = new Path2D();
-
-    const cos = Math.cos(angle);
-    const sin = Math.sin(angle);
-    const rotatePoint = (lx: number, ly: number) => ({
-      x: edge.arrow.x + (lx * cos - ly * sin),
-      y: edge.arrow.y + (lx * sin + ly * cos)
-    });
-
-    const p1 = rotatePoint(0, 0);
-    const p2 = rotatePoint(-arrowSize, -arrowSize / 2);
-    const p3 = rotatePoint(-arrowSize, arrowSize / 2);
-
-    edge.arrow.path.moveTo(p1.x, p1.y);
-    edge.arrow.path.lineTo(p2.x, p2.y);
-    edge.arrow.path.lineTo(p3.x, p3.y);
-    edge.arrow.path.closePath();
 
     const arrowMinX = edge.arrow.x - 10;
     const arrowMaxX = edge.arrow.x + 10;
@@ -266,13 +251,6 @@ export function createGraphRenderer(
         (sourceNode.x + targetNode.x) / 2 - Math.cos(angle) * (arrowSize / 2);
       edge.label.y =
         (sourceNode.y + targetNode.y) / 2 - Math.sin(angle) * (arrowSize / 2);
-      edge.label.path = edge.label.shape.createPath(
-        edge.label.x,
-        edge.label.y,
-        edge.label.shape.w,
-        edge.label.shape.h,
-        edge.id
-      );
 
       const labelMinX = edge.label.x - edge.label.shape.w / 2;
       const labelMaxX = edge.label.x + edge.label.shape.w / 2;
@@ -328,13 +306,11 @@ export function createGraphRenderer(
 
     addNode(x: number, y: number, shape: GraphShape): number {
       const nodeId = generateId();
-      const path = shape.createPath(x, y, shape.w, shape.h, nodeId);
       const node: GraphNode = {
         id: nodeId,
         x,
         y,
         shape,
-        path,
         cells: [],
         incomingEdges: new Set(),
         outgoingEdges: new Set()
@@ -350,14 +326,13 @@ export function createGraphRenderer(
         id: edgeId,
         source: sourceId,
         target: targetId,
-        line: { sx: 0, sy: 0, tx: 0, ty: 0, path: new Path2D(), cells: [] },
-        arrow: { x: 0, y: 0, angle: 0, path: new Path2D(), cells: [] }
+        line: { sx: 0, sy: 0, tx: 0, ty: 0, cells: [] },
+        arrow: { x: 0, y: 0, angle: 0, cells: [] }
       };
 
       if (label) {
         edge.label = {
           shape: label,
-          path: new Path2D(),
           x: 0,
           y: 0,
           cells: []
@@ -380,13 +355,6 @@ export function createGraphRenderer(
       removeNodeFromGrid(node);
       node.x = x;
       node.y = y;
-      node.path = node.shape.createPath(
-        node.x,
-        node.y,
-        node.shape.w,
-        node.shape.h,
-        node.id
-      );
       insertNodeToGrid(node);
 
       for (const edgeId of node.incomingEdges) updateEdgeGeometry(edgeId);
@@ -398,13 +366,6 @@ export function createGraphRenderer(
       removeNodeFromGrid(node);
       node.x += dx;
       node.y += dy;
-      node.path = node.shape.createPath(
-        node.x,
-        node.y,
-        node.shape.w,
-        node.shape.h,
-        node.id
-      );
       insertNodeToGrid(node);
 
       for (const edgeId of node.incomingEdges) updateEdgeGeometry(edgeId);
@@ -422,7 +383,7 @@ export function createGraphRenderer(
     clear() {
       if (!ctx || !canvas) return;
       ctx.save();
-      ctx.resetTransform();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.restore();
     },
@@ -484,6 +445,7 @@ export function createGraphRenderer(
 
         ctx.save();
 
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         ctx.translate(halfWidth, halfHeight);
         ctx.scale(zoom, zoom);
         ctx.translate(-cameraX, -cameraY);
@@ -526,6 +488,10 @@ export function createGraphRenderer(
           }
         }
 
+        // Calculate global transform offset
+        const offsetX = halfWidth - cameraX * zoom;
+        const offsetY = halfHeight - cameraY * zoom;
+
         // Draw Edges (behind nodes)
         ctx.strokeStyle = "#999999";
         ctx.fillStyle = "#999999";
@@ -534,24 +500,40 @@ export function createGraphRenderer(
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
 
+        // 1. Batch draw all edge lines
+        ctx.beginPath();
+        for (const edgeId of visibleEdges) {
+          const edge = edges[edgeId];
+          ctx.moveTo(edge.line.sx, edge.line.sy);
+          ctx.lineTo(edge.line.tx, edge.line.ty);
+        }
+        ctx.stroke();
+
+        // 2. Draw Arrows and Labels
         for (const edgeId of visibleEdges) {
           const edge = edges[edgeId];
 
-          // Draw the cached Paths
-          ctx.stroke(edge.line.path);
-          ctx.fill(edge.arrow.path);
+          ctx.setTransform(
+            zoom * dpr,
+            0,
+            0,
+            zoom * dpr,
+            (edge.arrow.x * zoom + offsetX) * dpr,
+            (edge.arrow.y * zoom + offsetY) * dpr
+          );
+          ctx.rotate(edge.arrow.angle);
+          ctx.fill(sharedArrowPath);
 
-          // Draw Label if it exists
           if (edge.label) {
-            edge.label.shape.draw(
-              ctx,
-              edge.label.x,
-              edge.label.y,
-              edge.label.shape.w,
-              edge.label.shape.h,
-              edge.label.path,
-              edge.id
+            ctx.setTransform(
+              zoom * dpr,
+              0,
+              0,
+              zoom * dpr,
+              (edge.label.x * zoom + offsetX) * dpr,
+              (edge.label.y * zoom + offsetY) * dpr
             );
+            edge.label.shape.draw(ctx, edge.label.shape.path, edge.id);
           }
         }
 
@@ -563,15 +545,15 @@ export function createGraphRenderer(
         // Draw visible nodes
         for (const nodeId of visibleNodes) {
           const node = nodes[nodeId];
-          node.shape.draw(
-            ctx,
-            node.x,
-            node.y,
-            node.shape.w,
-            node.shape.h,
-            node.path,
-            node.id
+          ctx.setTransform(
+            zoom * dpr,
+            0,
+            0,
+            zoom * dpr,
+            (node.x * zoom + offsetX) * dpr,
+            (node.y * zoom + offsetY) * dpr
           );
+          node.shape.draw(ctx, node.shape.path, node.id);
         }
 
         ctx.restore();
@@ -589,24 +571,26 @@ export function createGraphRenderer(
   };
 }
 
+const sharedArrowPath = new Path2D();
+sharedArrowPath.moveTo(0, 0);
+sharedArrowPath.lineTo(-10, -5);
+sharedArrowPath.lineTo(-10, 5);
+sharedArrowPath.closePath();
+
+const defaultPath = new Path2D();
+defaultPath.roundRect(-50, -25, 100, 50, 8);
+
 export const defaultShape: GraphShape = {
   w: 100,
   h: 50,
-  createPath: (x, y, w, h, _id) => {
-    const path = new Path2D();
-    const left = x - w / 2;
-    const top = y - h / 2;
-    path.roundRect(left, top, w, h, 8);
-
-    return path;
-  },
-  draw: (ctx, x, y, _w, _h, path, id) => {
+  path: defaultPath,
+  draw: (ctx, path, id) => {
     ctx.save();
     ctx.fill(path);
     ctx.stroke(path);
 
     ctx.fillStyle = "#333333";
-    ctx.fillText(`Node ${id}`, x, y);
+    ctx.fillText(`Node ${id}`, 0, 0);
     ctx.restore();
   }
 };
