@@ -28,6 +28,7 @@ export function createGraphRenderer(options?: GraphOptions): GraphRenderer {
   let logicalHeight = 0;
   let halfWidth = 0;
   let halfHeight = 0;
+  let isDirty = false;
 
   const spatialGrid: Record<string, Set<number>> = {};
   const shgCellSize = options?.shgCellSize ?? 500;
@@ -209,65 +210,75 @@ export function createGraphRenderer(options?: GraphOptions): GraphRenderer {
     },
 
     flush() {
-      if (!ctx || !canvas) return;
-      this.clear();
+      if (isDirty) return;
+      isDirty = true;
 
-      ctx.save();
+      requestAnimationFrame(() => {
+        isDirty = false;
+        if (!ctx || !canvas) return;
+        this.clear();
 
-      ctx.translate(halfWidth, halfHeight);
-      ctx.scale(zoom, zoom);
-      ctx.translate(-cameraX, -cameraY);
+        ctx.save();
 
-      const left = -halfWidth / zoom + cameraX;
-      const top = -halfHeight / zoom + cameraY;
-      const right = halfWidth / zoom + cameraX;
-      const bottom = halfHeight / zoom + cameraY;
+        ctx.translate(halfWidth, halfHeight);
+        ctx.scale(zoom, zoom);
+        ctx.translate(-cameraX, -cameraY);
 
-      if (options?.drawGrid) {
-        const gridSize = options.gridSize ?? 50;
-        const startX = Math.floor(left / gridSize) * gridSize;
-        const startY = Math.floor(top / gridSize) * gridSize;
+        const left = -halfWidth / zoom + cameraX;
+        const top = -halfHeight / zoom + cameraY;
+        const right = halfWidth / zoom + cameraX;
+        const bottom = halfHeight / zoom + cameraY;
 
-        ctx.beginPath();
-        for (let x = startX; x < right; x += gridSize) {
-          ctx.moveTo(x, top);
-          ctx.lineTo(x, bottom);
+        if (options?.drawGrid) {
+          let gridSize = options.gridSize ?? 50;
+          const minPhysicalGridSize = 10;
+          while (gridSize * zoom < minPhysicalGridSize) {
+            gridSize *= 2;
+          }
+          const startX = Math.floor(left / gridSize) * gridSize;
+          const startY = Math.floor(top / gridSize) * gridSize;
+
+          ctx.beginPath();
+          for (let x = startX; x < right; x += gridSize) {
+            ctx.moveTo(x, top);
+            ctx.lineTo(x, bottom);
+          }
+          for (let y = startY; y < bottom; y += gridSize) {
+            ctx.moveTo(left, y);
+            ctx.lineTo(right, y);
+          }
+
+          ctx.lineWidth = 1;
+          ctx.strokeStyle = "#e8e8e8";
+          ctx.stroke();
         }
-        for (let y = startY; y < bottom; y += gridSize) {
-          ctx.moveTo(left, y);
-          ctx.lineTo(right, y);
-        }
 
-        ctx.lineWidth = 1;
-        ctx.strokeStyle = "#e8e8e8";
-        ctx.stroke();
-      }
-
-      // Collect visible nodes from the SHG
-      const visibleCells = getCellsForBounds(left, top, right, bottom);
-      const visibleNodes = new Set<number>();
-      for (const cell of visibleCells) {
-        if (spatialGrid[cell]) {
-          for (const id of spatialGrid[cell]) {
-            visibleNodes.add(id);
+        // Collect visible nodes from the SHG
+        const visibleCells = getCellsForBounds(left, top, right, bottom);
+        const visibleNodes = new Set<number>();
+        for (const cell of visibleCells) {
+          if (spatialGrid[cell]) {
+            for (const id of spatialGrid[cell]) {
+              visibleNodes.add(id);
+            }
           }
         }
-      }
 
-      // Draw visible nodes
-      for (const nodeId of visibleNodes) {
-        const node = nodes[nodeId];
-        node.shape.drawContent(
-          ctx,
-          node.x,
-          node.y,
-          node.shape.w,
-          node.shape.h,
-          node.id
-        );
-      }
+        // Draw visible nodes
+        for (const nodeId of visibleNodes) {
+          const node = nodes[nodeId];
+          node.shape.drawContent(
+            ctx,
+            node.x,
+            node.y,
+            node.shape.w,
+            node.shape.h,
+            node.id
+          );
+        }
 
-      ctx.restore();
+        ctx.restore();
+      });
     },
 
     beginDragNode(_id: number) {},
