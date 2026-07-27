@@ -6,6 +6,9 @@
     "types": ["vite/client"],
     "allowArbitraryExtensions": true,
     "skipLibCheck": true,
+    "paths": {
+      "web-digraph": ["../lib/src/index.ts"]
+    },
 
     /* Bundler mode */
     "moduleResolution": "bundler",

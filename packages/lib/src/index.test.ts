@@ -5,6 +5,7 @@ describe("createGraphRenderer", () => {
   it("should create a renderer instance", () => {
     const renderer = createGraphRenderer();
     expect(renderer).toBeDefined();
-    expect(renderer.version).toBe("0.1.0");
+    expect(renderer.nodes).toBeDefined();
+    expect(renderer.edges).toBeDefined();
   });
 });

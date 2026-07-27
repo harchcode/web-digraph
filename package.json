@@ -1,6 +1,7 @@
 {
   "name": "web-digraph-workspace",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "pnpm --filter site dev",
     "build": "pnpm -r build",
