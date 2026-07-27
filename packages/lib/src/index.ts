@@ -261,8 +261,11 @@ export function createGraphRenderer(
     insertToGrid(edge.id, edge.arrow.cells);
 
     if (edge.label) {
-      edge.label.x = (sourceNode.x + targetIntersection.x) / 2;
-      edge.label.y = (sourceNode.y + targetIntersection.y) / 2;
+      // Use dead centers of nodes, shifted back by half the arrow height to remain centered
+      edge.label.x =
+        (sourceNode.x + targetNode.x) / 2 - Math.cos(angle) * (arrowSize / 2);
+      edge.label.y =
+        (sourceNode.y + targetNode.y) / 2 - Math.sin(angle) * (arrowSize / 2);
       edge.label.path = edge.label.shape.createPath(
         edge.label.x,
         edge.label.y,
@@ -527,6 +530,9 @@ export function createGraphRenderer(
         ctx.strokeStyle = "#999999";
         ctx.fillStyle = "#999999";
         ctx.lineWidth = 2;
+        ctx.font = "500 14px Inter, sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
 
         for (const edgeId of visibleEdges) {
           const edge = edges[edgeId];
@@ -553,9 +559,6 @@ export function createGraphRenderer(
         ctx.fillStyle = "#ffffff";
         ctx.strokeStyle = "#333333";
         ctx.lineWidth = 2;
-        ctx.font = "500 14px Inter, sans-serif";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
 
         // Draw visible nodes
         for (const nodeId of visibleNodes) {
