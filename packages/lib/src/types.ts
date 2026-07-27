@@ -3,6 +3,7 @@ export type Pos = { x: number; y: number };
 export type GraphOptions = {
   drawGrid?: boolean;
   gridSize?: number;
+  shgCellSize?: number;
 };
 
 export type GraphShape = {
@@ -31,6 +32,7 @@ export type GraphNode = {
   y: number;
   shape: GraphShape;
   path?: Path2D;
+  cells?: string[];
 };
 
 export type GraphEdge = {

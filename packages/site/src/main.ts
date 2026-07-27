@@ -66,3 +66,25 @@ const stopPanning = (e: PointerEvent) => {
 };
 canvas.addEventListener("pointerup", stopPanning);
 canvas.addEventListener("pointercancel", stopPanning);
+
+// 7. Testing 10k nodes
+const btn = document.createElement("button");
+btn.innerText = "Spawn 10k Nodes";
+btn.style.position = "absolute";
+btn.style.top = "10px";
+btn.style.left = "10px";
+btn.style.padding = "10px 20px";
+btn.style.fontSize = "16px";
+btn.style.zIndex = "100";
+btn.style.cursor = "pointer";
+document.body.appendChild(btn);
+
+btn.addEventListener("click", () => {
+  for (let i = 0; i < 10000; i++) {
+    const x = Math.random() * 20000 - 10000;
+    const y = Math.random() * 20000 - 10000;
+    renderer.addNode(x, y, createShape());
+  }
+  renderer.flush();
+  console.log("Spawned 10,000 nodes!");
+});

@@ -25,6 +25,49 @@ export function createGraphRenderer(options?: GraphOptions): GraphRenderer {
   let cameraY = 0;
   let zoom = 1;
 
+  const spatialGrid: Record<string, Set<number>> = {};
+  const shgCellSize = options?.shgCellSize ?? 500;
+
+  const getCellsForBounds = (
+    left: number,
+    top: number,
+    right: number,
+    bottom: number
+  ): string[] => {
+    const cells: string[] = [];
+    const minX = Math.floor(left / shgCellSize);
+    const maxX = Math.floor(right / shgCellSize);
+    const minY = Math.floor(top / shgCellSize);
+    const maxY = Math.floor(bottom / shgCellSize);
+    for (let x = minX; x <= maxX; x++) {
+      for (let y = minY; y <= maxY; y++) {
+        cells.push(`${x},${y}`);
+      }
+    }
+    return cells;
+  };
+
+  const insertNodeToGrid = (node: GraphNode) => {
+    const left = node.x - node.shape.w / 2;
+    const right = node.x + node.shape.w / 2;
+    const top = node.y - node.shape.h / 2;
+    const bottom = node.y + node.shape.h / 2;
+    node.cells = getCellsForBounds(left, top, right, bottom);
+    for (const cell of node.cells) {
+      if (!spatialGrid[cell]) spatialGrid[cell] = new Set();
+      spatialGrid[cell].add(node.id);
+    }
+  };
+
+  const removeNodeFromGrid = (node: GraphNode) => {
+    if (!node.cells) return;
+    for (const cell of node.cells) {
+      spatialGrid[cell]?.delete(node.id);
+      if (spatialGrid[cell]?.size === 0) delete spatialGrid[cell];
+    }
+    node.cells = [];
+  };
+
   return {
     nodes,
     edges,
@@ -63,12 +106,9 @@ export function createGraphRenderer(options?: GraphOptions): GraphRenderer {
 
     addNode(x: number, y: number, shape: GraphShape): number {
       const nodeId = generateId();
-      nodes[nodeId] = {
-        id: nodeId,
-        x,
-        y,
-        shape
-      };
+      const node: GraphNode = { id: nodeId, x, y, shape };
+      nodes[nodeId] = node;
+      insertNodeToGrid(node);
       return nodeId;
     },
 
@@ -83,10 +123,29 @@ export function createGraphRenderer(options?: GraphOptions): GraphRenderer {
       return edgeId;
     },
 
-    moveNodeTo(_id: number, _x: number, _y: number) {},
-    moveNodeBy(_id: number, _dx: number, _dy: number) {},
+    moveNodeTo(id: number, x: number, y: number) {
+      const node = nodes[id];
+      if (!node) return;
+      removeNodeFromGrid(node);
+      node.x = x;
+      node.y = y;
+      insertNodeToGrid(node);
+    },
+    moveNodeBy(id: number, dx: number, dy: number) {
+      const node = nodes[id];
+      if (!node) return;
+      removeNodeFromGrid(node);
+      node.x += dx;
+      node.y += dy;
+      insertNodeToGrid(node);
+    },
     removeItem(_id: number) {},
-    removeNode(_id: number) {},
+    removeNode(id: number) {
+      const node = nodes[id];
+      if (!node) return;
+      removeNodeFromGrid(node);
+      delete nodes[id];
+    },
     removeEdge(_id: number) {},
 
     clear() {
@@ -145,17 +204,17 @@ export function createGraphRenderer(options?: GraphOptions): GraphRenderer {
       ctx.translate(cameraX, cameraY);
       ctx.scale(zoom, zoom);
 
+      const dpr = window.devicePixelRatio || 1;
+      const logicalWidth = canvas.width / dpr;
+      const logicalHeight = canvas.height / dpr;
+
+      const left = -cameraX / zoom;
+      const top = -cameraY / zoom;
+      const right = left + logicalWidth / zoom;
+      const bottom = top + logicalHeight / zoom;
+
       if (options?.drawGrid) {
         const gridSize = options.gridSize ?? 50;
-        const dpr = window.devicePixelRatio || 1;
-        const logicalWidth = canvas.width / dpr;
-        const logicalHeight = canvas.height / dpr;
-
-        const left = -cameraX / zoom;
-        const top = -cameraY / zoom;
-        const right = left + logicalWidth / zoom;
-        const bottom = top + logicalHeight / zoom;
-
         const startX = Math.floor(left / gridSize) * gridSize;
         const startY = Math.floor(top / gridSize) * gridSize;
 
@@ -174,8 +233,19 @@ export function createGraphRenderer(options?: GraphOptions): GraphRenderer {
         ctx.stroke();
       }
 
-      // Draw all nodes
-      for (const nodeId in nodes) {
+      // Collect visible nodes from the SHG
+      const visibleCells = getCellsForBounds(left, top, right, bottom);
+      const visibleNodes = new Set<number>();
+      for (const cell of visibleCells) {
+        if (spatialGrid[cell]) {
+          for (const id of spatialGrid[cell]) {
+            visibleNodes.add(id);
+          }
+        }
+      }
+
+      // Draw visible nodes
+      for (const nodeId of visibleNodes) {
         const node = nodes[nodeId];
         node.shape.drawContent(
           ctx,
@@ -208,27 +278,19 @@ export function createShape(shape?: Partial<GraphShape>): GraphShape {
     drawContent:
       shape?.drawContent ??
       ((ctx, x, y, w, h, id) => {
-        // Default rendering: a rounded rectangle with a shadow and text
-        ctx.save();
-
-        // Treat x,y as the center of the node
         const left = x - w / 2;
         const top = y - h / 2;
+
+        ctx.save();
 
         ctx.fillStyle = "#ffffff";
         ctx.strokeStyle = "#333333";
         ctx.lineWidth = 2;
-        ctx.shadowColor = "rgba(0,0,0,0.15)";
-        ctx.shadowBlur = 6;
-        ctx.shadowOffsetY = 3;
 
         ctx.beginPath();
         ctx.roundRect(left, top, w, h, 8);
         ctx.fill();
         ctx.stroke();
-
-        // Reset shadow before drawing text so text isn't blurry
-        ctx.shadowColor = "transparent";
 
         ctx.fillStyle = "#333333";
         ctx.font = "500 14px Inter, sans-serif";
