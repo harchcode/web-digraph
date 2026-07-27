@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import type {
   GraphRenderer,
   GraphShape,
@@ -169,7 +169,7 @@ export function createGraphRenderer(options?: GraphOptions): GraphRenderer {
           ctx.lineTo(right, y);
         }
 
-        ctx.lineWidth = 1 / zoom;
+        ctx.lineWidth = 1;
         ctx.strokeStyle = "#e8e8e8";
         ctx.stroke();
       }
