@@ -1,0 +1,8 @@
+{
+  "name": "web-digraph-workspace",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --filter site dev",
+    "build": "pnpm -r build"
+  }
+}
