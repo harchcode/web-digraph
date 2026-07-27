@@ -141,12 +141,10 @@ export function createGraphRenderer(
       const px = cx + (mid / e) * dx;
       const py = cy + (mid / e) * dy;
 
-      ctx!.save();
-      ctx!.setTransform(1, 0, 0, 1, 0, 0);
-      const isInside = ctx!.isPointInPath(path, px - cx, py - cy);
-      ctx!.restore();
-
-      if (isInside) {
+      // The canvas context has a base transform of scale(dpr, dpr) outside of flush().
+      // So we just multiply our local coordinates by dpr to match that base transform,
+      // completely avoiding any save(), restore(), or setTransform() calls!
+      if (ctx!.isPointInPath(path, (px - cx) * dpr, (py - cy) * dpr)) {
         // Inside the shape, so boundary is further towards source (ox, oy)
         start = mid + 1;
       } else {
@@ -382,10 +380,8 @@ export function createGraphRenderer(
 
     clear() {
       if (!ctx || !canvas) return;
-      ctx.save();
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.restore();
     },
 
     unselect(_ids?: number[]) {},
@@ -442,8 +438,6 @@ export function createGraphRenderer(
         isDirty = false;
         if (!ctx || !canvas) return;
         this.clear();
-
-        ctx.save();
 
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         ctx.translate(halfWidth, halfHeight);
@@ -555,8 +549,6 @@ export function createGraphRenderer(
           );
           node.shape.draw(ctx, node.shape.path, node.id);
         }
-
-        ctx.restore();
       });
     },
 
