@@ -29,6 +29,7 @@ const circleShape = createShape({
   h: 24,
   path: circlePath,
   draw: (ctx, path, id) => {
+    ctx.save();
     ctx.fillStyle = "#ffffff";
     ctx.fill(path);
     ctx.stroke(path);
@@ -38,6 +39,7 @@ const circleShape = createShape({
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(`${id}`, 0, 0);
+    ctx.restore();
   }
 });
 

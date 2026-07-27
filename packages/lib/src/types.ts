@@ -39,12 +39,9 @@ export type GraphEdgeLine = {
 };
 
 export type GraphEdgeArrow = {
-  p1x: number;
-  p1y: number;
-  p2x: number;
-  p2y: number;
-  p3x: number;
-  p3y: number;
+  x: number;
+  y: number;
+  angle: number;
   cells: string[];
 };
 
