@@ -9,19 +9,20 @@ export type GraphOptions = {
 export type GraphShape = {
   w: number;
   h: number;
-  createPath?: (
+  createPath: (
     x: number,
     y: number,
     w: number,
     h: number,
     id: number
   ) => Path2D;
-  drawContent: (
+  draw: (
     ctx: CanvasRenderingContext2D,
     x: number,
     y: number,
     w: number,
     h: number,
+    path: Path2D,
     id: number
   ) => void;
 };
@@ -31,8 +32,8 @@ export type GraphNode = {
   x: number;
   y: number;
   shape: GraphShape;
-  path?: Path2D;
-  cells?: string[];
+  path: Path2D;
+  cells: string[];
 };
 
 export type GraphEdge = {
@@ -40,7 +41,7 @@ export type GraphEdge = {
   source: number;
   target: number;
   shape: GraphShape;
-  path?: Path2D;
+  path: Path2D;
 };
 
 export type GraphItem = GraphNode | GraphEdge;

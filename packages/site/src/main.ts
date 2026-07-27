@@ -1,4 +1,4 @@
-import { createGraphRenderer, createShape } from "web-digraph";
+import { createGraphRenderer, defaultShape } from "web-digraph";
 
 document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
   <div style="font-family: sans-serif; padding: 20px;">
@@ -17,7 +17,6 @@ const renderer = createGraphRenderer({ drawGrid: true });
 renderer.mount(canvas);
 
 // 3. Define a shape
-const defaultShape = createShape();
 
 // 4. Add nodes to the renderer's state
 renderer.addNode(200, 200, defaultShape);
@@ -83,7 +82,7 @@ btn.addEventListener("click", () => {
   for (let i = 0; i < 1000000; i++) {
     const x = Math.random() * 100000 - 50000;
     const y = Math.random() * 100000 - 50000;
-    renderer.addNode(x, y, createShape());
+    renderer.addNode(x, y, defaultShape);
   }
   renderer.flush();
   console.log("Spawned 10,000 nodes!");

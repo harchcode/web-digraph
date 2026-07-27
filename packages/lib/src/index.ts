@@ -122,7 +122,8 @@ export function createGraphRenderer(
 
     addNode(x: number, y: number, shape: GraphShape): number {
       const nodeId = generateId();
-      const node: GraphNode = { id: nodeId, x, y, shape };
+      const path = shape.createPath(x, y, shape.w, shape.h, nodeId);
+      const node: GraphNode = { id: nodeId, x, y, shape, path, cells: [] };
       nodes[nodeId] = node;
       insertNodeToGrid(node);
       return nodeId;
@@ -134,7 +135,8 @@ export function createGraphRenderer(
         id: edgeId,
         source: sourceId,
         target: targetId,
-        shape
+        shape,
+        path: new Path2D()
       };
       return edgeId;
     },
@@ -145,6 +147,13 @@ export function createGraphRenderer(
       removeNodeFromGrid(node);
       node.x = x;
       node.y = y;
+      node.path = node.shape.createPath(
+        node.x,
+        node.y,
+        node.shape.w,
+        node.shape.h,
+        node.id
+      );
       insertNodeToGrid(node);
     },
     moveNodeBy(id: number, dx: number, dy: number) {
@@ -153,6 +162,13 @@ export function createGraphRenderer(
       removeNodeFromGrid(node);
       node.x += dx;
       node.y += dy;
+      node.path = node.shape.createPath(
+        node.x,
+        node.y,
+        node.shape.w,
+        node.shape.h,
+        node.id
+      );
       insertNodeToGrid(node);
     },
     removeItem(_id: number) {},
@@ -269,15 +285,24 @@ export function createGraphRenderer(
           }
         }
 
+        // Set default styles for all nodes
+        ctx.fillStyle = "#ffffff";
+        ctx.strokeStyle = "#333333";
+        ctx.lineWidth = 2;
+        ctx.font = "500 14px Inter, sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+
         // Draw visible nodes
         for (const nodeId of visibleNodes) {
           const node = nodes[nodeId];
-          node.shape.drawContent(
+          node.shape.draw(
             ctx,
             node.x,
             node.y,
             node.shape.w,
             node.shape.h,
+            node.path,
             node.id
           );
         }
@@ -297,35 +322,31 @@ export function createGraphRenderer(
   };
 }
 
-export function createShape(shape?: Partial<GraphShape>): GraphShape {
+export const defaultShape: GraphShape = {
+  w: 100,
+  h: 50,
+  createPath: (x, y, w, h, id) => {
+    const path = new Path2D();
+    const left = x - w / 2;
+    const top = y - h / 2;
+    path.roundRect(left, top, w, h, 8);
+
+    return path;
+  },
+  draw: (ctx, x, y, w, h, path, id) => {
+    ctx.save();
+    ctx.fill(path);
+    ctx.stroke(path);
+
+    ctx.fillStyle = "#333333";
+    ctx.fillText(`Node ${id}`, x, y);
+    ctx.restore();
+  }
+};
+
+export function createShape(shape: Partial<GraphShape> = {}): GraphShape {
   return {
-    w: shape?.w ?? 100,
-    h: shape?.h ?? 50,
-    drawContent:
-      shape?.drawContent ??
-      ((ctx, x, y, w, h, id) => {
-        const left = x - w / 2;
-        const top = y - h / 2;
-
-        ctx.save();
-
-        ctx.fillStyle = "#ffffff";
-        ctx.strokeStyle = "#333333";
-        ctx.lineWidth = 2;
-
-        ctx.beginPath();
-        ctx.roundRect(left, top, w, h, 8);
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.fillStyle = "#333333";
-        ctx.font = "500 14px Inter, sans-serif";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(`Node ${id}`, x, y);
-
-        ctx.restore();
-      }),
-    createPath: shape?.createPath
+    ...defaultShape,
+    ...shape
   };
 }
