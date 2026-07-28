@@ -3,7 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
     <title>Web Digraph</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -37,6 +40,7 @@
         background-color: var(--bg-color);
         overflow: hidden;
         user-select: none;
+        -webkit-user-select: none;
       }
 
       /* Fullscreen Canvas Placeholder */
@@ -48,7 +52,6 @@
         height: 100vh;
         z-index: 0;
         background-color: #fafafa;
-        /* A subtle dot pattern to make it look like a canvas workspace */
         background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
         background-size: 20px 20px;
       }
@@ -61,47 +64,62 @@
         border: var(--glass-border);
         border-radius: 16px;
         box-shadow: var(--glass-shadow);
-        padding: 16px;
         position: absolute;
         z-index: 10;
         display: flex;
         align-items: center;
-        gap: 12px;
       }
 
-      /* Header Info (Top Left) */
-      .header-info {
-        top: 24px;
-        left: 24px;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 4px;
+      /* Top Bar */
+      .top-bar {
+        top: 16px;
+        left: 16px;
+        right: 16px;
+        padding: 12px 16px;
+        gap: 16px;
+        justify-content: flex-start;
+        flex-wrap: nowrap;
       }
 
-      .header-info h1 {
-        font-size: 18px;
-        font-weight: 600;
-        margin: 0;
+      .brand {
         display: flex;
         align-items: center;
         gap: 8px;
       }
 
-      .header-info h1 img {
+      .brand h1 {
+        font-size: 18px;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+
+      .brand img {
         width: 24px;
         height: 24px;
+        flex-shrink: 0;
       }
 
       .stats {
         font-size: 13px;
         font-weight: 500;
         color: var(--text-muted);
+        white-space: nowrap;
       }
 
-      /* Generator (Top Right) */
-      .generator-panel {
-        top: 24px;
-        right: 24px;
+      .top-spacer {
+        flex: 1;
+        min-width: 8px;
+      }
+
+      .generator {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .stats-short,
+      .gen-text-short {
+        display: none;
       }
 
       /* Toolbar (Bottom Center) */
@@ -111,6 +129,10 @@
         transform: translateX(-50%);
         padding: 8px;
         gap: 8px;
+        width: auto;
+        max-width: calc(100vw - 32px);
+        flex-wrap: wrap;
+        justify-content: center;
       }
 
       /* Controls & Inputs */
@@ -139,6 +161,9 @@
         font-size: 14px;
         cursor: pointer;
         transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 6px;
       }
 
       .btn-primary {
@@ -226,42 +251,148 @@
       input[type="range"]::-webkit-slider-thumb:hover {
         transform: scale(1.2);
       }
+
+      /* Responsive Overrides */
+      @media (max-width: 768px) {
+        .btn-text {
+          display: none;
+        }
+        .toggle-btn {
+          padding: 6px 10px;
+        }
+        button {
+          padding: 8px 12px;
+        }
+        .brand-text {
+          display: none;
+        }
+        .top-bar {
+          gap: 8px;
+          padding: 8px 12px;
+        }
+      }
+
+      @media (max-width: 500px) {
+        .stats-text {
+          display: none;
+        }
+        .stats-short {
+          display: inline;
+        }
+        .gen-text-long {
+          display: none;
+        }
+        .gen-text-short {
+          display: inline;
+        }
+        input[type="number"] {
+          width: 60px;
+          padding: 8px;
+        }
+        input[type="range"] {
+          width: 70px;
+        }
+      }
     </style>
   </head>
   <body>
-    <!-- Background Canvas Placeholder -->
     <canvas id="graph-canvas"></canvas>
 
-    <!-- UI Overlay -->
-    <div class="glass-panel header-info">
-      <h1>
+    <!-- Merged Top Bar -->
+    <div class="glass-panel top-bar">
+      <div class="brand">
         <img src="/favicon.svg" alt="Logo" />
-        Web Digraph
-      </h1>
+        <h1 class="brand-text">Web Digraph</h1>
+      </div>
       <div class="stats">
-        <span id="node-count-display">0</span> Nodes &bull;
-        <span id="edge-count-display">0</span> Edges
+        <span id="node-count-display">0</span
+        ><span class="stats-text"> Nodes</span
+        ><span class="stats-short"> N</span> &bull;
+        <span id="edge-count-display">0</span
+        ><span class="stats-text"> Edges</span
+        ><span class="stats-short"> E</span>
+      </div>
+      <div class="top-spacer"></div>
+      <div class="generator">
+        <input type="number" id="node-count" value="100" min="1" />
+        <button class="btn-primary" id="btn-generate">
+          <span class="gen-text-long">Generate Grid</span>
+          <span class="gen-text-short">Gen</span>
+        </button>
       </div>
     </div>
 
-    <div class="glass-panel generator-panel">
-      <input type="number" id="node-count" value="100" min="1" />
-      <button class="btn-primary" id="btn-generate">Generate Grid</button>
-    </div>
-
+    <!-- Bottom Toolbar with SVG Icons -->
     <div class="glass-panel toolbar">
       <!-- Mode Toggle -->
       <div class="toggle-group" id="mode-toggle">
-        <button class="toggle-btn active" data-mode="move">Move</button>
-        <button class="toggle-btn" data-mode="create">Create</button>
+        <button class="toggle-btn active" data-mode="move" title="Move">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" />
+          </svg>
+          <span class="btn-text">Move</span>
+        </button>
+        <button class="toggle-btn" data-mode="create" title="Create">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 8v8M8 12h8" />
+          </svg>
+          <span class="btn-text">Create</span>
+        </button>
       </div>
 
       <div class="divider"></div>
 
       <!-- Select Toggle -->
       <div class="toggle-group" id="select-toggle">
-        <button class="toggle-btn active" data-select="single">Single</button>
-        <button class="toggle-btn" data-select="multi">Multi</button>
+        <button
+          class="toggle-btn active"
+          data-select="single"
+          title="Single Select"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+          <span class="btn-text">Single</span>
+        </button>
+        <button class="toggle-btn" data-select="multi" title="Multi Select">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <rect x="3" y="3" width="7" height="7" rx="1" />
+            <rect x="14" y="3" width="7" height="7" rx="1" />
+            <rect x="14" y="14" width="7" height="7" rx="1" />
+            <rect x="3" y="14" width="7" height="7" rx="1" />
+          </svg>
+          <span class="btn-text">Multi</span>
+        </button>
       </div>
 
       <div class="divider"></div>
@@ -275,7 +406,21 @@
       <div class="divider"></div>
 
       <!-- Actions -->
-      <button class="btn-danger" id="btn-delete">Delete Selected</button>
+      <button class="btn-danger" id="btn-delete" title="Delete Selected">
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path
+            d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"
+          />
+        </svg>
+        <span class="btn-text">Delete</span>
+      </button>
     </div>
 
     <script type="module" src="/src/main.ts"></script>
