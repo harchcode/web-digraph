@@ -785,18 +785,31 @@ export function createGraphRenderer(
         const bottom = halfHeight / zoom + cameraY;
         drawBackground(left, top, right, bottom);
 
-        // Collect visible entities from the SHG
+        // Collect visible entities from the SHG,
+        // arrange them into selected and unselected sets,
+        // and draw them in the correct order.
         const visibleCells = getCellsForBounds(left, top, right, bottom);
         const visibleNodes = new Set<number>();
         const visibleEdges = new Set<number>();
+        const visibleSelectedNodes = new Set<number>();
+        const visibleSelectedEdges = new Set<number>();
+
         for (const cell of visibleCells) {
           if (spatialGrid[cell]) {
             for (const id of spatialGrid[cell]) {
-              if (nodes[id]) visibleNodes.add(id);
-              else if (edges[id]) visibleEdges.add(id);
+              if (nodes[id]) {
+                if (selectedItems.has(id)) visibleSelectedNodes.add(id);
+                else visibleNodes.add(id);
+              } else if (edges[id]) {
+                if (selectedItems.has(id)) visibleSelectedEdges.add(id);
+                else visibleEdges.add(id);
+              }
             }
           }
         }
+
+        for (const id of visibleSelectedNodes) visibleNodes.add(id);
+        for (const id of visibleSelectedEdges) visibleEdges.add(id);
 
         // Calculate global transform offset
         const offsetX = halfWidth - cameraX * zoom;
@@ -809,23 +822,14 @@ export function createGraphRenderer(
 
         // Unselected Edges
         for (const edgeId of visibleEdges) {
-          if (!selectedItems.has(edgeId)) drawEdge(edgeId, offsetX, offsetY);
-        }
-        // Selected Edges
-        for (const edgeId of visibleEdges) {
-          if (selectedItems.has(edgeId)) drawEdge(edgeId, offsetX, offsetY);
+          drawEdge(edgeId, offsetX, offsetY);
         }
 
         ctx.fillStyle = "#ffffff";
         // Unselected Nodes (EXCEPT ghost edge source node)
         for (const nodeId of visibleNodes) {
           if (ghostEdge && nodeId === ghostEdge.sourceId) continue;
-          if (!selectedItems.has(nodeId)) drawNode(nodeId, offsetX, offsetY);
-        }
-        // Selected Nodes (EXCEPT ghost edge source node)
-        for (const nodeId of visibleNodes) {
-          if (ghostEdge && nodeId === ghostEdge.sourceId) continue;
-          if (selectedItems.has(nodeId)) drawNode(nodeId, offsetX, offsetY);
+          drawNode(nodeId, offsetX, offsetY);
         }
 
         // Draw ghost edge
