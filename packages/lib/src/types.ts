@@ -99,6 +99,7 @@ export type GraphRenderer = {
   select: (ids: number[]) => void;
   getSelectedItems: () => Set<number>;
   getItemAt: (x: number, y: number) => number | null;
+  getZoom: () => number;
   zoomTo: (value: number, targetX?: number, targetY?: number) => void;
   zoomBy: (dv: number, targetX?: number, targetY?: number) => void;
   panTo: (x: number, y: number) => void;
@@ -122,4 +123,9 @@ export type GraphInteractions = {
 
 export type InteractionOptions = {
   bindDefaultKeyboardHandlers?: boolean;
+  onAddNode?: (x: number, y: number) => void;
+  onAddEdge?: (source: number, target: number) => void;
+  onDeleteNodes?: (nodeIds: number[]) => void;
+  onDeleteEdges?: (edgeIds: number[]) => void;
+  onZoom?: (zoom: number) => void;
 };

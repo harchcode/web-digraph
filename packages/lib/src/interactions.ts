@@ -74,7 +74,11 @@ export function createGraphInteractions(
       }
     } else {
       if (mode === "create") {
-        renderer.addNode(pos.x, pos.y, defaultShape);
+        if (options?.onAddNode) {
+          options.onAddNode(pos.x, pos.y);
+        } else {
+          renderer.addNode(pos.x, pos.y, defaultShape);
+        }
       } else {
         isPanning = true;
         lastPanX = e.clientX;
@@ -109,6 +113,7 @@ export function createGraphInteractions(
       if (lastPinchDist > 0) {
         const zoomDelta = (dist - lastPinchDist) * 0.005; // Pinch sensitivity
         renderer.zoomBy(zoomDelta, cx, cy);
+        options?.onZoom?.(renderer.getZoom());
 
         const panDx = cx - lastPinchCenterX;
         const panDy = cy - lastPinchCenterY;
@@ -204,7 +209,11 @@ export function createGraphInteractions(
         const hit = renderer.getItemAt(pos.x, pos.y);
 
         if (hit !== null && renderer.nodes[hit] && hit !== edgeSourceId) {
-          renderer.addEdge(edgeSourceId, hit);
+          if (options?.onAddEdge) {
+            options.onAddEdge(edgeSourceId, hit);
+          } else {
+            renderer.addEdge(edgeSourceId, hit);
+          }
         }
       }
 
@@ -238,6 +247,7 @@ export function createGraphInteractions(
     const zoomSensitivity = 0.002;
     const dv = -e.deltaY * zoomSensitivity;
     renderer.zoomBy(dv, e.offsetX, e.offsetY);
+    options?.onZoom?.(renderer.getZoom());
     renderer.flush();
   };
 
@@ -253,8 +263,23 @@ export function createGraphInteractions(
       ) {
         const selected = renderer.getSelectedItems();
         if (selected.size > 0) {
+          const nodeIds: number[] = [];
+          const edgeIds: number[] = [];
           for (const id of selected) {
-            renderer.removeItem(id);
+            if (renderer.nodes[id]) nodeIds.push(id);
+            else if (renderer.edges[id]) edgeIds.push(id);
+          }
+
+          if (options?.onDeleteNodes && nodeIds.length > 0) {
+            options.onDeleteNodes(nodeIds);
+          } else {
+            for (const id of nodeIds) renderer.removeItem(id);
+          }
+
+          if (options?.onDeleteEdges && edgeIds.length > 0) {
+            options.onDeleteEdges(edgeIds);
+          } else {
+            for (const id of edgeIds) renderer.removeItem(id);
           }
           renderer.unselect();
           renderer.flush();

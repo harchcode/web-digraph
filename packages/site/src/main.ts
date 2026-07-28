@@ -41,7 +41,24 @@ resizeCanvas();
 renderer.mount(canvas);
 
 // Setup Interactions
-const interactions = createGraphInteractions(canvas, renderer);
+const interactions = createGraphInteractions(canvas, renderer, {
+  onAddNode: (x, y) => {
+    renderer.addNode(x, y, squareShape);
+  },
+  onAddEdge: (source, target) => {
+    renderer.addEdge(source, target);
+  },
+  onDeleteNodes: nodeIds => {
+    for (const id of nodeIds) renderer.removeItem(id);
+  },
+  onDeleteEdges: edgeIds => {
+    for (const id of edgeIds) renderer.removeItem(id);
+  },
+  onZoom: zoom => {
+    // TODO: Update zoom slider in UI here
+    console.log("Zoom changed to:", zoom);
+  }
+});
 interactions.setMode("move");
 
 const n1 = renderer.addNode(-100, 0, squareShape);

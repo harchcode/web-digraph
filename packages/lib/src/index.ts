@@ -892,6 +892,7 @@ export function createGraphRenderer(
     edges,
     resize,
     mount,
+    getZoom: () => zoom,
     addNode,
     addEdge,
     moveNodeTo,
