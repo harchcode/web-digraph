@@ -68,8 +68,9 @@ export type GraphRenderer = {
     label?: GraphShape,
     id?: number
   ) => number;
-  moveNodeTo: (id: number, x: number, y: number) => void;
-  moveNodeBy: (id: number, dx: number, dy: number) => void;
+  moveNodeTo: (id: number, x: number, y: number, skipGrid?: boolean) => void;
+  moveNodeBy: (id: number, dx: number, dy: number, skipGrid?: boolean) => void;
+  updateNodeGrid: (id: number) => void;
   removeItem: (id: number) => void;
   removeNode: (id: number) => void;
   removeEdge: (id: number) => void;
@@ -89,9 +90,4 @@ export type GraphRenderer = {
   graphToScreen: (x: number, y: number) => Pos;
   flush: () => void;
   resize: () => void;
-
-  beginDragNode: (id: number) => void;
-  endDragNode: () => Pos;
-  beginDragEdge: (sourceId: number) => void;
-  endDragEdge: () => number | undefined;
 };

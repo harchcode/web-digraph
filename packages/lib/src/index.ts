@@ -293,7 +293,7 @@ export function createGraphRenderer(
     node.cells = [];
   };
 
-  function updateEdgeGeometry(edgeId: number) {
+  function updateEdgeGeometry(edgeId: number, skipGrid = false) {
     const edge = edges[edgeId];
     if (!edge) return;
     const sourceNode = nodes[edge.source];
@@ -313,9 +313,11 @@ export function createGraphRenderer(
     const angle = Math.atan2(dy, dx);
     const arrowSize = 10;
 
-    removeFromGrid(edge.id, edge.line.cells);
-    removeFromGrid(edge.id, edge.arrow.cells);
-    if (edge.label) removeFromGrid(edge.id, edge.label.cells);
+    if (!skipGrid) {
+      removeFromGrid(edge.id, edge.line.cells);
+      removeFromGrid(edge.id, edge.arrow.cells);
+      if (edge.label) removeFromGrid(edge.id, edge.label.cells);
+    }
 
     const lineEndX = targetIntersection.x - Math.cos(angle) * (arrowSize - 2);
     const lineEndY = targetIntersection.y - Math.sin(angle) * (arrowSize - 2);
@@ -325,30 +327,34 @@ export function createGraphRenderer(
     edge.line.tx = lineEndX;
     edge.line.ty = lineEndY;
 
-    edge.line.cells = getCellsForLine(
-      edge.line.sx,
-      edge.line.sy,
-      edge.line.tx,
-      edge.line.ty,
-      4
-    );
-    insertToGrid(edge.id, edge.line.cells);
+    if (!skipGrid) {
+      edge.line.cells = getCellsForLine(
+        edge.line.sx,
+        edge.line.sy,
+        edge.line.tx,
+        edge.line.ty,
+        4
+      );
+      insertToGrid(edge.id, edge.line.cells);
+    }
 
     edge.arrow.x = targetIntersection.x;
     edge.arrow.y = targetIntersection.y;
     edge.arrow.angle = angle;
 
-    const arrowMinX = edge.arrow.x - 10;
-    const arrowMaxX = edge.arrow.x + 10;
-    const arrowMinY = edge.arrow.y - 10;
-    const arrowMaxY = edge.arrow.y + 10;
-    edge.arrow.cells = getCellsForBounds(
-      arrowMinX,
-      arrowMinY,
-      arrowMaxX,
-      arrowMaxY
-    );
-    insertToGrid(edge.id, edge.arrow.cells);
+    if (!skipGrid) {
+      const arrowMinX = edge.arrow.x - 10;
+      const arrowMaxX = edge.arrow.x + 10;
+      const arrowMinY = edge.arrow.y - 10;
+      const arrowMaxY = edge.arrow.y + 10;
+      edge.arrow.cells = getCellsForBounds(
+        arrowMinX,
+        arrowMinY,
+        arrowMaxX,
+        arrowMaxY
+      );
+      insertToGrid(edge.id, edge.arrow.cells);
+    }
 
     if (edge.label) {
       // Use dead centers of nodes, shifted back by half the arrow height to remain centered
@@ -357,17 +363,19 @@ export function createGraphRenderer(
       edge.label.y =
         (sourceNode.y + targetNode.y) / 2 - Math.sin(angle) * (arrowSize / 2);
 
-      const labelMinX = edge.label.x - edge.label.shape.w / 2;
-      const labelMaxX = edge.label.x + edge.label.shape.w / 2;
-      const labelMinY = edge.label.y - edge.label.shape.h / 2;
-      const labelMaxY = edge.label.y + edge.label.shape.h / 2;
-      edge.label.cells = getCellsForBounds(
-        labelMinX,
-        labelMinY,
-        labelMaxX,
-        labelMaxY
-      );
-      insertToGrid(edge.id, edge.label.cells);
+      if (!skipGrid) {
+        const labelMinX = edge.label.x - edge.label.shape.w / 2;
+        const labelMaxX = edge.label.x + edge.label.shape.w / 2;
+        const labelMinY = edge.label.y - edge.label.shape.h / 2;
+        const labelMaxY = edge.label.y + edge.label.shape.h / 2;
+        edge.label.cells = getCellsForBounds(
+          labelMinX,
+          labelMinY,
+          labelMaxX,
+          labelMaxY
+        );
+        insertToGrid(edge.id, edge.label.cells);
+      }
     }
   }
 
@@ -453,27 +461,42 @@ export function createGraphRenderer(
       return edgeId;
     },
 
-    moveNodeTo(id: number, x: number, y: number) {
+    moveNodeTo(id: number, x: number, y: number, skipGrid = false) {
       const node = nodes[id];
       if (!node) return;
-      removeNodeFromGrid(node);
+      if (!skipGrid) removeNodeFromGrid(node);
       node.x = x;
       node.y = y;
-      insertNodeToGrid(node);
+      if (!skipGrid) insertNodeToGrid(node);
 
-      for (const edgeId of node.incomingEdges) updateEdgeGeometry(edgeId);
-      for (const edgeId of node.outgoingEdges) updateEdgeGeometry(edgeId);
+      for (const edgeId of node.incomingEdges)
+        updateEdgeGeometry(edgeId, skipGrid);
+      for (const edgeId of node.outgoingEdges)
+        updateEdgeGeometry(edgeId, skipGrid);
     },
-    moveNodeBy(id: number, dx: number, dy: number) {
+    moveNodeBy(id: number, dx: number, dy: number, skipGrid = false) {
+      const node = nodes[id];
+      if (!node) return;
+      if (!skipGrid) removeNodeFromGrid(node);
+      node.x += dx;
+      node.y += dy;
+      if (!skipGrid) insertNodeToGrid(node);
+
+      for (const edgeId of node.incomingEdges)
+        updateEdgeGeometry(edgeId, skipGrid);
+      for (const edgeId of node.outgoingEdges)
+        updateEdgeGeometry(edgeId, skipGrid);
+    },
+    updateNodeGrid(id: number) {
       const node = nodes[id];
       if (!node) return;
       removeNodeFromGrid(node);
-      node.x += dx;
-      node.y += dy;
       insertNodeToGrid(node);
 
-      for (const edgeId of node.incomingEdges) updateEdgeGeometry(edgeId);
-      for (const edgeId of node.outgoingEdges) updateEdgeGeometry(edgeId);
+      for (const edgeId of node.incomingEdges)
+        updateEdgeGeometry(edgeId, false);
+      for (const edgeId of node.outgoingEdges)
+        updateEdgeGeometry(edgeId, false);
     },
     removeItem(id: number) {
       if (nodes[id]) this.removeNode(id);
@@ -720,15 +743,6 @@ export function createGraphRenderer(
         // Reset to base transform so any outside context usage is unaffected
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       });
-    },
-
-    beginDragNode(_id: number) {},
-    endDragNode(): Pos {
-      return { x: 0, y: 0 };
-    },
-    beginDragEdge(_sourceId: number) {},
-    endDragEdge(): number | undefined {
-      return undefined;
     }
   };
 }
