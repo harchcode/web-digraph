@@ -22,6 +22,21 @@ const squareShape = createShape({
   }
 });
 
+const smallCirclePath = new Path2D();
+smallCirclePath.arc(0, 0, 12, 0, Math.PI * 2);
+const smallCircleShape = createShape({
+  w: 24,
+  h: 24,
+  path: smallCirclePath,
+  draw: (ctx, path, id) => {
+    ctx.fill(path);
+    ctx.stroke(path);
+
+    ctx.fillStyle = "#475569";
+    ctx.fillText(id.toString(), 0, 0);
+  }
+});
+
 // Setup Renderer
 const renderer = createGraphRenderer();
 
@@ -46,7 +61,7 @@ const interactions = createGraphInteractions(canvas, renderer, {
     renderer.addNode(x, y, squareShape);
   },
   onAddEdge: (source, target) => {
-    renderer.addEdge(source, target, squareShape);
+    renderer.addEdge(source, target, smallCircleShape);
   },
   onDeleteNodes: nodeIds => {
     for (const id of nodeIds) renderer.removeItem(id);
@@ -65,9 +80,9 @@ const n1 = renderer.addNode(-100, 0, squareShape);
 const n2 = renderer.addNode(100, 2, squareShape);
 const n3 = renderer.addNode(0, 150, squareShape);
 
-renderer.addEdge(n1, n2, squareShape);
-renderer.addEdge(n2, n3, squareShape);
-renderer.addEdge(n1, n3, squareShape);
+renderer.addEdge(n1, n2, smallCircleShape);
+renderer.addEdge(n2, n3, smallCircleShape);
+renderer.addEdge(n1, n3, smallCircleShape);
 
 // Initial render
 renderer.flush();
