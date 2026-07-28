@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import type {
   GraphRenderer,
   GraphShape,
@@ -9,6 +8,7 @@ import type {
 } from "./types.js";
 
 export * from "./types.js";
+export * from "./interactions.js";
 
 let nextId = 1;
 function generateId(): number {
@@ -406,28 +406,6 @@ export function createGraphRenderer(
         if (!canvas.style.height) canvas.style.height = `${canvas.height}px`;
         this.resize();
         window.addEventListener("resize", () => this.resize());
-
-        canvas.addEventListener("pointerdown", e => {
-          const rect = canvas!.getBoundingClientRect();
-          const rawX = e.clientX - rect.left;
-          const rawY = e.clientY - rect.top;
-          const pos = this.screenToGraph(rawX, rawY);
-          const hit = getItemAt(pos.x, pos.y);
-
-          if (hit) {
-            if (e.shiftKey) {
-              if (selectedItems.has(hit.id)) selectedItems.delete(hit.id);
-              else selectedItems.add(hit.id);
-            } else {
-              selectedItems.clear();
-              selectedItems.add(hit.id);
-            }
-          } else {
-            if (!e.shiftKey) selectedItems.clear();
-          }
-
-          this.flush();
-        });
       }
     },
 
@@ -523,6 +501,10 @@ export function createGraphRenderer(
     select(ids: number[]) {
       for (const id of ids) selectedItems.add(id);
     },
+    getSelectedItems() {
+      return selectedItems;
+    },
+    getItemAt,
     zoomTo(value: number, targetX?: number, targetY?: number) {
       if (!canvas) return;
       const minZoom = 0.1;

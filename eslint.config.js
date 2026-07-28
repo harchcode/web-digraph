@@ -7,6 +7,13 @@ export default tseslint.config(
   ...tseslint.configs.recommended,
   eslintConfigPrettier,
   {
-    ignores: ["**/dist/**", "**/node_modules/**", "**/.git/**"]
+    ignores: ["**/dist/**", "**/node_modules/**", "**/.git/**"],
+    rules: {
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        { argsIgnorePattern: "^_" }
+      ],
+      "no-console": "warn" // or "error"
+    }
   }
 );

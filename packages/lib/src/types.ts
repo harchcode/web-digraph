@@ -76,6 +76,11 @@ export type GraphRenderer = {
   clear: () => void;
   unselect: (ids?: number[]) => void;
   select: (ids: number[]) => void;
+  getSelectedItems: () => Set<number>;
+  getItemAt: (
+    x: number,
+    y: number
+  ) => { type: "node" | "edge"; id: number } | null;
   zoomTo: (value: number, targetX?: number, targetY?: number) => void;
   zoomBy: (dv: number, targetX?: number, targetY?: number) => void;
   panTo: (x: number, y: number) => void;

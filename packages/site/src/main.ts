@@ -1,4 +1,9 @@
-import { createGraphRenderer, defaultShape, createShape } from "web-digraph";
+import {
+  createGraphRenderer,
+  defaultShape,
+  createShape,
+  attachDefaultInteractions
+} from "web-digraph";
 
 document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
   <div style="font-family: sans-serif; padding: 20px;">
@@ -19,6 +24,7 @@ const renderer = createGraphRenderer({ drawGrid: true });
 
 // 2. Mount to canvas
 renderer.mount(canvas);
+attachDefaultInteractions(canvas, renderer);
 
 // 3. Define a shape
 const circlePath = new Path2D();
