@@ -76,7 +76,7 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        pointer-events: none; /* Let clicks pass through empty space */
+        pointer-events: none;
       }
 
       .top-spacer {
@@ -128,21 +128,26 @@
       .gen-text-short {
         display: none;
       }
+      .btn-text {
+        display: none;
+      } /* Globally hide toolbar button text */
 
-      /* Toolbar (Bottom Center) */
+      /* Toolbar (Desktop: Right Vertical) */
       .toolbar {
         position: absolute;
-        bottom: 24px;
-        left: 50%;
-        transform: translateX(-50%);
+        top: 50%;
+        right: 16px;
+        bottom: auto;
+        left: auto;
+        transform: translateY(-50%);
         padding: 8px;
         gap: 8px;
-        width: auto;
-        max-width: calc(100vw - 32px);
         display: flex;
-        flex-wrap: wrap;
-        justify-content: center;
+        flex-direction: column;
+        align-items: center;
         z-index: 10;
+        max-height: calc(100vh - 32px);
+        overflow-y: auto;
       }
 
       /* Controls & Inputs */
@@ -173,6 +178,7 @@
         transition: all 0.2s;
         display: flex;
         align-items: center;
+        justify-content: center;
         gap: 6px;
       }
 
@@ -187,14 +193,16 @@
       .btn-danger {
         background: #fee2e2;
         color: var(--danger);
+        padding: 8px;
       }
       .btn-danger:hover {
         background: #fecaca;
       }
 
-      /* Toggle Group */
+      /* Toggle Group (Desktop: Vertical) */
       .toggle-group {
         display: flex;
+        flex-direction: column;
         background: rgba(226, 232, 240, 0.6);
         border-radius: 8px;
         padding: 4px;
@@ -202,7 +210,7 @@
       }
 
       .toggle-btn {
-        padding: 6px 12px;
+        padding: 8px;
         font-size: 13px;
         font-weight: 600;
         border-radius: 6px;
@@ -216,20 +224,12 @@
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
       }
 
-
       /* Zoom Slider */
       .zoom-control {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 0 8px;
-      }
-
-      .zoom-control span {
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--text-muted);
-        min-width: 40px;
+        position: relative;
+        width: 16px;
+        height: 100px;
+        margin: 4px 0;
       }
 
       input[type="range"] {
@@ -239,6 +239,10 @@
         background: #e2e8f0;
         border-radius: 3px;
         outline: none;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) rotate(-90deg);
       }
 
       input[type="range"]::-webkit-slider-thumb {
@@ -256,19 +260,7 @@
         transform: scale(1.2);
       }
 
-      /* Responsive Overrides */
-      @media (max-width: 768px) {
-        .btn-text {
-          display: none;
-        }
-        .toggle-btn {
-          padding: 6px 10px;
-        }
-        button {
-          padding: 8px 12px;
-        }
-      }
-
+      /* Responsive Overrides (Mobile: Portrait Layout) */
       @media (max-width: 600px) {
         /* Merge top panels into one bar */
         .top-bar-container {
@@ -318,23 +310,38 @@
           width: 60px;
           padding: 8px;
         }
-        input[type="range"] {
-          width: 70px;
-        }
 
-        /* Dock bottom bar to full width at bottom */
+        /* Dock bottom bar to full width at bottom (Horizontal) */
         .toolbar {
+          top: auto;
+          right: auto;
           bottom: 0;
           left: 0;
           width: 100%;
           max-width: 100%;
           transform: none;
+          flex-direction: row;
+          flex-wrap: wrap;
           border-radius: 16px 16px 0 0;
           border-bottom: none;
           border-left: none;
           border-right: none;
           padding: 12px 8px;
           justify-content: center;
+        }
+
+        .toggle-group {
+          flex-direction: row;
+        }
+
+        .zoom-control {
+          width: 100px;
+          height: 16px;
+          margin: 0;
+        }
+
+        input[type="range"] {
+          transform: translate(-50%, -50%);
         }
       }
     </style>
@@ -403,7 +410,6 @@
         </button>
       </div>
 
-
       <!-- Select Toggle -->
       <div class="toggle-group" id="select-toggle">
         <button
@@ -442,12 +448,10 @@
         </button>
       </div>
 
-
       <!-- Zoom -->
       <div class="zoom-control">
         <input type="range" id="zoom-slider" min="10" max="500" value="100" />
       </div>
-
 
       <!-- Actions -->
       <button class="btn-danger" id="btn-delete" title="Delete Selected">
