@@ -1,34 +1,31 @@
-import { createGraphRenderer, createGraphInteractions } from "web-digraph";
-import type { GraphShape } from "web-digraph";
+import {
+  createGraphRenderer,
+  createGraphInteractions,
+  createShape
+} from "web-digraph";
 
 const canvas = document.getElementById("graph-canvas") as HTMLCanvasElement;
 if (!canvas) {
   throw new Error("Canvas not found");
 }
 
-// Basic rectangle shape for nodes
-function createRectShape(w: number, h: number): GraphShape {
-  const path = new Path2D();
-  path.rect(-w / 2, -h / 2, w, h);
-  return {
-    w,
-    h,
-    path,
-    draw: (ctx, path, id) => {
-      ctx.fill(path);
-      ctx.stroke(path);
-      ctx.fillStyle = "#333333";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(id.toString(), 0, 0);
-    },
-  };
-}
+const squareShape = createShape({
+  w: 50,
+  h: 50,
+  path: new Path2D("M -25 -25 L 25 -25 L 25 25 L -25 25 Z"),
+  draw: (ctx, path, id) => {
+    ctx.fill(path);
+    ctx.stroke(path);
+
+    ctx.fillStyle = "#333333";
+    ctx.fillText(id.toString(), 0, 0);
+  }
+});
 
 // Setup Renderer
 const renderer = createGraphRenderer({
   bgColor: "#fafafa",
-  drawGrid: true,
+  drawGrid: true
 });
 
 function resizeCanvas() {
@@ -50,12 +47,21 @@ renderer.mount(canvas);
 const interactions = createGraphInteractions(canvas, renderer);
 interactions.setMode("move");
 
-// Create some dummy nodes to test the library rendering
-const rectShape = createRectShape(40, 40);
-
-const n1 = renderer.addNode(window.innerWidth / 2 - 100, window.innerHeight / 2, rectShape);
-const n2 = renderer.addNode(window.innerWidth / 2 + 100, window.innerHeight / 2, rectShape);
-const n3 = renderer.addNode(window.innerWidth / 2, window.innerHeight / 2 + 150, rectShape);
+const n1 = renderer.addNode(
+  window.innerWidth / 2 - 100,
+  window.innerHeight / 2,
+  squareShape
+);
+const n2 = renderer.addNode(
+  window.innerWidth / 2 + 100,
+  window.innerHeight / 2,
+  squareShape
+);
+const n3 = renderer.addNode(
+  window.innerWidth / 2,
+  window.innerHeight / 2 + 150,
+  squareShape
+);
 
 renderer.addEdge(n1, n2);
 renderer.addEdge(n2, n3);
