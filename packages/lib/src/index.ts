@@ -90,14 +90,13 @@ export function createGraphRenderer(
       }
     }
 
-    ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
 
     // Nodes first (drawn on top)
     for (const id of candidates) {
       const node = nodes[id];
       if (node && ctx.isPointInPath(node.shape.path, x - node.x, y - node.y)) {
-        ctx.restore();
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         return { type: "node", id };
       }
     }
@@ -114,7 +113,7 @@ export function createGraphRenderer(
             y - edge.label.y
           )
         ) {
-          ctx.restore();
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
           return { type: "edge", id };
         }
 
@@ -125,7 +124,7 @@ export function createGraphRenderer(
         const rx = dx * cos - dy * sin;
         const ry = dx * sin + dy * cos;
         if (ctx.isPointInPath(sharedArrowPath, rx, ry)) {
-          ctx.restore();
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
           return { type: "edge", id };
         }
 
@@ -138,13 +137,13 @@ export function createGraphRenderer(
           edge.line.ty
         );
         if (dist < 8) {
-          ctx.restore();
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
           return { type: "edge", id };
         }
       }
     }
 
-    ctx.restore();
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     return null;
   }
 
