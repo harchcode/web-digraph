@@ -16,28 +16,28 @@ function generateId(): number {
 }
 
 export const defaultGraphOptions: GraphOptions = {
-  bgColor: "#fafafa",
+  bgColor: "#fffdf7",
   drawGrid: true,
-  gridType: "line",
-  gridSize: 50,
-  gridLineColor: "#e8e8e8",
+  gridType: "dot",
+  gridSize: 64,
+  gridLineColor: "#d1c9b8",
   gridLineWidth: 1,
-  gridDotRadius: 2,
+  gridDotRadius: 2.5,
   shgCellSize: 500,
   minZoom: 0.1,
   maxZoom: 5.0,
   nodeLineWidth: 2,
-  nodeLineColor: "#333333",
+  nodeLineColor: "#475569",
   nodeShapeColor: "#ffffff",
-  selectedNodeLineWidth: 4,
+  selectedNodeLineWidth: 3,
   selectedNodeLineColor: "#0066ff",
-  nodeFont: "600 11px sans-serif",
+  nodeFont: "600 12px Inter, sans-serif",
   edgeLineWidth: 2,
-  edgeLineColor: "#999999",
-  edgeShapeColor: "#999999",
+  edgeLineColor: "#94a3b8",
+  edgeShapeColor: "#94a3b8",
   selectedEdgeLineWidth: 3,
   selectedEdgeLineColor: "#0066ff",
-  edgeFont: "500 14px Inter, sans-serif"
+  edgeFont: "500 12px Inter, sans-serif"
 };
 
 export function createGraphRenderer(
@@ -934,7 +934,7 @@ export const defaultShape: GraphShape = {
     ctx.fill(path);
     ctx.stroke(path);
 
-    ctx.fillStyle = "#333333";
+    ctx.fillStyle = "#475569";
     ctx.fillText(`Node ${id}`, 0, 0);
   }
 };

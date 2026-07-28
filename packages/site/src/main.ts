@@ -17,18 +17,13 @@ const squareShape = createShape({
     ctx.fill(path);
     ctx.stroke(path);
 
-    ctx.fillStyle = "#333333";
+    ctx.fillStyle = "#475569";
     ctx.fillText(id.toString(), 0, 0);
   }
 });
 
 // Setup Renderer
-const renderer = createGraphRenderer({
-  bgColor: "#fafafa",
-  drawGrid: true,
-  gridType: "dot",
-  gridLineColor: "#cccccc"
-});
+const renderer = createGraphRenderer();
 
 function resizeCanvas() {
   canvas.width = window.innerWidth;
