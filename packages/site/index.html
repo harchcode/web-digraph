@@ -242,46 +242,6 @@
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
       }
 
-      /* Zoom Slider */
-      .zoom-control {
-        position: relative;
-        width: 16px;
-        height: 100px;
-        margin: 4px 0;
-      }
-
-      input[type="range"] {
-        -webkit-appearance: none;
-        width: 100px;
-        height: 6px;
-        background: linear-gradient(
-          to right,
-          var(--primary) var(--val, 0%),
-          #e2e8f0 var(--val, 0%)
-        );
-        border-radius: 3px;
-        outline: none;
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%) rotate(-90deg);
-      }
-
-      input[type="range"]::-webkit-slider-thumb {
-        -webkit-appearance: none;
-        appearance: none;
-        width: 16px;
-        height: 16px;
-        border-radius: 50%;
-        background: var(--primary);
-        cursor: pointer;
-        transition: transform 0.1s;
-      }
-
-      input[type="range"]::-webkit-slider-thumb:hover {
-        transform: scale(1.2);
-      }
-
       /* Responsive Overrides (Mobile: Portrait Layout) */
       @media (max-width: 600px) {
         /* Merge top panels into a full-width app bar */
@@ -363,17 +323,6 @@
 
         .toggle-group {
           flex-direction: row;
-        }
-
-        .zoom-control {
-          width: 70px;
-          height: 16px;
-          margin: 0;
-        }
-
-        input[type="range"] {
-          width: 70px;
-          transform: translate(-50%, -50%);
         }
       }
     </style>
@@ -502,9 +451,7 @@
       </div>
 
       <!-- Zoom -->
-      <div class="zoom-control">
-        <input type="range" id="zoom-slider" min="10" max="500" value="100" />
-      </div>
+      <zoom-slider id="zoom-slider"></zoom-slider>
 
       <!-- Actions -->
       <button class="btn-danger" id="btn-delete" title="Delete Selected">

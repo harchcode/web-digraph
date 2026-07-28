@@ -3,6 +3,8 @@ import {
   createGraphInteractions,
   createShape
 } from "web-digraph";
+import "./zoomSlider";
+import type { ZoomSlider } from "./zoomSlider";
 
 const canvas = document.getElementById("graph-canvas") as HTMLCanvasElement;
 if (!canvas) {
@@ -47,25 +49,12 @@ window.addEventListener("resize", () => {
 
 // Initialize size and mount
 renderer.mount(canvas);
-const zoomSlider = document.getElementById("zoom-slider") as HTMLInputElement;
+const zoomSlider = document.getElementById("zoom-slider") as ZoomSlider;
 
-function updateZoomSliderCSS() {
-  const min = parseFloat(zoomSlider.min) || 10;
-  const max = parseFloat(zoomSlider.max) || 500;
-  const val = parseFloat(zoomSlider.value);
-  const percentage = ((val - min) / (max - min)) * 100;
-  zoomSlider.style.setProperty("--val", `${percentage}%`);
-}
-
-// Initialize slider CSS on load
-updateZoomSliderCSS();
-
-zoomSlider.addEventListener("input", e => {
-  const val = parseInt((e.target as HTMLInputElement).value, 10);
-  // Convert percentage to decimal (e.g. 100 -> 1.0)
-  renderer.zoomTo(val / 100);
+zoomSlider.addEventListener("zoom-change", (e: Event) => {
+  const customEvent = e as CustomEvent;
+  renderer.zoomTo(customEvent.detail.zoom);
   renderer.flush();
-  updateZoomSliderCSS();
 });
 
 // Setup Interactions
@@ -83,8 +72,7 @@ const interactions = createGraphInteractions(canvas, renderer, {
     for (const id of edgeIds) renderer.removeItem(id);
   },
   onZoom: zoom => {
-    zoomSlider.value = Math.round(zoom * 100).toString();
-    updateZoomSliderCSS();
+    zoomSlider.setZoom(zoom);
   }
 });
 interactions.setMode("move");
