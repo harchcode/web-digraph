@@ -133,7 +133,7 @@
 
       .generator {
         display: flex;
-        gap: 8px;
+        gap: 0;
         align-items: center;
       }
 
@@ -164,10 +164,12 @@
 
       /* Controls & Inputs */
       input[type="number"] {
-        width: 80px;
+        height: 36px;
+        width: 100px;
         padding: 8px 12px;
         border: 1px solid #cbd5e1;
-        border-radius: 8px;
+        border-right: none;
+        border-radius: 8px 0 0 8px;
         font-family: inherit;
         font-size: 14px;
         outline: none;
@@ -212,7 +214,9 @@
       }
 
       #btn-generate {
-        padding: 8px;
+        height: 36px;
+        padding: 0 12px;
+        border-radius: 0 8px 8px 0;
       }
 
       /* Toggle Group (Desktop: Vertical) */
@@ -329,7 +333,7 @@
         }
 
         input[type="number"] {
-          width: 60px;
+          width: 80px;
           padding: 8px;
         }
 
@@ -395,7 +399,7 @@
       <div class="top-spacer"></div>
       <div class="generator-panel glass">
         <div class="generator">
-          <input type="number" id="node-count" value="100" min="1" />
+          <input type="number" id="node-count" value="100" min="1" max="999999" />
           <button class="btn-primary" id="btn-generate" title="Generate Grid">
             <svg
               width="16"
