@@ -394,7 +394,6 @@ export function createGraphRenderer(
         canvas.width = targetPhysicalWidth;
         canvas.height = targetPhysicalHeight;
         ctx.scale(dpr, dpr);
-        this.flush();
       }
     },
 
@@ -476,14 +475,40 @@ export function createGraphRenderer(
       for (const edgeId of node.incomingEdges) updateEdgeGeometry(edgeId);
       for (const edgeId of node.outgoingEdges) updateEdgeGeometry(edgeId);
     },
-    removeItem(_id: number) {},
+    removeItem(id: number) {
+      if (nodes[id]) this.removeNode(id);
+      else if (edges[id]) this.removeEdge(id);
+    },
     removeNode(id: number) {
       const node = nodes[id];
       if (!node) return;
+      // Copy sets to array to avoid mutation issues during iteration
+      const incoming = Array.from(node.incomingEdges);
+      for (const edgeId of incoming) this.removeEdge(edgeId);
+      const outgoing = Array.from(node.outgoingEdges);
+      for (const edgeId of outgoing) this.removeEdge(edgeId);
+
       removeNodeFromGrid(node);
       delete nodes[id];
+      selectedItems.delete(id);
     },
-    removeEdge(_id: number) {},
+    removeEdge(id: number) {
+      const edge = edges[id];
+      if (!edge) return;
+
+      removeFromGrid(edge.id, edge.line.cells);
+      removeFromGrid(edge.id, edge.arrow.cells);
+      if (edge.label) removeFromGrid(edge.id, edge.label.cells);
+
+      const sourceNode = nodes[edge.source];
+      if (sourceNode) sourceNode.outgoingEdges.delete(id);
+
+      const targetNode = nodes[edge.target];
+      if (targetNode) targetNode.incomingEdges.delete(id);
+
+      delete edges[id];
+      selectedItems.delete(id);
+    },
 
     clear() {
       if (!ctx || !canvas) return;

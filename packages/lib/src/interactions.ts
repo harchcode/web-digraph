@@ -33,10 +33,31 @@ export function attachDefaultInteractions(
     renderer.flush();
   };
 
+  const onKeyDown = (e: KeyboardEvent) => {
+    if (e.key === "Backspace" || e.key === "Delete") {
+      // Only delete if the user is focused on the body or the canvas
+      if (
+        document.activeElement === document.body ||
+        document.activeElement === canvas
+      ) {
+        const selected = renderer.getSelectedItems();
+        if (selected.size > 0) {
+          for (const id of selected) {
+            renderer.removeItem(id);
+          }
+          renderer.unselect();
+          renderer.flush();
+        }
+      }
+    }
+  };
+
   canvas.addEventListener("pointerdown", onPointerDown);
+  window.addEventListener("keydown", onKeyDown);
 
   // Return a cleanup function
   return () => {
     canvas.removeEventListener("pointerdown", onPointerDown);
+    window.removeEventListener("keydown", onKeyDown);
   };
 }
