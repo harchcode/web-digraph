@@ -25,11 +25,11 @@ export function attachDefaultInteractions(
     const pos = renderer.screenToGraph(rawX, rawY);
     const hit = renderer.getItemAt(pos.x, pos.y);
 
-    if (hit) {
-      if (hit.type === "node") {
+    if (hit !== null) {
+      if (renderer.nodes[hit]) {
         if (e.shiftKey) {
           isCreatingEdge = true;
-          edgeSourceId = hit.id;
+          edgeSourceId = hit;
           didCreateEdgeMove = false;
           canvas.setPointerCapture(e.pointerId);
         } else {
@@ -43,9 +43,9 @@ export function attachDefaultInteractions(
       if (!e.shiftKey) {
         // If clicking on an already selected node, don't clear selection so we can drag multiple
         const selected = renderer.getSelectedItems();
-        if (!selected.has(hit.id)) {
+        if (!selected.has(hit)) {
           renderer.unselect();
-          renderer.select([hit.id]);
+          renderer.select([hit]);
         }
       }
     } else {
@@ -123,8 +123,8 @@ export function attachDefaultInteractions(
         const pos = renderer.screenToGraph(rawX, rawY);
         const hit = renderer.getItemAt(pos.x, pos.y);
 
-        if (hit && hit.type === "node" && hit.id !== edgeSourceId) {
-          renderer.addEdge(edgeSourceId, hit.id);
+        if (hit !== null && renderer.nodes[hit] && hit !== edgeSourceId) {
+          renderer.addEdge(edgeSourceId, hit);
         }
       }
 

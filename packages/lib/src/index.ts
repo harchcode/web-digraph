@@ -77,10 +77,7 @@ export function createGraphRenderer(
     return Math.hypot(dx, dy);
   }
 
-  function getItemAt(
-    x: number,
-    y: number
-  ): { type: "node" | "edge"; id: number } | null {
+  function getItemAt(x: number, y: number): number | null {
     if (!ctx) return null;
     const cells = getCellsForBounds(x - 5, y - 5, x + 5, y + 5);
     const candidates = new Set<number>();
@@ -156,8 +153,8 @@ export function createGraphRenderer(
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    if (matchedNode !== null) return { type: "node", id: matchedNode };
-    if (matchedEdge !== null) return { type: "edge", id: matchedEdge };
+    if (matchedNode !== null) return matchedNode;
+    if (matchedEdge !== null) return matchedEdge;
 
     return null;
   }
