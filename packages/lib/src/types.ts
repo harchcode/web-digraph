@@ -91,4 +91,5 @@ export type GraphRenderer = {
   graphToScreen: (x: number, y: number) => Pos;
   flush: () => void;
   resize: () => void;
+  setGhostEdge: (sourceId: number | null, x?: number, y?: number) => void;
 };

@@ -12,6 +12,10 @@ export function attachDefaultInteractions(
   let lastPanX = 0;
   let lastPanY = 0;
 
+  let isCreatingEdge = false;
+  let edgeSourceId: number | null = null;
+  let didCreateEdgeMove = false;
+
   const onPointerDown = (e: PointerEvent) => {
     const rect = canvas.getBoundingClientRect();
     const rawX = e.clientX - rect.left;
@@ -22,20 +26,20 @@ export function attachDefaultInteractions(
 
     if (hit) {
       if (hit.type === "node") {
-        isDraggingNode = true;
-        lastGraphX = pos.x;
-        lastGraphY = pos.y;
-        canvas.setPointerCapture(e.pointerId);
+        if (e.shiftKey) {
+          isCreatingEdge = true;
+          edgeSourceId = hit.id;
+          didCreateEdgeMove = false;
+          canvas.setPointerCapture(e.pointerId);
+        } else {
+          isDraggingNode = true;
+          lastGraphX = pos.x;
+          lastGraphY = pos.y;
+          canvas.setPointerCapture(e.pointerId);
+        }
       }
 
-      if (e.shiftKey) {
-        const selected = renderer.getSelectedItems();
-        if (selected.has(hit.id)) {
-          renderer.unselect([hit.id]);
-        } else {
-          renderer.select([hit.id]);
-        }
-      } else {
+      if (!e.shiftKey) {
         // If clicking on an already selected node, don't clear selection so we can drag multiple
         const selected = renderer.getSelectedItems();
         if (!selected.has(hit.id)) {
@@ -59,7 +63,16 @@ export function attachDefaultInteractions(
   };
 
   const onPointerMove = (e: PointerEvent) => {
-    if (isDraggingNode) {
+    if (isCreatingEdge && edgeSourceId !== null) {
+      didCreateEdgeMove = true;
+      const rect = canvas.getBoundingClientRect();
+      const rawX = e.clientX - rect.left;
+      const rawY = e.clientY - rect.top;
+
+      const pos = renderer.screenToGraph(rawX, rawY);
+      renderer.setGhostEdge(edgeSourceId, pos.x, pos.y);
+      renderer.flush();
+    } else if (isDraggingNode) {
       const rect = canvas.getBoundingClientRect();
       const rawX = e.clientX - rect.left;
       const rawY = e.clientY - rect.top;
@@ -91,7 +104,35 @@ export function attachDefaultInteractions(
   };
 
   const onPointerUp = (e: PointerEvent) => {
-    if (isDraggingNode) {
+    if (isCreatingEdge) {
+      if (!didCreateEdgeMove && edgeSourceId !== null) {
+        // It was just a shift+click, toggle selection
+        const selected = renderer.getSelectedItems();
+        if (selected.has(edgeSourceId)) {
+          renderer.unselect([edgeSourceId]);
+        } else {
+          renderer.select([edgeSourceId]);
+        }
+      } else if (didCreateEdgeMove && edgeSourceId !== null) {
+        const rect = canvas.getBoundingClientRect();
+        const rawX = e.clientX - rect.left;
+        const rawY = e.clientY - rect.top;
+
+        const pos = renderer.screenToGraph(rawX, rawY);
+        const hit = renderer.getItemAt(pos.x, pos.y);
+
+        if (hit && hit.type === "node" && hit.id !== edgeSourceId) {
+          renderer.addEdge(edgeSourceId, hit.id);
+        }
+      }
+
+      renderer.setGhostEdge(null);
+      isCreatingEdge = false;
+      edgeSourceId = null;
+      didCreateEdgeMove = false;
+      canvas.releasePointerCapture(e.pointerId);
+      renderer.flush();
+    } else if (isDraggingNode) {
       isDraggingNode = false;
       canvas.releasePointerCapture(e.pointerId);
 

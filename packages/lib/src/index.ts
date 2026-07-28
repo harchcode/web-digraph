@@ -43,6 +43,7 @@ export function createGraphRenderer(
 
   const spatialGrid: Record<string, Set<number>> = {};
   const selectedItems = new Set<number>();
+  let ghostEdge: { sourceId: number; x: number; y: number } | null = null;
 
   function pointToLineDistance(
     px: number,
@@ -608,6 +609,14 @@ export function createGraphRenderer(
       };
     },
 
+    setGhostEdge(sourceId: number | null, x?: number, y?: number) {
+      if (sourceId === null || x === undefined || y === undefined) {
+        ghostEdge = null;
+      } else {
+        ghostEdge = { sourceId, x, y };
+      }
+    },
+
     flush() {
       if (isDirty) return;
       isDirty = true;
@@ -728,9 +737,75 @@ export function createGraphRenderer(
         }
 
         ctx.fillStyle = "#ffffff";
-        // Draw visible nodes
+        // Draw all visible nodes EXCEPT the ghost edge source node
         for (const nodeId of visibleNodes) {
+          if (ghostEdge && nodeId === ghostEdge.sourceId) continue;
+
           const node = nodes[nodeId];
+          ctx.setTransform(
+            zoom * dpr,
+            0,
+            0,
+            zoom * dpr,
+            (node.x * zoom + offsetX) * dpr,
+            (node.y * zoom + offsetY) * dpr
+          );
+
+          if (selectedItems.has(node.id)) {
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = "#0066ff";
+          } else {
+            ctx.strokeStyle = "#333333";
+            ctx.lineWidth = 2;
+          }
+
+          node.shape.draw(ctx, node.shape.path, node.id);
+        }
+
+        // Draw ghost edge
+        if (ghostEdge) {
+          const sourceNode = nodes[ghostEdge.sourceId];
+          if (sourceNode) {
+            const dx = ghostEdge.x - sourceNode.x;
+            const dy = ghostEdge.y - sourceNode.y;
+            const angle = Math.atan2(dy, dx);
+            const arrowSize = 10;
+
+            const lineStartX = sourceNode.x;
+            const lineStartY = sourceNode.y;
+            const lineEndX = ghostEdge.x - Math.cos(angle) * (arrowSize - 2);
+            const lineEndY = ghostEdge.y - Math.sin(angle) * (arrowSize - 2);
+
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            ctx.translate(halfWidth, halfHeight);
+            ctx.scale(zoom, zoom);
+            ctx.translate(-cameraX, -cameraY);
+
+            ctx.beginPath();
+            ctx.moveTo(lineStartX, lineStartY);
+            ctx.lineTo(lineEndX, lineEndY);
+            ctx.strokeStyle = "#0066ff";
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            ctx.setTransform(
+              zoom * dpr,
+              0,
+              0,
+              zoom * dpr,
+              (ghostEdge.x * zoom + offsetX) * dpr,
+              (ghostEdge.y * zoom + offsetY) * dpr
+            );
+            ctx.rotate(angle);
+            ctx.fillStyle = "#0066ff";
+            ctx.fill(sharedArrowPath);
+          }
+        }
+
+        // Draw the ghost edge source node on top
+        if (ghostEdge && visibleNodes.has(ghostEdge.sourceId)) {
+          ctx.fillStyle = "#ffffff";
+          const node = nodes[ghostEdge.sourceId];
           ctx.setTransform(
             zoom * dpr,
             0,
