@@ -33,7 +33,7 @@ export const defaultGraphOptions: GraphOptions = {
   selectedNodeLineColor: "#0066ff",
   nodeFont: "600 12px Inter, sans-serif",
   edgeLineWidth: 2,
-  edgeLineColor: "#3b82f6",
+  edgeLineColor: "#3f6212",
   edgeShapeColor: "#ffffff",
   selectedEdgeLineWidth: 3,
   selectedEdgeLineColor: "#0066ff",
@@ -551,6 +551,17 @@ export function createGraphRenderer(
     targetId: number,
     label?: GraphShape
   ): number {
+    if (sourceId === targetId) return -1;
+    const sourceNode = nodes[sourceId];
+    if (!sourceNode || !nodes[targetId]) return -1;
+
+    for (const edgeId of sourceNode.outgoingEdges) {
+      if (edges[edgeId]?.target === targetId) return -1;
+    }
+    for (const edgeId of sourceNode.incomingEdges) {
+      if (edges[edgeId]?.source === targetId) return -1;
+    }
+
     const edgeId = generateId();
     const edge: GraphEdge = {
       id: edgeId,
