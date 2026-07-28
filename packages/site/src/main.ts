@@ -47,6 +47,14 @@ window.addEventListener("resize", () => {
 
 // Initialize size and mount
 renderer.mount(canvas);
+const zoomSlider = document.getElementById("zoom-slider") as HTMLInputElement;
+
+zoomSlider.addEventListener("input", e => {
+  const val = parseInt((e.target as HTMLInputElement).value, 10);
+  // Convert percentage to decimal (e.g. 100 -> 1.0)
+  renderer.zoomTo(val / 100);
+  renderer.flush();
+});
 
 // Setup Interactions
 const interactions = createGraphInteractions(canvas, renderer, {
@@ -63,8 +71,7 @@ const interactions = createGraphInteractions(canvas, renderer, {
     for (const id of edgeIds) renderer.removeItem(id);
   },
   onZoom: zoom => {
-    // TODO: Update zoom slider in UI here
-    console.log("Zoom changed to:", zoom);
+    zoomSlider.value = Math.round(zoom * 100).toString();
   }
 });
 interactions.setMode("move");
