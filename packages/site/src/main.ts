@@ -47,21 +47,9 @@ renderer.mount(canvas);
 const interactions = createGraphInteractions(canvas, renderer);
 interactions.setMode("move");
 
-const n1 = renderer.addNode(
-  window.innerWidth / 2 - 100,
-  window.innerHeight / 2,
-  squareShape
-);
-const n2 = renderer.addNode(
-  window.innerWidth / 2 + 100,
-  window.innerHeight / 2,
-  squareShape
-);
-const n3 = renderer.addNode(
-  window.innerWidth / 2,
-  window.innerHeight / 2 + 150,
-  squareShape
-);
+const n1 = renderer.addNode(-100, 0, squareShape);
+const n2 = renderer.addNode(100, 2, squareShape);
+const n3 = renderer.addNode(0, 150, squareShape);
 
 renderer.addEdge(n1, n2);
 renderer.addEdge(n2, n3);
