@@ -1,18 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <!-- Paper Background -->
-  <rect x="1" y="1" width="98" height="98" rx="16" fill="#fdfcf8" stroke="#d6d3d1" stroke-width="2" />
-  
   <!-- Edges (drawn behind shapes) -->
-  <line x1="30" y1="25" x2="75" y2="45" stroke="#57534e" stroke-width="2" />
-  <line x1="75" y1="45" x2="45" y2="80" stroke="#57534e" stroke-width="2" />
-  <line x1="45" y1="80" x2="30" y2="25" stroke="#57534e" stroke-width="2" />
+  <line x1="20" y1="20" x2="80" y2="35" stroke="#57534e" stroke-width="4" />
+  <line x1="80" y1="35" x2="45" y2="78" stroke="#57534e" stroke-width="4" />
+  <line x1="45" y1="78" x2="20" y2="20" stroke="#57534e" stroke-width="4" />
 
-  <!-- Circle -->
-  <circle cx="30" cy="25" r="10" fill="#bfdbfe" stroke="#1c1917" stroke-width="2" />
+  <!-- Circle (Top Left) -->
+  <circle cx="20" cy="20" r="18" fill="#bfdbfe" stroke="#1c1917" stroke-width="3" />
   
-  <!-- Square -->
-  <rect x="65" y="35" width="20" height="20" rx="2" fill="#fecaca" stroke="#1c1917" stroke-width="2" />
+  <!-- Square (Middle Right) -->
+  <rect x="62" y="17" width="36" height="36" rx="4" fill="#fecaca" stroke="#1c1917" stroke-width="3" />
   
-  <!-- Triangle -->
-  <polygon points="45,69 35,86 55,86" fill="#bbf7d0" stroke="#1c1917" stroke-width="2" stroke-linejoin="round" />
+  <!-- Triangle (Bottom Center) -->
+  <polygon points="45,58 23,98 67,98" fill="#bbf7d0" stroke="#1c1917" stroke-width="3" stroke-linejoin="round" />
 </svg>
