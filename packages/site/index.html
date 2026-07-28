@@ -254,7 +254,11 @@
         -webkit-appearance: none;
         width: 100px;
         height: 6px;
-        background: #e2e8f0;
+        background: linear-gradient(
+          to right,
+          var(--primary) var(--val, 0%),
+          #e2e8f0 var(--val, 0%)
+        );
         border-radius: 3px;
         outline: none;
         position: absolute;
