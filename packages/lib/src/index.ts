@@ -45,14 +45,14 @@ export function createGraphRenderer(
   const selectedItems = new Set<number>();
   let ghostEdge: { sourceId: number; x: number; y: number } | null = null;
 
-  function pointToLineDistance(
+  const pointToLineDistance = (
     px: number,
     py: number,
     x1: number,
     y1: number,
     x2: number,
     y2: number
-  ): number {
+  ): number => {
     const A = px - x1;
     const B = py - y1;
     const C = x2 - x1;
@@ -75,89 +75,7 @@ export function createGraphRenderer(
     const dx = px - xx;
     const dy = py - yy;
     return Math.hypot(dx, dy);
-  }
-
-  function getItemAt(x: number, y: number): number | null {
-    if (!ctx) return null;
-    const cells = getCellsForBounds(x - 5, y - 5, x + 5, y + 5);
-    const candidates = new Set<number>();
-    const selectedCandidates = new Set<number>();
-
-    for (const cell of cells) {
-      const items = spatialGrid[cell];
-      if (items) {
-        for (const id of items) {
-          if (selectedItems.has(id)) selectedCandidates.add(id);
-          else candidates.add(id);
-        }
-      }
-    }
-
-    // Append selected candidates at the end so they are evaluated last (on top)
-    for (const id of selectedCandidates) {
-      candidates.add(id);
-    }
-
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-
-    let matchedNode: number | null = null;
-    let matchedEdge: number | null = null;
-
-    for (const id of candidates) {
-      const node = nodes[id];
-      if (node) {
-        if (ctx.isPointInPath(node.shape.path, x - node.x, y - node.y)) {
-          matchedNode = id;
-        }
-        continue;
-      }
-
-      const edge = edges[id];
-      if (edge) {
-        if (
-          edge.label &&
-          ctx.isPointInPath(
-            edge.label.shape.path,
-            x - edge.label.x,
-            y - edge.label.y
-          )
-        ) {
-          matchedEdge = id;
-          continue;
-        }
-
-        const cos = Math.cos(-edge.arrow.angle);
-        const sin = Math.sin(-edge.arrow.angle);
-        const dx = x - edge.arrow.x;
-        const dy = y - edge.arrow.y;
-        const rx = dx * cos - dy * sin;
-        const ry = dx * sin + dy * cos;
-        if (ctx.isPointInPath(sharedArrowPath, rx, ry)) {
-          matchedEdge = id;
-          continue;
-        }
-
-        const dist = pointToLineDistance(
-          x,
-          y,
-          edge.line.sx,
-          edge.line.sy,
-          edge.line.tx,
-          edge.line.ty
-        );
-        if (dist < 8) {
-          matchedEdge = id;
-        }
-      }
-    }
-
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-    if (matchedNode !== null) return matchedNode;
-    if (matchedEdge !== null) return matchedEdge;
-
-    return null;
-  }
+  };
 
   const getCellsForBounds = (
     left: number,
@@ -236,13 +154,13 @@ export function createGraphRenderer(
     return Array.from(cells);
   };
 
-  function getBoundaryIntersection(
+  const getBoundaryIntersection = (
     path: Path2D,
     cx: number,
     cy: number,
     ox: number,
     oy: number
-  ): Pos {
+  ): Pos => {
     const dx = ox - cx;
     const dy = oy - cy;
     const e = (Math.abs(dx) + Math.abs(dy)) | 0;
@@ -274,7 +192,7 @@ export function createGraphRenderer(
 
     const finalT = start / e;
     return { x: cx + finalT * dx, y: cy + finalT * dy };
-  }
+  };
 
   const insertToGrid = (id: number, cells: string[]) => {
     for (const cell of cells) {
@@ -352,7 +270,7 @@ export function createGraphRenderer(
     if (edge.label) edge.label.cells = [];
   };
 
-  function updateEdgeGeometry(edgeId: number, skipGrid = false) {
+  const updateEdgeGeometry = (edgeId: number, skipGrid = false) => {
     const edge = edges[edgeId];
     if (!edge) return;
     const sourceNode = nodes[edge.source];
@@ -395,7 +313,7 @@ export function createGraphRenderer(
     }
 
     if (!skipGrid) insertEdgeToGrid(edge);
-  }
+  };
 
   const drawNode = (nodeId: number, offsetX: number, offsetY: number) => {
     if (!ctx) return;
@@ -712,7 +630,87 @@ export function createGraphRenderer(
     getSelectedItems() {
       return selectedItems;
     },
-    getItemAt,
+    getItemAt(x: number, y: number): number | null {
+      if (!ctx) return null;
+      const cells = getCellsForBounds(x - 5, y - 5, x + 5, y + 5);
+      const candidates = new Set<number>();
+      const selectedCandidates = new Set<number>();
+
+      for (const cell of cells) {
+        const items = spatialGrid[cell];
+        if (items) {
+          for (const id of items) {
+            if (selectedItems.has(id)) selectedCandidates.add(id);
+            else candidates.add(id);
+          }
+        }
+      }
+
+      // Append selected candidates at the end so they are evaluated last (on top)
+      for (const id of selectedCandidates) {
+        candidates.add(id);
+      }
+
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+      let matchedNode: number | null = null;
+      let matchedEdge: number | null = null;
+
+      for (const id of candidates) {
+        const node = nodes[id];
+        if (node) {
+          if (ctx.isPointInPath(node.shape.path, x - node.x, y - node.y)) {
+            matchedNode = id;
+          }
+          continue;
+        }
+
+        const edge = edges[id];
+        if (edge) {
+          if (
+            edge.label &&
+            ctx.isPointInPath(
+              edge.label.shape.path,
+              x - edge.label.x,
+              y - edge.label.y
+            )
+          ) {
+            matchedEdge = id;
+            continue;
+          }
+
+          const cos = Math.cos(-edge.arrow.angle);
+          const sin = Math.sin(-edge.arrow.angle);
+          const dx = x - edge.arrow.x;
+          const dy = y - edge.arrow.y;
+          const rx = dx * cos - dy * sin;
+          const ry = dx * sin + dy * cos;
+          if (ctx.isPointInPath(sharedArrowPath, rx, ry)) {
+            matchedEdge = id;
+            continue;
+          }
+
+          const dist = pointToLineDistance(
+            x,
+            y,
+            edge.line.sx,
+            edge.line.sy,
+            edge.line.tx,
+            edge.line.ty
+          );
+          if (dist < 8) {
+            matchedEdge = id;
+          }
+        }
+      }
+
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      if (matchedNode !== null) return matchedNode;
+      if (matchedEdge !== null) return matchedEdge;
+
+      return null;
+    },
     zoomTo(value: number, targetX?: number, targetY?: number) {
       if (!canvas) return;
       const minZoom = 0.1;
