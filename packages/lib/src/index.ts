@@ -352,7 +352,9 @@ export function createGraphRenderer(
       ctx.lineWidth = opts.nodeLineWidth;
     }
 
+    ctx.save();
     node.shape.draw(ctx, node.shape.path, node.id);
+    ctx.restore();
   }
 
   function drawEdge(edgeId: number, offsetX: number, offsetY: number) {
@@ -399,13 +401,10 @@ export function createGraphRenderer(
         (edge.label.x * zoom + offsetX) * dpr,
         (edge.label.y * zoom + offsetY) * dpr
       );
-      ctx.lineWidth = isSelected
-        ? opts.selectedEdgeLineWidth
-        : opts.edgeLineWidth;
-      ctx.strokeStyle = isSelected
-        ? opts.selectedEdgeLineColor
-        : opts.edgeLineColor;
+
+      ctx.save();
       edge.label.shape.draw(ctx, edge.label.shape.path, edge.id);
+      ctx.restore();
     }
   }
 
@@ -917,13 +916,11 @@ export const defaultShape: GraphShape = {
   h: 50,
   path: defaultPath,
   draw: (ctx, path, id) => {
-    ctx.save();
     ctx.fill(path);
     ctx.stroke(path);
 
     ctx.fillStyle = "#333333";
     ctx.fillText(`Node ${id}`, 0, 0);
-    ctx.restore();
   }
 };
 
