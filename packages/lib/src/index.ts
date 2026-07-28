@@ -386,6 +386,143 @@ export function createGraphRenderer(
     if (!skipGrid) insertEdgeToGrid(edge);
   }
 
+  const drawNode = (nodeId: number, offsetX: number, offsetY: number) => {
+    if (!ctx) return;
+    const node = nodes[nodeId];
+    ctx.setTransform(
+      zoom * dpr,
+      0,
+      0,
+      zoom * dpr,
+      (node.x * zoom + offsetX) * dpr,
+      (node.y * zoom + offsetY) * dpr
+    );
+
+    if (selectedItems.has(node.id)) {
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = "#0066ff";
+    } else {
+      ctx.strokeStyle = "#333333";
+      ctx.lineWidth = 2;
+    }
+
+    node.shape.draw(ctx, node.shape.path, node.id);
+  };
+
+  const drawEdge = (edgeId: number, offsetX: number, offsetY: number) => {
+    if (!ctx) return;
+    const edge = edges[edgeId];
+    const isSelected = selectedItems.has(edgeId);
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.translate(halfWidth, halfHeight);
+    ctx.scale(zoom, zoom);
+    ctx.translate(-cameraX, -cameraY);
+
+    ctx.beginPath();
+    ctx.moveTo(edge.line.sx, edge.line.sy);
+    ctx.lineTo(edge.line.tx, edge.line.ty);
+    ctx.strokeStyle = isSelected ? "#0066ff" : "#999999";
+    ctx.lineWidth = isSelected ? 3 : 2;
+    ctx.stroke();
+
+    ctx.setTransform(
+      zoom * dpr,
+      0,
+      0,
+      zoom * dpr,
+      (edge.arrow.x * zoom + offsetX) * dpr,
+      (edge.arrow.y * zoom + offsetY) * dpr
+    );
+    ctx.rotate(edge.arrow.angle);
+    ctx.fillStyle = isSelected ? "#0066ff" : "#999999";
+    ctx.fill(sharedArrowPath);
+
+    if (edge.label) {
+      ctx.setTransform(
+        zoom * dpr,
+        0,
+        0,
+        zoom * dpr,
+        (edge.label.x * zoom + offsetX) * dpr,
+        (edge.label.y * zoom + offsetY) * dpr
+      );
+      ctx.lineWidth = isSelected ? 3 : 2;
+      ctx.strokeStyle = isSelected ? "#0066ff" : "#999999";
+      edge.label.shape.draw(ctx, edge.label.shape.path, edge.id);
+    }
+  };
+
+  const drawBackground = (
+    left: number,
+    top: number,
+    right: number,
+    bottom: number
+  ) => {
+    if (!ctx) return;
+    if (!opts.drawGrid) return;
+    const gridSize = opts.gridSize;
+    if (gridSize * zoom < 10) return;
+
+    const startX = Math.floor(left / gridSize) * gridSize;
+    const startY = Math.floor(top / gridSize) * gridSize;
+
+    ctx.beginPath();
+    for (let x = startX; x < right; x += gridSize) {
+      ctx.moveTo(x, top);
+      ctx.lineTo(x, bottom);
+    }
+    for (let y = startY; y < bottom; y += gridSize) {
+      ctx.moveTo(left, y);
+      ctx.lineTo(right, y);
+    }
+
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = "#e8e8e8";
+    ctx.stroke();
+  };
+
+  const drawGhostEdge = (offsetX: number, offsetY: number) => {
+    if (!ctx) return;
+    if (!ghostEdge) return;
+    const sourceNode = nodes[ghostEdge.sourceId];
+    if (!sourceNode) return;
+
+    const dx = ghostEdge.x - sourceNode.x;
+    const dy = ghostEdge.y - sourceNode.y;
+    const angle = Math.atan2(dy, dx);
+    const arrowSize = 10;
+
+    const lineStartX = sourceNode.x;
+    const lineStartY = sourceNode.y;
+    const lineEndX = ghostEdge.x - Math.cos(angle) * (arrowSize - 2);
+    const lineEndY = ghostEdge.y - Math.sin(angle) * (arrowSize - 2);
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.translate(halfWidth, halfHeight);
+    ctx.scale(zoom, zoom);
+    ctx.translate(-cameraX, -cameraY);
+
+    ctx.beginPath();
+    ctx.moveTo(lineStartX, lineStartY);
+    ctx.lineTo(lineEndX, lineEndY);
+    ctx.strokeStyle = "#0066ff";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    ctx.setTransform(
+      zoom * dpr,
+      0,
+      0,
+      zoom * dpr,
+      (ghostEdge.x * zoom + offsetX) * dpr,
+      (ghostEdge.y * zoom + offsetY) * dpr
+    );
+    ctx.rotate(angle);
+    ctx.fillStyle = "#0066ff";
+    ctx.fill(sharedArrowPath);
+  };
+
   return {
     nodes,
     edges,
@@ -635,26 +772,7 @@ export function createGraphRenderer(
         const top = -halfHeight / zoom + cameraY;
         const right = halfWidth / zoom + cameraX;
         const bottom = halfHeight / zoom + cameraY;
-        const gridSize = opts.gridSize;
-
-        if (opts.drawGrid && gridSize * zoom >= 10) {
-          const startX = Math.floor(left / gridSize) * gridSize;
-          const startY = Math.floor(top / gridSize) * gridSize;
-
-          ctx.beginPath();
-          for (let x = startX; x < right; x += gridSize) {
-            ctx.moveTo(x, top);
-            ctx.lineTo(x, bottom);
-          }
-          for (let y = startY; y < bottom; y += gridSize) {
-            ctx.moveTo(left, y);
-            ctx.lineTo(right, y);
-          }
-
-          ctx.lineWidth = 1;
-          ctx.strokeStyle = "#e8e8e8";
-          ctx.stroke();
-        }
+        drawBackground(left, top, right, bottom);
 
         // Collect visible entities from the SHG
         const visibleCells = getCellsForBounds(left, top, right, bottom);
@@ -674,156 +792,28 @@ export function createGraphRenderer(
         const offsetY = halfHeight - cameraY * zoom;
 
         // Draw Edges (behind nodes)
-        ctx.strokeStyle = "#999999";
-        ctx.fillStyle = "#999999";
-        ctx.lineWidth = 2;
         ctx.font = "500 14px Inter, sans-serif";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
 
-        // 1. Batch draw all edge lines
-        ctx.beginPath();
         for (const edgeId of visibleEdges) {
-          if (selectedItems.has(edgeId)) continue;
-          const edge = edges[edgeId];
-          ctx.moveTo(edge.line.sx, edge.line.sy);
-          ctx.lineTo(edge.line.tx, edge.line.ty);
-        }
-        ctx.stroke();
-
-        ctx.lineWidth = 3;
-        ctx.strokeStyle = "#0066ff";
-        ctx.beginPath();
-        for (const edgeId of visibleEdges) {
-          if (!selectedItems.has(edgeId)) continue;
-          const edge = edges[edgeId];
-          ctx.moveTo(edge.line.sx, edge.line.sy);
-          ctx.lineTo(edge.line.tx, edge.line.ty);
-        }
-        ctx.stroke();
-
-        // 2. Draw Arrows and Labels
-        ctx.fillStyle = "#999999";
-        for (const edgeId of visibleEdges) {
-          const edge = edges[edgeId];
-          const isSelected = selectedItems.has(edgeId);
-
-          ctx.setTransform(
-            zoom * dpr,
-            0,
-            0,
-            zoom * dpr,
-            (edge.arrow.x * zoom + offsetX) * dpr,
-            (edge.arrow.y * zoom + offsetY) * dpr
-          );
-          ctx.rotate(edge.arrow.angle);
-          ctx.fillStyle = isSelected ? "#0066ff" : "#999999";
-          ctx.fill(sharedArrowPath);
-          ctx.fillStyle = "#999999";
-
-          if (edge.label) {
-            ctx.lineWidth = isSelected ? 3 : 2;
-            ctx.strokeStyle = isSelected ? "#0066ff" : "#999999";
-            ctx.setTransform(
-              zoom * dpr,
-              0,
-              0,
-              zoom * dpr,
-              (edge.label.x * zoom + offsetX) * dpr,
-              (edge.label.y * zoom + offsetY) * dpr
-            );
-            edge.label.shape.draw(ctx, edge.label.shape.path, edge.id);
-          }
+          drawEdge(edgeId, offsetX, offsetY);
         }
 
         ctx.fillStyle = "#ffffff";
         // Draw all visible nodes EXCEPT the ghost edge source node
         for (const nodeId of visibleNodes) {
           if (ghostEdge && nodeId === ghostEdge.sourceId) continue;
-
-          const node = nodes[nodeId];
-          ctx.setTransform(
-            zoom * dpr,
-            0,
-            0,
-            zoom * dpr,
-            (node.x * zoom + offsetX) * dpr,
-            (node.y * zoom + offsetY) * dpr
-          );
-
-          if (selectedItems.has(node.id)) {
-            ctx.lineWidth = 4;
-            ctx.strokeStyle = "#0066ff";
-          } else {
-            ctx.strokeStyle = "#333333";
-            ctx.lineWidth = 2;
-          }
-
-          node.shape.draw(ctx, node.shape.path, node.id);
+          drawNode(nodeId, offsetX, offsetY);
         }
 
         // Draw ghost edge
-        if (ghostEdge) {
-          const sourceNode = nodes[ghostEdge.sourceId];
-          if (sourceNode) {
-            const dx = ghostEdge.x - sourceNode.x;
-            const dy = ghostEdge.y - sourceNode.y;
-            const angle = Math.atan2(dy, dx);
-            const arrowSize = 10;
-
-            const lineStartX = sourceNode.x;
-            const lineStartY = sourceNode.y;
-            const lineEndX = ghostEdge.x - Math.cos(angle) * (arrowSize - 2);
-            const lineEndY = ghostEdge.y - Math.sin(angle) * (arrowSize - 2);
-
-            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-            ctx.translate(halfWidth, halfHeight);
-            ctx.scale(zoom, zoom);
-            ctx.translate(-cameraX, -cameraY);
-
-            ctx.beginPath();
-            ctx.moveTo(lineStartX, lineStartY);
-            ctx.lineTo(lineEndX, lineEndY);
-            ctx.strokeStyle = "#0066ff";
-            ctx.lineWidth = 3;
-            ctx.stroke();
-
-            ctx.setTransform(
-              zoom * dpr,
-              0,
-              0,
-              zoom * dpr,
-              (ghostEdge.x * zoom + offsetX) * dpr,
-              (ghostEdge.y * zoom + offsetY) * dpr
-            );
-            ctx.rotate(angle);
-            ctx.fillStyle = "#0066ff";
-            ctx.fill(sharedArrowPath);
-          }
-        }
+        drawGhostEdge(offsetX, offsetY);
 
         // Draw the ghost edge source node on top
         if (ghostEdge && visibleNodes.has(ghostEdge.sourceId)) {
           ctx.fillStyle = "#ffffff";
-          const node = nodes[ghostEdge.sourceId];
-          ctx.setTransform(
-            zoom * dpr,
-            0,
-            0,
-            zoom * dpr,
-            (node.x * zoom + offsetX) * dpr,
-            (node.y * zoom + offsetY) * dpr
-          );
-
-          if (selectedItems.has(node.id)) {
-            ctx.lineWidth = 4;
-            ctx.strokeStyle = "#0066ff";
-          } else {
-            ctx.strokeStyle = "#333333";
-            ctx.lineWidth = 2;
-          }
-
-          node.shape.draw(ctx, node.shape.path, node.id);
+          drawNode(ghostEdge.sourceId, offsetX, offsetY);
         }
 
         // Reset to base transform so any outside context usage is unaffected
