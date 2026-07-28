@@ -26,7 +26,14 @@ export function createGraphInteractions(
   let edgeSourceId: number | null = null;
   let didCreateEdgeMove = false;
 
+  const activePointers = new Map<number, PointerEvent>();
+  let lastPinchDist = 0;
+  let lastPinchCenterX = 0;
+  let lastPinchCenterY = 0;
+
   const onPointerDown = (e: PointerEvent) => {
+    e.preventDefault(); // Prevents mobile browser heuristics from delaying events
+    activePointers.set(e.pointerId, e);
     const rect = canvas.getBoundingClientRect();
     const rawX = e.clientX - rect.left;
     const rawY = e.clientY - rect.top;
@@ -82,6 +89,42 @@ export function createGraphInteractions(
   };
 
   const onPointerMove = (e: PointerEvent) => {
+    e.preventDefault(); // Prevents mobile browser heuristics from delaying events
+
+    if (activePointers.has(e.pointerId)) {
+      activePointers.set(e.pointerId, e);
+    }
+
+    if (activePointers.size === 2) {
+      const pts = Array.from(activePointers.values());
+      const p1 = pts[0];
+      const p2 = pts[1];
+
+      const dx = p1.clientX - p2.clientX;
+      const dy = p1.clientY - p2.clientY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const cx = (p1.clientX + p2.clientX) / 2;
+      const cy = (p1.clientY + p2.clientY) / 2;
+
+      if (lastPinchDist > 0) {
+        const zoomDelta = (dist - lastPinchDist) * 0.005; // Pinch sensitivity
+        renderer.zoomBy(zoomDelta, cx, cy);
+
+        const panDx = cx - lastPinchCenterX;
+        const panDy = cy - lastPinchCenterY;
+        if (panDx !== 0 || panDy !== 0) {
+          renderer.panBy(panDx, panDy);
+        }
+      }
+      lastPinchDist = dist;
+      lastPinchCenterX = cx;
+      lastPinchCenterY = cy;
+      renderer.flush();
+      return;
+    }
+
+    lastPinchDist = 0;
+
     if (isCreatingEdge && edgeSourceId !== null) {
       didCreateEdgeMove = true;
       const rect = canvas.getBoundingClientRect();
@@ -123,6 +166,24 @@ export function createGraphInteractions(
   };
 
   const onPointerUp = (e: PointerEvent) => {
+    activePointers.delete(e.pointerId);
+    if (activePointers.size < 2) {
+      lastPinchDist = 0;
+    }
+    if (activePointers.size === 1) {
+      // Reset dragging anchors for the remaining finger so it doesn't jump
+      const remaining = Array.from(activePointers.values())[0];
+      lastPanX = remaining.clientX;
+      lastPanY = remaining.clientY;
+      const rect = canvas.getBoundingClientRect();
+      const pos = renderer.screenToGraph(
+        remaining.clientX - rect.left,
+        remaining.clientY - rect.top
+      );
+      lastGraphX = pos.x;
+      lastGraphY = pos.y;
+    }
+
     if (isCreatingEdge) {
       if (!didCreateEdgeMove && edgeSourceId !== null) {
         // It was just a click, toggle selection if multiSelect is enabled
