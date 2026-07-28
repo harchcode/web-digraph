@@ -2,7 +2,7 @@ import {
   createGraphRenderer,
   defaultShape,
   createShape,
-  attachDefaultInteractions
+  createGraphInteractions
 } from "web-digraph";
 
 document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
@@ -24,7 +24,8 @@ const renderer = createGraphRenderer({ drawGrid: true });
 
 // 2. Mount to canvas
 renderer.mount(canvas);
-attachDefaultInteractions(canvas, renderer);
+const interactions = createGraphInteractions(canvas, renderer);
+(window as unknown as Record<string, unknown>).interactions = interactions;
 
 // 3. Define a shape
 const circlePath = new Path2D();

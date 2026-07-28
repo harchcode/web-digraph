@@ -1,10 +1,19 @@
-import type { GraphRenderer } from "./types.js";
+import type {
+  GraphRenderer,
+  GraphInteractions,
+  InteractionMode,
+  InteractionOptions
+} from "./types.js";
 import { defaultShape } from "./index.js";
 
-export function attachDefaultInteractions(
+export function createGraphInteractions(
   canvas: HTMLCanvasElement,
-  renderer: GraphRenderer
-): () => void {
+  renderer: GraphRenderer,
+  options?: InteractionOptions
+): GraphInteractions {
+  let mode: InteractionMode = "move";
+  let multiSelect = false;
+
   let isDraggingNode = false;
   let lastGraphX = 0;
   let lastGraphY = 0;
@@ -27,7 +36,7 @@ export function attachDefaultInteractions(
 
     if (hit !== null) {
       if (renderer.nodes[hit]) {
-        if (e.shiftKey) {
+        if (mode === "create") {
           isCreatingEdge = true;
           edgeSourceId = hit;
           didCreateEdgeMove = false;
@@ -38,7 +47,7 @@ export function attachDefaultInteractions(
           lastGraphY = pos.y;
           canvas.setPointerCapture(e.pointerId);
         }
-      } else if (e.shiftKey) {
+      } else if (multiSelect) {
         // It's an edge: toggle selection immediately since there's no drag/create conflict
         const selected = renderer.getSelectedItems();
         if (selected.has(hit)) {
@@ -48,7 +57,7 @@ export function attachDefaultInteractions(
         }
       }
 
-      if (!e.shiftKey) {
+      if (!multiSelect) {
         // If clicking on an already selected node, don't clear selection so we can drag multiple
         const selected = renderer.getSelectedItems();
         if (!selected.has(hit)) {
@@ -57,7 +66,7 @@ export function attachDefaultInteractions(
         }
       }
     } else {
-      if (e.shiftKey) {
+      if (mode === "create") {
         renderer.addNode(pos.x, pos.y, defaultShape);
       } else {
         isPanning = true;
@@ -65,7 +74,7 @@ export function attachDefaultInteractions(
         lastPanY = e.clientY;
         canvas.setPointerCapture(e.pointerId);
         canvas.style.cursor = "grabbing";
-        renderer.unselect();
+        if (!multiSelect) renderer.unselect();
       }
     }
 
@@ -116,12 +125,14 @@ export function attachDefaultInteractions(
   const onPointerUp = (e: PointerEvent) => {
     if (isCreatingEdge) {
       if (!didCreateEdgeMove && edgeSourceId !== null) {
-        // It was just a shift+click, toggle selection
-        const selected = renderer.getSelectedItems();
-        if (selected.has(edgeSourceId)) {
-          renderer.unselect([edgeSourceId]);
-        } else {
-          renderer.select([edgeSourceId]);
+        // It was just a click, toggle selection if multiSelect is enabled
+        if (multiSelect) {
+          const selected = renderer.getSelectedItems();
+          if (selected.has(edgeSourceId)) {
+            renderer.unselect([edgeSourceId]);
+          } else {
+            renderer.select([edgeSourceId]);
+          }
         }
       } else if (didCreateEdgeMove && edgeSourceId !== null) {
         const rect = canvas.getBoundingClientRect();
@@ -170,6 +181,10 @@ export function attachDefaultInteractions(
   };
 
   const onKeyDown = (e: KeyboardEvent) => {
+    if (e.key === "Shift") {
+      multiSelect = true;
+      mode = "create";
+    }
     if (e.key === "Backspace" || e.key === "Delete") {
       if (
         document.activeElement === document.body ||
@@ -187,19 +202,44 @@ export function attachDefaultInteractions(
     }
   };
 
+  const onKeyUp = (e: KeyboardEvent) => {
+    if (e.key === "Shift") {
+      multiSelect = false;
+      mode = "move";
+    }
+  };
+
   canvas.addEventListener("pointerdown", onPointerDown);
   canvas.addEventListener("pointermove", onPointerMove);
   canvas.addEventListener("pointerup", onPointerUp);
   canvas.addEventListener("pointercancel", onPointerUp);
   canvas.addEventListener("wheel", onWheel);
-  window.addEventListener("keydown", onKeyDown);
 
-  return () => {
-    canvas.removeEventListener("pointerdown", onPointerDown);
-    canvas.removeEventListener("pointermove", onPointerMove);
-    canvas.removeEventListener("pointerup", onPointerUp);
-    canvas.removeEventListener("pointercancel", onPointerUp);
-    canvas.removeEventListener("wheel", onWheel);
-    window.removeEventListener("keydown", onKeyDown);
+  const bindKeys = options?.bindDefaultKeyboardHandlers !== false;
+  if (bindKeys) {
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+  }
+
+  return {
+    setMode: (newMode: InteractionMode) => {
+      mode = newMode;
+    },
+    getMode: () => mode,
+    setMultiSelect: (active: boolean) => {
+      multiSelect = active;
+    },
+    getMultiSelect: () => multiSelect,
+    dispose: () => {
+      canvas.removeEventListener("pointerdown", onPointerDown);
+      canvas.removeEventListener("pointermove", onPointerMove);
+      canvas.removeEventListener("pointerup", onPointerUp);
+      canvas.removeEventListener("pointercancel", onPointerUp);
+      canvas.removeEventListener("wheel", onWheel);
+      if (bindKeys) {
+        window.removeEventListener("keydown", onKeyDown);
+        window.removeEventListener("keyup", onKeyUp);
+      }
+    }
   };
 }

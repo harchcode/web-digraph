@@ -90,3 +90,17 @@ export type GraphRenderer = {
   resize: () => void;
   setGhostEdge: (sourceId: number | null, x?: number, y?: number) => void;
 };
+
+export type InteractionMode = "move" | "create";
+
+export type GraphInteractions = {
+  setMode: (mode: InteractionMode) => void;
+  getMode: () => InteractionMode;
+  setMultiSelect: (active: boolean) => void;
+  getMultiSelect: () => boolean;
+  dispose: () => void;
+};
+
+export type InteractionOptions = {
+  bindDefaultKeyboardHandlers?: boolean;
+};
