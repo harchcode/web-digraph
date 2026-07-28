@@ -38,6 +38,14 @@ export function attachDefaultInteractions(
           lastGraphY = pos.y;
           canvas.setPointerCapture(e.pointerId);
         }
+      } else if (e.shiftKey) {
+        // It's an edge: toggle selection immediately since there's no drag/create conflict
+        const selected = renderer.getSelectedItems();
+        if (selected.has(hit)) {
+          renderer.unselect([hit]);
+        } else {
+          renderer.select([hit]);
+        }
       }
 
       if (!e.shiftKey) {
