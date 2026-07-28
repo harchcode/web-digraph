@@ -33,8 +33,8 @@ export const defaultGraphOptions: GraphOptions = {
   selectedNodeLineColor: "#0066ff",
   nodeFont: "600 12px Inter, sans-serif",
   edgeLineWidth: 2,
-  edgeLineColor: "#94a3b8",
-  edgeShapeColor: "#94a3b8",
+  edgeLineColor: "#3b82f6",
+  edgeShapeColor: "#ffffff",
   selectedEdgeLineWidth: 3,
   selectedEdgeLineColor: "#0066ff",
   edgeFont: "500 12px Inter, sans-serif"
@@ -354,9 +354,8 @@ export function createGraphRenderer(
       ctx.lineWidth = opts.nodeLineWidth;
     }
 
-    ctx.save();
+    ctx.fillStyle = opts.nodeShapeColor;
     node.shape.draw(ctx, node.shape.path, node.id);
-    ctx.restore();
   }
 
   function drawEdge(edgeId: number, offsetX: number, offsetY: number) {
@@ -391,7 +390,7 @@ export function createGraphRenderer(
     ctx.rotate(edge.arrow.angle);
     ctx.fillStyle = isSelected
       ? opts.selectedEdgeLineColor
-      : opts.edgeShapeColor;
+      : opts.edgeLineColor;
     ctx.fill(sharedArrowPath);
 
     if (edge.label) {
@@ -404,9 +403,14 @@ export function createGraphRenderer(
         (edge.label.y * zoom + offsetY) * dpr
       );
 
-      ctx.save();
+      ctx.fillStyle = opts.edgeShapeColor;
+      ctx.strokeStyle = isSelected
+        ? opts.selectedEdgeLineColor
+        : opts.edgeLineColor;
+      ctx.lineWidth = isSelected
+        ? opts.selectedEdgeLineWidth
+        : opts.edgeLineWidth;
       edge.label.shape.draw(ctx, edge.label.shape.path, edge.id);
-      ctx.restore();
     }
   }
 

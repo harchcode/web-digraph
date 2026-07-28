@@ -46,7 +46,7 @@ const interactions = createGraphInteractions(canvas, renderer, {
     renderer.addNode(x, y, squareShape);
   },
   onAddEdge: (source, target) => {
-    renderer.addEdge(source, target);
+    renderer.addEdge(source, target, squareShape);
   },
   onDeleteNodes: nodeIds => {
     for (const id of nodeIds) renderer.removeItem(id);
@@ -65,9 +65,9 @@ const n1 = renderer.addNode(-100, 0, squareShape);
 const n2 = renderer.addNode(100, 2, squareShape);
 const n3 = renderer.addNode(0, 150, squareShape);
 
-renderer.addEdge(n1, n2);
-renderer.addEdge(n2, n3);
-renderer.addEdge(n1, n3);
+renderer.addEdge(n1, n2, squareShape);
+renderer.addEdge(n2, n3, squareShape);
+renderer.addEdge(n1, n3, squareShape);
 
 // Initial render
 renderer.flush();
