@@ -42,6 +42,111 @@ export function createGraphRenderer(
   let dpr = 1;
 
   const spatialGrid: Record<string, Set<number>> = {};
+  const selectedItems = new Set<number>();
+
+  function pointToLineDistance(
+    px: number,
+    py: number,
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number
+  ): number {
+    const A = px - x1;
+    const B = py - y1;
+    const C = x2 - x1;
+    const D = y2 - y1;
+    const dot = A * C + B * D;
+    const lenSq = C * C + D * D;
+    let param = -1;
+    if (lenSq !== 0) param = dot / lenSq;
+    let xx, yy;
+    if (param < 0) {
+      xx = x1;
+      yy = y1;
+    } else if (param > 1) {
+      xx = x2;
+      yy = y2;
+    } else {
+      xx = x1 + param * C;
+      yy = y1 + param * D;
+    }
+    const dx = px - xx;
+    const dy = py - yy;
+    return Math.hypot(dx, dy);
+  }
+
+  function getItemAt(
+    x: number,
+    y: number
+  ): { type: "node" | "edge"; id: number } | null {
+    if (!ctx) return null;
+    const cells = getCellsForBounds(x - 5, y - 5, x + 5, y + 5);
+    const candidates = new Set<number>();
+    for (const cell of cells) {
+      const items = spatialGrid[cell];
+      if (items) {
+        for (const id of items) candidates.add(id);
+      }
+    }
+
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+    // Nodes first (drawn on top)
+    for (const id of candidates) {
+      const node = nodes[id];
+      if (node && ctx.isPointInPath(node.shape.path, x - node.x, y - node.y)) {
+        ctx.restore();
+        return { type: "node", id };
+      }
+    }
+
+    // Edges next
+    for (const id of candidates) {
+      const edge = edges[id];
+      if (edge) {
+        if (
+          edge.label &&
+          ctx.isPointInPath(
+            edge.label.shape.path,
+            x - edge.label.x,
+            y - edge.label.y
+          )
+        ) {
+          ctx.restore();
+          return { type: "edge", id };
+        }
+
+        const cos = Math.cos(-edge.arrow.angle);
+        const sin = Math.sin(-edge.arrow.angle);
+        const dx = x - edge.arrow.x;
+        const dy = y - edge.arrow.y;
+        const rx = dx * cos - dy * sin;
+        const ry = dx * sin + dy * cos;
+        if (ctx.isPointInPath(sharedArrowPath, rx, ry)) {
+          ctx.restore();
+          return { type: "edge", id };
+        }
+
+        const dist = pointToLineDistance(
+          x,
+          y,
+          edge.line.sx,
+          edge.line.sy,
+          edge.line.tx,
+          edge.line.ty
+        );
+        if (dist < 8) {
+          ctx.restore();
+          return { type: "edge", id };
+        }
+      }
+    }
+
+    ctx.restore();
+    return null;
+  }
 
   const getCellsForBounds = (
     left: number,
@@ -302,6 +407,28 @@ export function createGraphRenderer(
         if (!canvas.style.height) canvas.style.height = `${canvas.height}px`;
         this.resize();
         window.addEventListener("resize", () => this.resize());
+
+        canvas.addEventListener("pointerdown", e => {
+          const rect = canvas!.getBoundingClientRect();
+          const rawX = e.clientX - rect.left;
+          const rawY = e.clientY - rect.top;
+          const pos = this.screenToGraph(rawX, rawY);
+          const hit = getItemAt(pos.x, pos.y);
+
+          if (hit) {
+            if (e.shiftKey) {
+              if (selectedItems.has(hit.id)) selectedItems.delete(hit.id);
+              else selectedItems.add(hit.id);
+            } else {
+              selectedItems.clear();
+              selectedItems.add(hit.id);
+            }
+          } else {
+            if (!e.shiftKey) selectedItems.clear();
+          }
+
+          this.flush();
+        });
       }
     },
 
@@ -387,8 +514,16 @@ export function createGraphRenderer(
       ctx.clearRect(0, 0, canvas.width, canvas.height);
     },
 
-    unselect(_ids?: number[]) {},
-    select(_ids: number[]) {},
+    unselect(ids?: number[]) {
+      if (ids) {
+        for (const id of ids) selectedItems.delete(id);
+      } else {
+        selectedItems.clear();
+      }
+    },
+    select(ids: number[]) {
+      for (const id of ids) selectedItems.add(id);
+    },
     zoomTo(value: number, targetX?: number, targetY?: number) {
       if (!canvas) return;
       const minZoom = 0.1;
@@ -500,6 +635,18 @@ export function createGraphRenderer(
         // 1. Batch draw all edge lines
         ctx.beginPath();
         for (const edgeId of visibleEdges) {
+          if (selectedItems.has(edgeId)) continue;
+          const edge = edges[edgeId];
+          ctx.moveTo(edge.line.sx, edge.line.sy);
+          ctx.lineTo(edge.line.tx, edge.line.ty);
+        }
+        ctx.stroke();
+
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = "#0066ff";
+        ctx.beginPath();
+        for (const edgeId of visibleEdges) {
+          if (!selectedItems.has(edgeId)) continue;
           const edge = edges[edgeId];
           ctx.moveTo(edge.line.sx, edge.line.sy);
           ctx.lineTo(edge.line.tx, edge.line.ty);
@@ -510,6 +657,7 @@ export function createGraphRenderer(
         ctx.fillStyle = "#999999";
         for (const edgeId of visibleEdges) {
           const edge = edges[edgeId];
+          const isSelected = selectedItems.has(edgeId);
 
           ctx.setTransform(
             zoom * dpr,
@@ -520,9 +668,13 @@ export function createGraphRenderer(
             (edge.arrow.y * zoom + offsetY) * dpr
           );
           ctx.rotate(edge.arrow.angle);
+          ctx.fillStyle = isSelected ? "#0066ff" : "#999999";
           ctx.fill(sharedArrowPath);
+          ctx.fillStyle = "#999999";
 
           if (edge.label) {
+            ctx.lineWidth = isSelected ? 3 : 2;
+            ctx.strokeStyle = isSelected ? "#0066ff" : "#999999";
             ctx.setTransform(
               zoom * dpr,
               0,
@@ -535,11 +687,7 @@ export function createGraphRenderer(
           }
         }
 
-        // Set default styles for all nodes
         ctx.fillStyle = "#ffffff";
-        ctx.strokeStyle = "#333333";
-        ctx.lineWidth = 2;
-
         // Draw visible nodes
         for (const nodeId of visibleNodes) {
           const node = nodes[nodeId];
@@ -551,6 +699,15 @@ export function createGraphRenderer(
             (node.x * zoom + offsetX) * dpr,
             (node.y * zoom + offsetY) * dpr
           );
+
+          if (selectedItems.has(node.id)) {
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = "#0066ff";
+          } else {
+            ctx.strokeStyle = "#333333";
+            ctx.lineWidth = 2;
+          }
+
           node.shape.draw(ctx, node.shape.path, node.id);
         }
 
