@@ -507,7 +507,6 @@ export function createGraphRenderer(
       if (!canvas.style.width) canvas.style.width = `${canvas.width}px`;
       if (!canvas.style.height) canvas.style.height = `${canvas.height}px`;
       resize();
-      window.addEventListener("resize", () => resize());
     }
   }
 
