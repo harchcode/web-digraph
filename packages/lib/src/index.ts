@@ -18,9 +18,11 @@ function generateId(): number {
 export const defaultGraphOptions: GraphOptions = {
   bgColor: "#fafafa",
   drawGrid: true,
+  gridType: "line",
   gridSize: 50,
   gridLineColor: "#e8e8e8",
   gridLineWidth: 1,
+  gridDotRadius: 2,
   shgCellSize: 500,
   minZoom: 0.1,
   maxZoom: 5.0,
@@ -423,18 +425,32 @@ export function createGraphRenderer(
     const startY = Math.floor(top / gridSize) * gridSize;
 
     ctx.beginPath();
-    for (let x = startX; x < right; x += gridSize) {
-      ctx.moveTo(x, top);
-      ctx.lineTo(x, bottom);
+    if (opts.gridType === "dot") {
+      const radius = opts.gridDotRadius;
+      ctx.lineWidth = radius * 2;
+      ctx.lineCap = "round";
+      ctx.setLineDash([0, gridSize]);
+      ctx.strokeStyle = opts.gridLineColor;
+      for (let y = startY; y < bottom; y += gridSize) {
+        ctx.moveTo(startX, y);
+        ctx.lineTo(right, y);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.lineCap = "butt";
+    } else {
+      for (let x = startX; x < right; x += gridSize) {
+        ctx.moveTo(x, top);
+        ctx.lineTo(x, bottom);
+      }
+      for (let y = startY; y < bottom; y += gridSize) {
+        ctx.moveTo(left, y);
+        ctx.lineTo(right, y);
+      }
+      ctx.lineWidth = opts.gridLineWidth;
+      ctx.strokeStyle = opts.gridLineColor;
+      ctx.stroke();
     }
-    for (let y = startY; y < bottom; y += gridSize) {
-      ctx.moveTo(left, y);
-      ctx.lineTo(right, y);
-    }
-
-    ctx.lineWidth = opts.gridLineWidth;
-    ctx.strokeStyle = opts.gridLineColor;
-    ctx.stroke();
   }
 
   function drawGhostEdge(offsetX: number, offsetY: number) {

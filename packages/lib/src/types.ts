@@ -3,9 +3,11 @@ export type Pos = { x: number; y: number };
 export type GraphOptions = {
   bgColor: string;
   drawGrid: boolean;
+  gridType: "line" | "dot";
   gridSize: number;
   gridLineColor: string;
   gridLineWidth: number;
+  gridDotRadius: number;
   shgCellSize: number;
   minZoom: number;
   maxZoom: number;

@@ -25,7 +25,9 @@ const squareShape = createShape({
 // Setup Renderer
 const renderer = createGraphRenderer({
   bgColor: "#fafafa",
-  drawGrid: true
+  drawGrid: true,
+  gridType: "dot",
+  gridLineColor: "#cccccc"
 });
 
 function resizeCanvas() {
