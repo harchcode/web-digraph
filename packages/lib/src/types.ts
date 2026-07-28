@@ -71,6 +71,7 @@ export type GraphRenderer = {
   moveNodeTo: (id: number, x: number, y: number, skipGrid?: boolean) => void;
   moveNodeBy: (id: number, dx: number, dy: number, skipGrid?: boolean) => void;
   updateNodeGrid: (id: number) => void;
+  updateEdgeGrid: (id: number) => void;
   removeItem: (id: number) => void;
   removeNode: (id: number) => void;
   removeEdge: (id: number) => void;
