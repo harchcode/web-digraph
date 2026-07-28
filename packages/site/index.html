@@ -5,8 +5,279 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Web Digraph</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --glass-bg: rgba(255, 255, 255, 0.85);
+        --glass-border: 1px solid rgba(255, 255, 255, 0.4);
+        --glass-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+        --primary: #3b82f6;
+        --primary-hover: #2563eb;
+        --danger: #ef4444;
+        --danger-hover: #dc2626;
+        --text: #1e293b;
+        --text-muted: #64748b;
+        --bg-color: #f8fafc;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: "Inter", sans-serif;
+        color: var(--text);
+        background-color: var(--bg-color);
+        overflow: hidden;
+        user-select: none;
+      }
+
+      /* Fullscreen Canvas Placeholder */
+      #graph-canvas {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: 0;
+        background-color: #fafafa;
+        /* A subtle dot pattern to make it look like a canvas workspace */
+        background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+        background-size: 20px 20px;
+      }
+
+      /* Glass Panel Utility */
+      .glass-panel {
+        background: var(--glass-bg);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: var(--glass-border);
+        border-radius: 16px;
+        box-shadow: var(--glass-shadow);
+        padding: 16px;
+        position: absolute;
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      /* Header Info (Top Left) */
+      .header-info {
+        top: 24px;
+        left: 24px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+      }
+
+      .header-info h1 {
+        font-size: 18px;
+        font-weight: 600;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .header-info h1 img {
+        width: 24px;
+        height: 24px;
+      }
+
+      .stats {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-muted);
+      }
+
+      /* Generator (Top Right) */
+      .generator-panel {
+        top: 24px;
+        right: 24px;
+      }
+
+      /* Toolbar (Bottom Center) */
+      .toolbar {
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 8px;
+        gap: 8px;
+      }
+
+      /* Controls & Inputs */
+      input[type="number"] {
+        width: 80px;
+        padding: 8px 12px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        font-family: inherit;
+        font-size: 14px;
+        outline: none;
+        transition: border-color 0.2s;
+        background: rgba(255, 255, 255, 0.9);
+      }
+
+      input[type="number"]:focus {
+        border-color: var(--primary);
+      }
+
+      button {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 8px;
+        font-family: inherit;
+        font-weight: 500;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .btn-primary {
+        background: var(--primary);
+        color: white;
+      }
+      .btn-primary:hover {
+        background: var(--primary-hover);
+      }
+
+      .btn-danger {
+        background: #fee2e2;
+        color: var(--danger);
+      }
+      .btn-danger:hover {
+        background: #fecaca;
+      }
+
+      /* Toggle Group */
+      .toggle-group {
+        display: flex;
+        background: rgba(226, 232, 240, 0.6);
+        border-radius: 8px;
+        padding: 4px;
+        gap: 4px;
+      }
+
+      .toggle-btn {
+        padding: 6px 12px;
+        font-size: 13px;
+        font-weight: 600;
+        border-radius: 6px;
+        color: var(--text-muted);
+        background: transparent;
+      }
+
+      .toggle-btn.active {
+        background: white;
+        color: var(--text);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      }
+
+      .divider {
+        width: 1px;
+        height: 24px;
+        background: rgba(203, 213, 225, 0.8);
+        margin: 0 4px;
+      }
+
+      /* Zoom Slider */
+      .zoom-control {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 8px;
+      }
+
+      .zoom-control span {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-muted);
+        min-width: 40px;
+      }
+
+      input[type="range"] {
+        -webkit-appearance: none;
+        width: 100px;
+        height: 6px;
+        background: #e2e8f0;
+        border-radius: 3px;
+        outline: none;
+      }
+
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: var(--primary);
+        cursor: pointer;
+        transition: transform 0.1s;
+      }
+
+      input[type="range"]::-webkit-slider-thumb:hover {
+        transform: scale(1.2);
+      }
+    </style>
   </head>
   <body>
+    <!-- Background Canvas Placeholder -->
+    <canvas id="graph-canvas"></canvas>
+
+    <!-- UI Overlay -->
+    <div class="glass-panel header-info">
+      <h1>
+        <img src="/favicon.svg" alt="Logo" />
+        Web Digraph
+      </h1>
+      <div class="stats">
+        <span id="node-count-display">0</span> Nodes &bull;
+        <span id="edge-count-display">0</span> Edges
+      </div>
+    </div>
+
+    <div class="glass-panel generator-panel">
+      <input type="number" id="node-count" value="100" min="1" />
+      <button class="btn-primary" id="btn-generate">Generate Grid</button>
+    </div>
+
+    <div class="glass-panel toolbar">
+      <!-- Mode Toggle -->
+      <div class="toggle-group" id="mode-toggle">
+        <button class="toggle-btn active" data-mode="move">Move</button>
+        <button class="toggle-btn" data-mode="create">Create</button>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Select Toggle -->
+      <div class="toggle-group" id="select-toggle">
+        <button class="toggle-btn active" data-select="single">Single</button>
+        <button class="toggle-btn" data-select="multi">Multi</button>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Zoom -->
+      <div class="zoom-control">
+        <span id="zoom-display">100%</span>
+        <input type="range" id="zoom-slider" min="10" max="500" value="100" />
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Actions -->
+      <button class="btn-danger" id="btn-delete">Delete Selected</button>
+    </div>
+
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
