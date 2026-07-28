@@ -84,26 +84,37 @@ export function createGraphRenderer(
     if (!ctx) return null;
     const cells = getCellsForBounds(x - 5, y - 5, x + 5, y + 5);
     const candidates = new Set<number>();
+    const selectedCandidates = new Set<number>();
+
     for (const cell of cells) {
       const items = spatialGrid[cell];
       if (items) {
-        for (const id of items) candidates.add(id);
+        for (const id of items) {
+          if (selectedItems.has(id)) selectedCandidates.add(id);
+          else candidates.add(id);
+        }
       }
+    }
+
+    // Append selected candidates at the end so they are evaluated last (on top)
+    for (const id of selectedCandidates) {
+      candidates.add(id);
     }
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-    // Nodes first (drawn on top)
+    let matchedNode: number | null = null;
+    let matchedEdge: number | null = null;
+
     for (const id of candidates) {
       const node = nodes[id];
-      if (node && ctx.isPointInPath(node.shape.path, x - node.x, y - node.y)) {
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        return { type: "node", id };
+      if (node) {
+        if (ctx.isPointInPath(node.shape.path, x - node.x, y - node.y)) {
+          matchedNode = id;
+        }
+        continue;
       }
-    }
 
-    // Edges next
-    for (const id of candidates) {
       const edge = edges[id];
       if (edge) {
         if (
@@ -114,8 +125,8 @@ export function createGraphRenderer(
             y - edge.label.y
           )
         ) {
-          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-          return { type: "edge", id };
+          matchedEdge = id;
+          continue;
         }
 
         const cos = Math.cos(-edge.arrow.angle);
@@ -125,8 +136,8 @@ export function createGraphRenderer(
         const rx = dx * cos - dy * sin;
         const ry = dx * sin + dy * cos;
         if (ctx.isPointInPath(sharedArrowPath, rx, ry)) {
-          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-          return { type: "edge", id };
+          matchedEdge = id;
+          continue;
         }
 
         const dist = pointToLineDistance(
@@ -138,13 +149,16 @@ export function createGraphRenderer(
           edge.line.ty
         );
         if (dist < 8) {
-          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-          return { type: "edge", id };
+          matchedEdge = id;
         }
       }
     }
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    if (matchedNode !== null) return { type: "node", id: matchedNode };
+    if (matchedEdge !== null) return { type: "edge", id: matchedEdge };
+
     return null;
   }
 
@@ -796,15 +810,25 @@ export function createGraphRenderer(
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
 
+        // Unselected Edges
         for (const edgeId of visibleEdges) {
-          drawEdge(edgeId, offsetX, offsetY);
+          if (!selectedItems.has(edgeId)) drawEdge(edgeId, offsetX, offsetY);
+        }
+        // Selected Edges
+        for (const edgeId of visibleEdges) {
+          if (selectedItems.has(edgeId)) drawEdge(edgeId, offsetX, offsetY);
         }
 
         ctx.fillStyle = "#ffffff";
-        // Draw all visible nodes EXCEPT the ghost edge source node
+        // Unselected Nodes (EXCEPT ghost edge source node)
         for (const nodeId of visibleNodes) {
           if (ghostEdge && nodeId === ghostEdge.sourceId) continue;
-          drawNode(nodeId, offsetX, offsetY);
+          if (!selectedItems.has(nodeId)) drawNode(nodeId, offsetX, offsetY);
+        }
+        // Selected Nodes (EXCEPT ghost edge source node)
+        for (const nodeId of visibleNodes) {
+          if (ghostEdge && nodeId === ghostEdge.sourceId) continue;
+          if (selectedItems.has(nodeId)) drawNode(nodeId, offsetX, offsetY);
         }
 
         // Draw ghost edge
