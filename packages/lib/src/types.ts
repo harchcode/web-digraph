@@ -1,9 +1,26 @@
 export type Pos = { x: number; y: number };
 
 export type GraphOptions = {
+  bgColor: string;
   drawGrid: boolean;
   gridSize: number;
+  gridLineColor: string;
+  gridLineWidth: number;
   shgCellSize: number;
+  minZoom: number;
+  maxZoom: number;
+  nodeLineWidth: number;
+  nodeLineColor: string;
+  nodeShapeColor: string;
+  selectedNodeLineWidth: number;
+  selectedNodeLineColor: string;
+  nodeFont: string;
+  edgeLineWidth: number;
+  edgeLineColor: string;
+  edgeShapeColor: string;
+  selectedEdgeLineWidth: number;
+  selectedEdgeLineColor: string;
+  edgeFont: string;
 };
 
 export type GraphShape = {

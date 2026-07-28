@@ -16,9 +16,26 @@ function generateId(): number {
 }
 
 export const defaultGraphOptions: GraphOptions = {
+  bgColor: "#fafafa",
   drawGrid: true,
   gridSize: 50,
-  shgCellSize: 500
+  gridLineColor: "#e8e8e8",
+  gridLineWidth: 1,
+  shgCellSize: 500,
+  minZoom: 0.1,
+  maxZoom: 5.0,
+  nodeLineWidth: 2,
+  nodeLineColor: "#333333",
+  nodeShapeColor: "#ffffff",
+  selectedNodeLineWidth: 4,
+  selectedNodeLineColor: "#0066ff",
+  nodeFont: "600 11px sans-serif",
+  edgeLineWidth: 2,
+  edgeLineColor: "#999999",
+  edgeShapeColor: "#999999",
+  selectedEdgeLineWidth: 3,
+  selectedEdgeLineColor: "#0066ff",
+  edgeFont: "500 14px Inter, sans-serif"
 };
 
 export function createGraphRenderer(
@@ -328,11 +345,11 @@ export function createGraphRenderer(
     );
 
     if (selectedItems.has(node.id)) {
-      ctx.lineWidth = 4;
-      ctx.strokeStyle = "#0066ff";
+      ctx.lineWidth = opts.selectedNodeLineWidth;
+      ctx.strokeStyle = opts.selectedNodeLineColor;
     } else {
-      ctx.strokeStyle = "#333333";
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = opts.nodeLineColor;
+      ctx.lineWidth = opts.nodeLineWidth;
     }
 
     node.shape.draw(ctx, node.shape.path, node.id);
@@ -351,8 +368,12 @@ export function createGraphRenderer(
     ctx.beginPath();
     ctx.moveTo(edge.line.sx, edge.line.sy);
     ctx.lineTo(edge.line.tx, edge.line.ty);
-    ctx.strokeStyle = isSelected ? "#0066ff" : "#999999";
-    ctx.lineWidth = isSelected ? 3 : 2;
+    ctx.strokeStyle = isSelected
+      ? opts.selectedEdgeLineColor
+      : opts.edgeLineColor;
+    ctx.lineWidth = isSelected
+      ? opts.selectedEdgeLineWidth
+      : opts.edgeLineWidth;
     ctx.stroke();
 
     ctx.setTransform(
@@ -364,7 +385,9 @@ export function createGraphRenderer(
       (edge.arrow.y * zoom + offsetY) * dpr
     );
     ctx.rotate(edge.arrow.angle);
-    ctx.fillStyle = isSelected ? "#0066ff" : "#999999";
+    ctx.fillStyle = isSelected
+      ? opts.selectedEdgeLineColor
+      : opts.edgeShapeColor;
     ctx.fill(sharedArrowPath);
 
     if (edge.label) {
@@ -376,8 +399,12 @@ export function createGraphRenderer(
         (edge.label.x * zoom + offsetX) * dpr,
         (edge.label.y * zoom + offsetY) * dpr
       );
-      ctx.lineWidth = isSelected ? 3 : 2;
-      ctx.strokeStyle = isSelected ? "#0066ff" : "#999999";
+      ctx.lineWidth = isSelected
+        ? opts.selectedEdgeLineWidth
+        : opts.edgeLineWidth;
+      ctx.strokeStyle = isSelected
+        ? opts.selectedEdgeLineColor
+        : opts.edgeLineColor;
       edge.label.shape.draw(ctx, edge.label.shape.path, edge.id);
     }
   }
@@ -406,8 +433,8 @@ export function createGraphRenderer(
       ctx.lineTo(right, y);
     }
 
-    ctx.lineWidth = 1;
-    ctx.strokeStyle = "#e8e8e8";
+    ctx.lineWidth = opts.gridLineWidth;
+    ctx.strokeStyle = opts.gridLineColor;
     ctx.stroke();
   }
 
@@ -435,8 +462,8 @@ export function createGraphRenderer(
     ctx.beginPath();
     ctx.moveTo(lineStartX, lineStartY);
     ctx.lineTo(lineEndX, lineEndY);
-    ctx.strokeStyle = "#0066ff";
-    ctx.lineWidth = 3;
+    ctx.strokeStyle = opts.selectedNodeLineColor;
+    ctx.lineWidth = opts.selectedEdgeLineWidth;
     ctx.stroke();
 
     ctx.setTransform(
@@ -448,7 +475,7 @@ export function createGraphRenderer(
       (ghostEdge.y * zoom + offsetY) * dpr
     );
     ctx.rotate(angle);
-    ctx.fillStyle = "#0066ff";
+    ctx.fillStyle = opts.selectedEdgeLineColor;
     ctx.fill(sharedArrowPath);
   }
 
@@ -614,7 +641,8 @@ export function createGraphRenderer(
   function clear() {
     if (!ctx || !canvas) return;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = opts.bgColor;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
 
   function unselect(ids?: number[]) {
@@ -713,8 +741,8 @@ export function createGraphRenderer(
   }
   function zoomTo(value: number, targetX?: number, targetY?: number) {
     if (!canvas) return;
-    const minZoom = 0.1;
-    const maxZoom = 5.0;
+    const minZoom = opts.minZoom;
+    const maxZoom = opts.maxZoom;
 
     const newZoom = Math.max(minZoom, Math.min(maxZoom, value));
     if (newZoom === zoom) return;
@@ -814,7 +842,7 @@ export function createGraphRenderer(
       const offsetY = halfHeight - cameraY * zoom;
 
       // Draw Edges (behind nodes)
-      ctx.font = "500 14px Inter, sans-serif";
+      ctx.font = opts.edgeFont;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
 
@@ -823,7 +851,8 @@ export function createGraphRenderer(
         drawEdge(edgeId, offsetX, offsetY);
       }
 
-      ctx.fillStyle = "#ffffff";
+      ctx.font = opts.nodeFont;
+      ctx.fillStyle = opts.nodeShapeColor;
       // Unselected Nodes (EXCEPT ghost edge source node)
       for (const nodeId of visibleNodes) {
         if (ghostEdge && nodeId === ghostEdge.sourceId) continue;
@@ -835,7 +864,7 @@ export function createGraphRenderer(
 
       // Draw the ghost edge source node on top
       if (ghostEdge && visibleNodes.has(ghostEdge.sourceId)) {
-        ctx.fillStyle = "#ffffff";
+        ctx.fillStyle = opts.nodeShapeColor;
         drawNode(ghostEdge.sourceId, offsetX, offsetY);
       }
 
