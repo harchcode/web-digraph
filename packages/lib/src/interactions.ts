@@ -1,4 +1,5 @@
 import type { GraphRenderer } from "./types.js";
+import { defaultShape } from "./index.js";
 
 export function attachDefaultInteractions(
   canvas: HTMLCanvasElement,
@@ -48,13 +49,14 @@ export function attachDefaultInteractions(
         }
       }
     } else {
-      isPanning = true;
-      lastPanX = e.clientX;
-      lastPanY = e.clientY;
-      canvas.setPointerCapture(e.pointerId);
-      canvas.style.cursor = "grabbing";
-
-      if (!e.shiftKey) {
+      if (e.shiftKey) {
+        renderer.addNode(pos.x, pos.y, defaultShape);
+      } else {
+        isPanning = true;
+        lastPanX = e.clientX;
+        lastPanY = e.clientY;
+        canvas.setPointerCapture(e.pointerId);
+        canvas.style.cursor = "grabbing";
         renderer.unselect();
       }
     }
