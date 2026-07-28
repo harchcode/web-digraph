@@ -524,8 +524,6 @@ export function createGraphRenderer(
     canvas = el;
     ctx = canvas.getContext("2d");
     if (ctx) {
-      if (!canvas.style.width) canvas.style.width = `${canvas.width}px`;
-      if (!canvas.style.height) canvas.style.height = `${canvas.height}px`;
       resize();
     }
   }

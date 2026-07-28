@@ -40,19 +40,12 @@ const smallCircleShape = createShape({
 // Setup Renderer
 const renderer = createGraphRenderer();
 
-function resizeCanvas() {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-}
-
 window.addEventListener("resize", () => {
-  resizeCanvas();
   renderer.resize();
   renderer.flush();
 });
 
 // Initialize size and mount
-resizeCanvas();
 renderer.mount(canvas);
 
 // Setup Interactions
