@@ -192,6 +192,7 @@
         align-items: center;
         justify-content: center;
         gap: 6px;
+        outline: none;
       }
 
       .btn-primary {
@@ -371,7 +372,12 @@
             max="999999"
             oninput="if (this.value > 999999) this.value = 999999;"
           />
-          <button class="btn-primary" id="btn-generate" title="Generate Grid">
+          <button
+            class="btn-primary"
+            id="btn-generate"
+            title="Generate Grid"
+            tabindex="-1"
+          >
             <svg
               width="16"
               height="16"
@@ -393,7 +399,12 @@
     <div class="glass toolbar">
       <!-- Mode Toggle -->
       <div class="toggle-group" id="mode-toggle">
-        <button class="toggle-btn active" data-mode="move" title="Move">
+        <button
+          class="toggle-btn active"
+          data-mode="move"
+          title="Move"
+          tabindex="-1"
+        >
           <svg
             width="16"
             height="16"
@@ -406,7 +417,12 @@
           </svg>
           <span class="btn-text">Move</span>
         </button>
-        <button class="toggle-btn" data-mode="create" title="Create">
+        <button
+          class="toggle-btn"
+          data-mode="create"
+          title="Create"
+          tabindex="-1"
+        >
           <svg
             width="16"
             height="16"
@@ -428,6 +444,7 @@
           class="toggle-btn active"
           data-select="single"
           title="Single Select"
+          tabindex="-1"
         >
           <svg
             width="16"
@@ -442,7 +459,12 @@
           </svg>
           <span class="btn-text">Single</span>
         </button>
-        <button class="toggle-btn" data-select="multi" title="Multi Select">
+        <button
+          class="toggle-btn"
+          data-select="multi"
+          title="Multi Select"
+          tabindex="-1"
+        >
           <svg
             width="16"
             height="16"
@@ -464,7 +486,7 @@
       <zoom-slider id="zoom-slider"></zoom-slider>
 
       <!-- Actions -->
-      <button class="btn-action" id="btn-fit" title="Fit to View">
+      <button class="btn-action" id="btn-fit" title="Fit to View" tabindex="-1">
         <svg
           width="16"
           height="16"
@@ -477,7 +499,12 @@
         </svg>
         <span class="btn-text">Fit View</span>
       </button>
-      <button class="btn-danger" id="btn-delete" title="Delete Selected">
+      <button
+        class="btn-danger"
+        id="btn-delete"
+        title="Delete Selected"
+        tabindex="-1"
+      >
         <svg
           width="16"
           height="16"
