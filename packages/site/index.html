@@ -252,6 +252,66 @@
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
       }
 
+      /* Dialog Styles */
+      dialog {
+        margin: auto;
+        padding: 24px;
+        border: var(--glass-border);
+        border-radius: 16px;
+        background: var(--glass-bg);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+        color: var(--text);
+        max-width: 420px;
+        width: 90%;
+      }
+      dialog::backdrop {
+        background: rgba(15, 23, 42, 0.3);
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+      }
+      dialog h2 {
+        margin-bottom: 16px;
+        font-size: 20px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      dialog p,
+      dialog li {
+        font-size: 14px;
+        line-height: 1.6;
+        color: var(--text-muted);
+        margin-bottom: 8px;
+      }
+      dialog ul {
+        margin-left: 20px;
+        margin-bottom: 16px;
+      }
+      .dialog-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+        margin-top: 24px;
+      }
+      .btn-github {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        text-decoration: none;
+        color: var(--text);
+        font-weight: 500;
+        font-size: 14px;
+        padding: 8px 12px;
+        border-radius: 8px;
+        background: #f1f5f9;
+        transition: background 0.2s;
+      }
+      .btn-github:hover {
+        background: #e2e8f0;
+      }
+
       /* Responsive Overrides (Mobile: Portrait Layout) */
       @media (max-width: 600px) {
         /* Merge top panels into a full-width app bar */
@@ -338,6 +398,104 @@
     </style>
   </head>
   <body>
+    <svg style="display: none">
+      <defs>
+        <symbol
+          id="icon-generate"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+        </symbol>
+        <symbol
+          id="icon-move"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" />
+        </symbol>
+        <symbol
+          id="icon-create"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 8v8M8 12h8" />
+        </symbol>
+        <symbol
+          id="icon-single"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <circle cx="12" cy="12" r="10" />
+          <circle cx="12" cy="12" r="3" />
+        </symbol>
+        <symbol
+          id="icon-multi"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <rect x="3" y="3" width="7" height="7" rx="1" />
+          <rect x="14" y="3" width="7" height="7" rx="1" />
+          <rect x="14" y="14" width="7" height="7" rx="1" />
+          <rect x="3" y="14" width="7" height="7" rx="1" />
+        </symbol>
+        <symbol
+          id="icon-fit"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+        </symbol>
+        <symbol
+          id="icon-delete"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path
+            d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"
+          />
+        </symbol>
+        <symbol
+          id="icon-help"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <circle cx="12" cy="12" r="10"></circle>
+          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+          <line x1="12" y1="17" x2="12.01" y2="17"></line>
+        </symbol>
+        <symbol
+          id="icon-github"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path
+            d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"
+          ></path>
+        </symbol>
+      </defs>
+    </svg>
     <canvas id="graph-canvas"></canvas>
 
     <!-- Top Bar Container -->
@@ -378,18 +536,7 @@
             title="Generate Grid"
             tabindex="-1"
           >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-            </svg>
+            <svg width="16" height="16"><use href="#icon-generate" /></svg>
           </button>
         </div>
       </div>
@@ -405,16 +552,7 @@
           title="Move"
           tabindex="-1"
         >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" />
-          </svg>
+          <svg width="16" height="16"><use href="#icon-move" /></svg>
           <span class="btn-text">Move</span>
         </button>
         <button
@@ -423,17 +561,7 @@
           title="Create"
           tabindex="-1"
         >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <circle cx="12" cy="12" r="10" />
-            <path d="M12 8v8M8 12h8" />
-          </svg>
+          <svg width="16" height="16"><use href="#icon-create" /></svg>
           <span class="btn-text">Create</span>
         </button>
       </div>
@@ -446,17 +574,7 @@
           title="Single Select"
           tabindex="-1"
         >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <circle cx="12" cy="12" r="10" />
-            <circle cx="12" cy="12" r="3" />
-          </svg>
+          <svg width="16" height="16"><use href="#icon-single" /></svg>
           <span class="btn-text">Single</span>
         </button>
         <button
@@ -465,19 +583,7 @@
           title="Multi Select"
           tabindex="-1"
         >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <rect x="3" y="3" width="7" height="7" rx="1" />
-            <rect x="14" y="3" width="7" height="7" rx="1" />
-            <rect x="14" y="14" width="7" height="7" rx="1" />
-            <rect x="3" y="14" width="7" height="7" rx="1" />
-          </svg>
+          <svg width="16" height="16"><use href="#icon-multi" /></svg>
           <span class="btn-text">Multi</span>
         </button>
       </div>
@@ -487,16 +593,7 @@
 
       <!-- Actions -->
       <button class="btn-action" id="btn-fit" title="Fit to View" tabindex="-1">
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
-        </svg>
+        <svg width="16" height="16"><use href="#icon-fit" /></svg>
         <span class="btn-text">Fit View</span>
       </button>
       <button
@@ -505,21 +602,65 @@
         title="Delete Selected"
         tabindex="-1"
       >
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <path
-            d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"
-          />
-        </svg>
+        <svg width="16" height="16"><use href="#icon-delete" /></svg>
         <span class="btn-text">Delete</span>
       </button>
+      <button class="btn-action" id="btn-help" title="Help" tabindex="-1">
+        <svg width="16" height="16"><use href="#icon-help" /></svg>
+        <span class="btn-text">Help</span>
+      </button>
     </div>
+
+    <!-- Help Dialog -->
+    <dialog id="help-dialog">
+      <h2>How to use</h2>
+
+      <style>
+        dialog li svg {
+          vertical-align: middle;
+          margin-right: 6px;
+          color: var(--text);
+        }
+        dialog li strong {
+          vertical-align: middle;
+        }
+      </style>
+      <ul>
+        <li>
+          <svg width="16" height="16"><use href="#icon-move" /></svg>
+          <strong>Move Mode:</strong> Click and drag nodes to reposition them.
+        </li>
+        <li>
+          <svg width="16" height="16"><use href="#icon-create" /></svg>
+          <strong>Create Mode:</strong> Click empty space to spawn a node. Drag
+          from one node to another to connect them.
+        </li>
+        <li>
+          <svg width="16" height="16"><use href="#icon-multi" /></svg>
+          <strong>Multi Select:</strong> Click and drag on the canvas to draw a
+          selection box.
+        </li>
+        <li>
+          <strong>Hotkeys:</strong> Hold <code>Shift</code> to temporarily
+          toggle between Move and Create modes, and Single and Multi select.
+        </li>
+        <li>
+          <strong>Delete:</strong> Press <code>Backspace</code> or
+          <code>Delete</code> to remove selected items.
+        </li>
+      </ul>
+      <div class="dialog-footer">
+        <a
+          href="https://github.com/harchcode/web-digraph"
+          target="_blank"
+          class="btn-github"
+        >
+          <svg width="16" height="16"><use href="#icon-github" /></svg>
+          GitHub
+        </a>
+        <button class="btn-primary" id="btn-close-help">Close</button>
+      </div>
+    </dialog>
 
     <script type="module" src="/src/main.ts"></script>
   </body>

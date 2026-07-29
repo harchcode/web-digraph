@@ -145,5 +145,25 @@ document.getElementById("btn-delete")?.addEventListener("click", () => {
   updateStats();
 });
 
+// Help Dialog
+const helpDialog = document.getElementById("help-dialog") as HTMLDialogElement;
+document.getElementById("btn-help")?.addEventListener("click", () => {
+  helpDialog.showModal();
+});
+document.getElementById("btn-close-help")?.addEventListener("click", () => {
+  helpDialog.close();
+});
+helpDialog.addEventListener("click", e => {
+  const dialogDimensions = helpDialog.getBoundingClientRect();
+  if (
+    e.clientX < dialogDimensions.left ||
+    e.clientX > dialogDimensions.right ||
+    e.clientY < dialogDimensions.top ||
+    e.clientY > dialogDimensions.bottom
+  ) {
+    helpDialog.close();
+  }
+});
+
 // Generate initially
 generateGrid(renderer, updateStats);
