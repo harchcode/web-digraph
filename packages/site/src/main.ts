@@ -1,8 +1,5 @@
-import {
-  createGraphRenderer,
-  createGraphInteractions,
-  createShape
-} from "web-digraph";
+import { createGraphRenderer, createGraphInteractions } from "web-digraph";
+import { getRandomNodeShape, getRandomEdgeShape } from "./shapes";
 import "./zoomSlider";
 import type { ZoomSlider } from "./zoomSlider";
 
@@ -10,34 +7,6 @@ const canvas = document.getElementById("graph-canvas") as HTMLCanvasElement;
 if (!canvas) {
   throw new Error("Canvas not found");
 }
-
-const squareShape = createShape({
-  w: 50,
-  h: 50,
-  path: new Path2D("M -25 -25 L 25 -25 L 25 25 L -25 25 Z"),
-  draw: (ctx, path, id) => {
-    ctx.fill(path);
-    ctx.stroke(path);
-
-    ctx.fillStyle = "#475569";
-    ctx.fillText(id.toString(), 0, 0);
-  }
-});
-
-const smallCirclePath = new Path2D();
-smallCirclePath.arc(0, 0, 12, 0, Math.PI * 2);
-const smallCircleShape = createShape({
-  w: 24,
-  h: 24,
-  path: smallCirclePath,
-  draw: (ctx, path, id) => {
-    ctx.fill(path);
-    ctx.stroke(path);
-
-    ctx.fillStyle = "#475569";
-    ctx.fillText(id.toString(), 0, 0);
-  }
-});
 
 // Setup Renderer
 const renderer = createGraphRenderer();
@@ -60,10 +29,10 @@ zoomSlider.addEventListener("zoom-change", (e: Event) => {
 // Setup Interactions
 const interactions = createGraphInteractions(canvas, renderer, {
   onAddNode: (x, y) => {
-    renderer.addNode(x, y, squareShape);
+    renderer.addNode(x, y, getRandomNodeShape());
   },
   onAddEdge: (source, target) => {
-    renderer.addEdge(source, target, smallCircleShape);
+    renderer.addEdge(source, target, getRandomEdgeShape());
   },
   onDeleteNodes: nodeIds => {
     for (const id of nodeIds) renderer.removeItem(id);
@@ -77,13 +46,47 @@ const interactions = createGraphInteractions(canvas, renderer, {
 });
 interactions.setMode("move");
 
-const n1 = renderer.addNode(-100, 0, squareShape);
-const n2 = renderer.addNode(100, 2, squareShape);
-const n3 = renderer.addNode(0, 150, squareShape);
+function generateGrid() {
+  const input = document.getElementById("node-count") as HTMLInputElement;
+  const count = parseInt(input.value, 10) || 100;
 
-renderer.addEdge(n1, n2, smallCircleShape);
-renderer.addEdge(n2, n3, smallCircleShape);
-renderer.addEdge(n1, n3, smallCircleShape);
+  renderer.clear();
 
-// Initial render
-renderer.flush();
+  const cols = Math.ceil(Math.sqrt(count));
+  const rows = Math.ceil(count / cols);
+  const spacing = 150;
+
+  const startX = -((cols - 1) * spacing) / 2;
+  const startY = -((rows - 1) * spacing) / 2;
+
+  const nodeIds: number[] = [];
+
+  for (let i = 0; i < count; i++) {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const x = startX + col * spacing;
+    const y = startY + row * spacing;
+
+    const id = renderer.addNode(x, y, getRandomNodeShape());
+    nodeIds.push(id);
+
+    // Create an edge from the previous node to this node
+    if (i > 0) {
+      renderer.addEdge(nodeIds[i - 1], id, getRandomEdgeShape());
+    }
+  }
+
+  // Reset camera to fit everything (just center for now)
+  renderer.panTo(0, 0);
+  renderer.zoomTo(1);
+  zoomSlider.setZoom(1);
+  renderer.flush();
+}
+
+// Bind generator button
+document
+  .getElementById("btn-generate")
+  ?.addEventListener("click", generateGrid);
+
+// Generate initially
+generateGrid();
