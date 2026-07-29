@@ -21,6 +21,20 @@ Note that this is just a renderer, not something that you should use to store yo
 npm install --save web-digraph
 ```
 
+## Note about V2
+
+Tbh it was a real mistake to call the previous version v1 as it was not really tested extensively. Even the current v2 should not have been v1 yet, but now I was forced to update the version to v2 because there are many breaking changes from v1. But I guess it is fine because absolutely no one is using this library.
+
+Anyway, there are some improvements compared to V1:
+
+- Simplify so much of the codebase, it is practically a rewrite.
+- Just use 1 canvas instead of multiple canvas on v1, as it turns out there is no real performance gain, because the most expensive operation is zooming, which is frequently used and need to rerender everything anyway.
+- Fixed the FATAL bug on v1 where it doesn't respect `window.devicePixelRatio`, making the graph looked blurry on high resolution display. I didn't knew this bug exist because I didn't have expensive gadget to notice this.
+- Now interactions (event handler) are decoupled from the renderer, making it tree-shakeable and possible for user to create their own.
+- Now I use a simple Spatial Hash Grid instead of custom (and not really correct) Quad Tree. The performance got hurt when there are edges that has really long length, but not in real use case. In the future maybe I will try better approach (like R-tree) if needed.
+
+BTW, you can still visit the demo of v1 on https://web-digraph.netlify.app/ if you want to compare the differences.
+
 ## Usage
 
 Here is a minimal example to use the library and get the graph running on a canvas:
@@ -143,18 +157,6 @@ Event handling (mouse, touch, keyboard) is completely decoupled from the `GraphR
 This architecture ensures the core renderer stays lean and tree-shakeable. `createGraphInteractions(canvas, graph)` provides the standard behaviors you'd expect (drag-and-drop, box selection, panning, zooming).
 
 If you want a read-only graph, you can simply not mount the interaction. If you want custom hotkeys or entirely different behaviors, you can bypass the default interaction completely and build your own!
-
-## Note about V2
-
-Tbh it was a real mistake to call the previous version v1 as it was not really tested extensively. Even the current v2 should not have been v1 yet, but now I was forced to update the version to v2 because there are many breaking changes. But because absolutely no one is using this library, so I guess it is fine.
-
-Anyway, there are some improvements compared to V1:
-
-- Simplify so much of the codebase, it is practically a rewrite.
-- Just use 1 canvas instead of multiple canvas on v1, as it turns out there is no performance difference.
-- Fixed the FATAL bug on v1 where it doesn't respect `window.devicePixelRatio`, making the graph looked blurry on high resolution display. I didn't knew this bug exist because I didn't have expensive gadget to notice this.
-- Now interactions (event handler) are decoupled from the renderer, making it tree-shakeable and possible for user to create their own.
-- Now I use a simple Spatial Hash Grid instead of custom (and not really correct) Quad Tree. The performance got hurt when there are edges that has really long length, but not in real use case. In the future maybe I will try better approach (like R-tree) if needed.
 
 ## FAQ
 
