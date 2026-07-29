@@ -31,6 +31,7 @@ export function createGraphInteractions(
 
   const onPointerDown = (e: PointerEvent) => {
     e.preventDefault();
+    if (activePointers.size >= 2) return;
     activePointers.set(e.pointerId, e);
 
     if (activePointers.size > 1) {
@@ -76,7 +77,8 @@ export function createGraphInteractions(
 
   const onPointerMove = (e: PointerEvent) => {
     e.preventDefault();
-    if (activePointers.has(e.pointerId)) activePointers.set(e.pointerId, e);
+    if (!activePointers.has(e.pointerId)) return;
+    activePointers.set(e.pointerId, e);
 
     if (activePointers.size === 2) {
       const pts = Array.from(activePointers.values());
@@ -144,6 +146,7 @@ export function createGraphInteractions(
   };
 
   const onPointerUp = (e: PointerEvent) => {
+    if (!activePointers.has(e.pointerId)) return;
     activePointers.delete(e.pointerId);
     if (activePointers.size < 2) lastPinchDist = 0;
     if (activePointers.size === 1) {
