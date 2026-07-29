@@ -30,6 +30,7 @@ export async function generateGrid(
 
   const nodeIds: number[] = [];
   let i = 0;
+  let lastProgressTime = performance.now();
 
   while (i < count) {
     const chunkStartTime = performance.now();
@@ -51,13 +52,18 @@ export async function generateGrid(
     }
 
     renderer.flush();
-    if (onProgress) onProgress();
+    if (onProgress && performance.now() - lastProgressTime > 100) {
+      onProgress();
+      lastProgressTime = performance.now();
+    }
 
     if (i < count) {
       // Yield to the browser before continuing
       await new Promise(r => requestAnimationFrame(r));
     }
   }
+
+  if (onProgress) onProgress();
 
   isGenerating = false;
   input.disabled = false;

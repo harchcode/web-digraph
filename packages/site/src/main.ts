@@ -18,8 +18,8 @@ window.addEventListener("resize", () => {
   renderer.flush();
 });
 
-// Initialize size and mount
 renderer.mount(canvas);
+
 const zoomSlider = document.getElementById("zoom-slider") as ZoomSlider;
 zoomSlider.addEventListener("zoom-change", (e: Event) => {
   const customEvent = e as CustomEvent;
