@@ -1,0 +1,78 @@
+name: Publish to NPM
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: "Version Bump Type (patch, minor, major)"
+        required: true
+        default: "patch"
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v7
+        with:
+          # Ensure we can push back to the repository
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: "https://registry.npmjs.org"
+          cache: "pnpm"
+
+      - name: Install Dependencies
+        run: pnpm install
+
+      - name: Configure Git Setup
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Bump Version
+        working-directory: ./packages/lib
+        run: npm version ${{ inputs.version_type }} --no-git-tag-version
+
+      - name: Get New Version
+        id: vars
+        run: echo "tag_version=$(node -p "require('./packages/lib/package.json').version")" >> $GITHUB_OUTPUT
+
+      - name: Commit and Tag Version
+        run: |
+          git add .
+          git commit -m "v${{ steps.vars.outputs.tag_version }}"
+          git tag v${{ steps.vars.outputs.tag_version }}
+
+      - name: Sync README to Package
+        run: cp README.md packages/lib/README.md
+
+      - name: Build Framework
+        run: pnpm run build:lib
+
+      - name: Publish to NPM
+        working-directory: ./packages/lib
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Push Version Update to Main
+        run: |
+          git push origin HEAD:main
+          git push origin --tags

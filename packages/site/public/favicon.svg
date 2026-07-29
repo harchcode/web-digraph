@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Edges (drawn behind shapes) -->
+  <line x1="20" y1="20" x2="80" y2="35" stroke="#57534e" stroke-width="4" />
+  <line x1="80" y1="35" x2="45" y2="78" stroke="#57534e" stroke-width="4" />
+  <line x1="45" y1="78" x2="20" y2="20" stroke="#57534e" stroke-width="4" />
+
+  <!-- Circle (Top Left) -->
+  <circle cx="20" cy="20" r="18" fill="#bfdbfe" stroke="#1c1917" stroke-width="3" />
+  
+  <!-- Square (Middle Right) -->
+  <rect x="62" y="17" width="36" height="36" rx="4" fill="#fecaca" stroke="#1c1917" stroke-width="3" />
+  
+  <!-- Triangle (Bottom Center) -->
+  <polygon points="45,58 23,98 67,98" fill="#bbf7d0" stroke="#1c1917" stroke-width="3" stroke-linejoin="round" />
+</svg>

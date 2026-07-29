@@ -1,76 +1,22 @@
 {
-  "name": "web-digraph",
-  "version": "1.0.0",
-  "description": "A library to create directed graph editor on the web.",
-  "author": "Hartono Chandra",
-  "repository": {
-    "url": "https://github.com/harchcode/web-digraph"
-  },
-  "main": "dist/web-digraph.umd.cjs",
-  "module": "dist/web-digraph.js",
-  "license": "MIT",
-  "typings": "dist/index.d.ts",
-  "files": [
-    "dist"
-  ],
-  "exports": {
-    ".": {
-      "import": "./dist/web-digraph.js",
-      "require": "./dist/web-digraph.umd.cjs"
-    }
-  },
-  "engines": {
-    "node": ">=14"
-  },
+  "name": "web-digraph-workspace",
+  "private": true,
   "type": "module",
-  "sideEffects": false,
   "scripts": {
-    "start": "vite",
-    "dev": "vite --host",
-    "preview": "BUILD_TYPE=example vite preview --host",
-    "build": "vite build && npm run build-typedef",
-    "build:example": "BUILD_TYPE=example vite build",
-    "build-typedef": "tsc ./src/vite-env.d.ts ./src/index.ts --declaration --emitDeclarationOnly --target ESNext --esModuleInterop --outDir dist",
-    "test": "vitest --coverage",
-    "lint": "eslint src test example",
-    "lint-staged": "lint-staged",
-    "prepare": "husky install",
-    "size": "size-limit",
-    "analyze": "size-limit --why",
-    "release": "standard-version"
+    "dev": "pnpm --filter site dev",
+    "build": "pnpm -r build",
+    "build:lib": "pnpm --filter web-digraph build",
+    "build:site": "pnpm --filter site build",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "test": "pnpm -r test"
   },
   "devDependencies": {
-    "@size-limit/preset-small-lib": "^8.1.0",
-    "@types/node": "^18.11.7",
-    "@typescript-eslint/eslint-plugin": "^5.40.1",
-    "@typescript-eslint/parser": "^5.40.1",
-    "@vitest/coverage-c8": "^0.24.3",
-    "eslint": "^8.26.0",
-    "eslint-config-prettier": "^8.5.0",
-    "eslint-plugin-prettier": "^4.2.1",
-    "husky": "^8.0.1",
-    "jsdom": "^20.0.1",
-    "lint-staged": "^13.0.3",
-    "prettier": "^2.7.1",
-    "size-limit": "^8.1.0",
-    "standard-version": "^9.5.0",
-    "typescript": "^4.8.4",
-    "vite": "^3.2.1",
-    "vitest": "^0.24.3"
-  },
-  "lint-staged": {
-    "{src,test,example}/**/*.{js,ts}": [
-      "eslint"
-    ]
-  },
-  "size-limit": [
-    {
-      "path": "dist/web-digraph.umd.cjs",
-      "limit": "10 KB"
-    },
-    {
-      "path": "dist/web-digraph.js",
-      "limit": "10 KB"
-    }
-  ]
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.8.0",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.9.6",
+    "typescript-eslint": "^8.65.0",
+    "vitest": "^4.1.10"
+  }
 }

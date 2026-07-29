@@ -1,0 +1,688 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>Web Digraph</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --glass-bg: rgba(255, 255, 255, 0.85);
+        --glass-border: 1px solid rgba(255, 255, 255, 0.4);
+        --glass-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+        --primary: #3b82f6;
+        --primary-hover: #2563eb;
+        --danger: #ef4444;
+        --danger-hover: #dc2626;
+        --text: #1e293b;
+        --text-muted: #64748b;
+        --bg-color: #f8fafc;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: "Inter", sans-serif;
+        color: var(--text);
+        background-color: var(--bg-color);
+        overflow: hidden;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+
+      /* Fullscreen Canvas Placeholder */
+      #graph-canvas {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: 0;
+        touch-action: none; /* Prevents browser scroll on mobile */
+      }
+
+      /* Base Glass Style */
+      .glass {
+        background: var(--glass-bg);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: var(--glass-border);
+        border-radius: 16px;
+        box-shadow: var(--glass-shadow);
+      }
+
+      /* Top Bar Container (Desktop: Transparent, Mobile: Glass) */
+      .top-bar-container {
+        position: absolute;
+        top: 16px;
+        left: 16px;
+        right: 16px;
+        z-index: 10;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        pointer-events: none;
+      }
+
+      .top-spacer {
+        flex: 1;
+      }
+
+      /* Inner panels (Desktop: Glass, Mobile: Transparent) */
+      .brand-panel {
+        pointer-events: auto;
+        padding: 12px 16px;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+      }
+      .generator-panel {
+        pointer-events: auto;
+        padding: 12px 16px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .brand h1 {
+        font-size: 18px;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+
+      .brand img {
+        width: 24px;
+        height: 24px;
+        flex-shrink: 0;
+      }
+
+      .stats {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-muted);
+        white-space: nowrap;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .stats-bullet {
+        display: none;
+      }
+
+      .generator {
+        display: flex;
+        gap: 0;
+        align-items: center;
+      }
+
+      .stats-short {
+        display: none;
+      }
+      .btn-text {
+        display: none;
+      } /* Globally hide toolbar button text */
+
+      /* Toolbar (Desktop: Right Vertical) */
+      .toolbar {
+        position: absolute;
+        top: 50%;
+        right: 16px;
+        bottom: auto;
+        left: auto;
+        transform: translateY(-50%);
+        padding: 8px;
+        gap: 8px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        z-index: 10;
+        max-height: calc(100vh - 32px);
+        overflow-y: auto;
+      }
+
+      /* Controls & Inputs */
+      input[type="number"] {
+        height: 36px;
+        width: 100px;
+        padding: 8px 12px;
+        border: 1px solid #cbd5e1;
+        border-right: none;
+        border-radius: 8px 0 0 8px;
+        font-family: inherit;
+        font-size: 14px;
+        outline: none;
+        transition: border-color 0.2s;
+        background: rgba(255, 255, 255, 0.9);
+      }
+
+      input[type="number"]:focus {
+        border-color: var(--primary);
+      }
+
+      button {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 8px;
+        font-family: inherit;
+        font-weight: 500;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        outline: none;
+      }
+
+      .btn-primary {
+        background: var(--primary);
+        color: white;
+      }
+      .btn-primary:hover {
+        background: var(--primary-hover);
+      }
+
+      .btn-action {
+        background: #e2e8f0;
+        color: var(--text);
+        padding: 8px;
+      }
+      .btn-action:hover {
+        background: #cbd5e1;
+      }
+
+      .btn-danger {
+        background: #fee2e2;
+        color: var(--danger);
+        padding: 8px;
+      }
+      .btn-danger:hover {
+        background: #fecaca;
+      }
+
+      #btn-generate {
+        height: 36px;
+        padding: 0 12px;
+        border-radius: 0 8px 8px 0;
+      }
+
+      /* Toggle Group (Desktop: Vertical) */
+      .toggle-group {
+        display: flex;
+        flex-direction: column;
+        background: rgba(226, 232, 240, 0.6);
+        border-radius: 8px;
+        padding: 4px;
+        gap: 4px;
+      }
+
+      .toggle-btn {
+        padding: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        border-radius: 6px;
+        color: var(--text-muted);
+        background: transparent;
+      }
+
+      .toggle-btn.active {
+        background: white;
+        color: var(--text);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      }
+
+      /* Dialog Styles */
+      dialog {
+        margin: auto;
+        padding: 24px;
+        border: var(--glass-border);
+        border-radius: 16px;
+        background: var(--glass-bg);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+        color: var(--text);
+        max-width: 420px;
+        width: 90%;
+      }
+      dialog::backdrop {
+        background: rgba(15, 23, 42, 0.3);
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+      }
+      dialog h2 {
+        margin-bottom: 16px;
+        font-size: 20px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      dialog p,
+      dialog li {
+        font-size: 14px;
+        line-height: 1.6;
+        color: var(--text-muted);
+        margin-bottom: 8px;
+      }
+      dialog ul {
+        margin-left: 20px;
+        margin-bottom: 16px;
+      }
+      .dialog-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+        margin-top: 24px;
+      }
+      .btn-github {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        text-decoration: none;
+        color: var(--text);
+        font-weight: 500;
+        font-size: 14px;
+        padding: 8px 12px;
+        border-radius: 8px;
+        background: #f1f5f9;
+        transition: background 0.2s;
+      }
+      .btn-github:hover {
+        background: #e2e8f0;
+      }
+
+      /* Responsive Overrides (Mobile: Portrait Layout) */
+      @media (max-width: 600px) {
+        /* Merge top panels into a full-width app bar */
+        .top-bar-container {
+          top: 0;
+          left: 0;
+          right: 0;
+          pointer-events: auto;
+          gap: 8px;
+          padding: 12px 16px;
+          background: var(--glass-bg);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
+          border: none;
+          border-bottom: var(--glass-border);
+          border-radius: 0;
+          box-shadow: var(--glass-shadow);
+        }
+        .top-spacer {
+          display: none;
+        }
+        .brand-panel,
+        .generator-panel {
+          background: transparent;
+          backdrop-filter: none;
+          border: none;
+          box-shadow: none;
+          padding: 0;
+          border-radius: 0;
+          gap: 8px;
+        }
+        .brand-panel {
+          flex: 1;
+          flex-direction: row;
+          align-items: center;
+          justify-content: space-between;
+        }
+        .stats {
+          flex-direction: row;
+          align-items: center;
+          align-self: center;
+          gap: 4px;
+        }
+        .stats-bullet {
+          display: inline;
+        }
+        .brand-text {
+          display: none;
+        }
+        .stats-text {
+          display: none;
+        }
+        .stats-short {
+          display: inline;
+        }
+
+        input[type="number"] {
+          width: 80px;
+          padding: 8px;
+        }
+
+        /* Float bottom bar at bottom center (Horizontal) */
+        .toolbar {
+          top: auto;
+          right: auto;
+          bottom: 16px;
+          left: 50%;
+          width: auto;
+          max-width: calc(100vw - 16px);
+          transform: translateX(-50%);
+          flex-direction: row;
+          flex-wrap: nowrap;
+          border-radius: 16px;
+          border: var(--glass-border);
+          padding: 8px;
+          gap: 6px;
+          justify-content: center;
+        }
+
+        .toggle-group {
+          flex-direction: row;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <svg style="display: none">
+      <defs>
+        <symbol
+          id="icon-generate"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+        </symbol>
+        <symbol
+          id="icon-move"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" />
+        </symbol>
+        <symbol
+          id="icon-create"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 8v8M8 12h8" />
+        </symbol>
+        <symbol
+          id="icon-single"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle cx="12" cy="12" r="10" />
+          <circle cx="12" cy="12" r="3" />
+        </symbol>
+        <symbol
+          id="icon-multi"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <rect x="3" y="3" width="7" height="7" rx="1" />
+          <rect x="14" y="3" width="7" height="7" rx="1" />
+          <rect x="14" y="14" width="7" height="7" rx="1" />
+          <rect x="3" y="14" width="7" height="7" rx="1" />
+        </symbol>
+        <symbol
+          id="icon-fit"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+        </symbol>
+        <symbol
+          id="icon-delete"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path
+            d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"
+          />
+        </symbol>
+        <symbol
+          id="icon-help"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle cx="12" cy="12" r="10"></circle>
+          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+          <line x1="12" y1="17" x2="12.01" y2="17"></line>
+        </symbol>
+        <symbol
+          id="icon-github"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path
+            d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"
+          ></path>
+        </symbol>
+      </defs>
+    </svg>
+    <canvas id="graph-canvas"></canvas>
+
+    <!-- Top Bar Container -->
+    <div class="top-bar-container">
+      <div class="brand-panel glass">
+        <div class="brand">
+          <img src="/favicon.svg" alt="Logo" />
+          <h1 class="brand-text">Web Digraph</h1>
+        </div>
+        <div class="stats">
+          <div>
+            <span id="node-count-display">0</span
+            ><span class="stats-text"> Nodes</span
+            ><span class="stats-short"> N</span>
+          </div>
+          <span class="stats-bullet">&bull;</span>
+          <div>
+            <span id="edge-count-display">0</span
+            ><span class="stats-text"> Edges</span
+            ><span class="stats-short"> E</span>
+          </div>
+        </div>
+      </div>
+      <div class="top-spacer"></div>
+      <div class="generator-panel glass">
+        <div class="generator">
+          <input
+            type="number"
+            id="node-count"
+            value="10"
+            min="0"
+            max="999999"
+            oninput="if (this.value > 999999) this.value = 999999;"
+          />
+          <button
+            class="btn-primary"
+            id="btn-generate"
+            title="Generate Grid"
+            tabindex="-1"
+          >
+            <svg width="16" height="16"><use href="#icon-generate" /></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Toolbar -->
+    <div class="glass toolbar">
+      <!-- Mode Toggle -->
+      <div class="toggle-group" id="mode-toggle">
+        <button
+          class="toggle-btn active"
+          data-mode="move"
+          title="Move"
+          tabindex="-1"
+        >
+          <svg width="16" height="16"><use href="#icon-move" /></svg>
+          <span class="btn-text">Move</span>
+        </button>
+        <button
+          class="toggle-btn"
+          data-mode="create"
+          title="Create"
+          tabindex="-1"
+        >
+          <svg width="16" height="16"><use href="#icon-create" /></svg>
+          <span class="btn-text">Create</span>
+        </button>
+      </div>
+
+      <!-- Select Toggle -->
+      <div class="toggle-group" id="select-toggle">
+        <button
+          class="toggle-btn active"
+          data-select="single"
+          title="Single Select"
+          tabindex="-1"
+        >
+          <svg width="16" height="16"><use href="#icon-single" /></svg>
+          <span class="btn-text">Single</span>
+        </button>
+        <button
+          class="toggle-btn"
+          data-select="multi"
+          title="Multi Select"
+          tabindex="-1"
+        >
+          <svg width="16" height="16"><use href="#icon-multi" /></svg>
+          <span class="btn-text">Multi</span>
+        </button>
+      </div>
+
+      <!-- Zoom -->
+      <zoom-slider id="zoom-slider"></zoom-slider>
+
+      <!-- Actions -->
+      <button class="btn-action" id="btn-fit" title="Fit to View" tabindex="-1">
+        <svg width="16" height="16"><use href="#icon-fit" /></svg>
+        <span class="btn-text">Fit View</span>
+      </button>
+      <button
+        class="btn-danger"
+        id="btn-delete"
+        title="Delete Selected"
+        tabindex="-1"
+      >
+        <svg width="16" height="16"><use href="#icon-delete" /></svg>
+        <span class="btn-text">Delete</span>
+      </button>
+      <button class="btn-action" id="btn-help" title="Help" tabindex="-1">
+        <svg width="16" height="16"><use href="#icon-help" /></svg>
+        <span class="btn-text">Help</span>
+      </button>
+    </div>
+
+    <!-- Help Dialog -->
+    <dialog id="help-dialog">
+      <h2>How to use</h2>
+
+      <style>
+        dialog li svg {
+          vertical-align: middle;
+          margin-right: 6px;
+          color: var(--text);
+        }
+        dialog li strong {
+          vertical-align: middle;
+        }
+      </style>
+      <ul>
+        <li>
+          <svg width="16" height="16"><use href="#icon-generate" /></svg>
+          <strong>Generate:</strong> Enter a number in the top right to
+          instantly generate massive grid layouts for testing performance.
+        </li>
+        <li>
+          <svg width="16" height="16"><use href="#icon-move" /></svg>
+          <strong>Move Mode:</strong> Click and drag nodes to reposition them.
+        </li>
+        <li>
+          <svg width="16" height="16"><use href="#icon-create" /></svg>
+          <strong>Create Mode:</strong> Click empty space to spawn a node. Drag
+          from one node to another to connect them.
+        </li>
+        <li>
+          <svg width="16" height="16"><use href="#icon-multi" /></svg>
+          <strong>Multi Select:</strong> Click and drag on the canvas to draw a
+          selection box.
+        </li>
+        <li>
+          <strong>Hotkeys:</strong> Hold <code>Shift</code> to temporarily
+          toggle between Move and Create modes, and Single and Multi select.
+        </li>
+        <li>
+          <strong>Delete:</strong> Press <code>Backspace</code> or
+          <code>Delete</code> to remove selected items.
+        </li>
+      </ul>
+      <div class="dialog-footer">
+        <a
+          href="https://github.com/harchcode/web-digraph"
+          target="_blank"
+          class="btn-github"
+        >
+          <svg width="16" height="16"><use href="#icon-github" /></svg>
+          GitHub
+        </a>
+        <button class="btn-primary" id="btn-close-help">Close</button>
+      </div>
+    </dialog>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
