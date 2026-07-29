@@ -54,7 +54,7 @@ function generateGrid() {
 
   const cols = Math.ceil(Math.sqrt(count));
   const rows = Math.ceil(count / cols);
-  const spacing = 150;
+  const spacing = 180;
 
   const startX = -((cols - 1) * spacing) / 2;
   const startY = -((rows - 1) * spacing) / 2;
@@ -76,10 +76,6 @@ function generateGrid() {
     }
   }
 
-  // Reset camera to fit everything (just center for now)
-  renderer.panTo(0, 0);
-  renderer.zoomTo(1);
-  zoomSlider.setZoom(1);
   renderer.flush();
 }
 

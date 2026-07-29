@@ -10,11 +10,6 @@ import type {
 export * from "./types.js";
 export * from "./interactions.js";
 
-let nextId = 1;
-function generateId(): number {
-  return nextId++;
-}
-
 export const defaultGraphOptions: GraphOptions = {
   bgColor: "#fffdf7",
   drawGrid: true,
@@ -44,6 +39,11 @@ export function createGraphRenderer(
   options?: Partial<GraphOptions>
 ): GraphRenderer {
   const opts = { ...defaultGraphOptions, ...options };
+
+  let nextId = 1;
+  function generateId(): number {
+    return nextId++;
+  }
 
   const nodes: Record<number, GraphNode> = {};
   const edges: Record<number, GraphEdge> = {};
@@ -666,10 +666,12 @@ export function createGraphRenderer(
   }
 
   function clear() {
-    if (!ctx || !canvas) return;
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.fillStyle = opts.bgColor;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    nextId = 1;
+
+    for (const key of Object.keys(nodes)) delete nodes[Number(key)];
+    for (const key of Object.keys(edges)) delete edges[Number(key)];
+    for (const key of Object.keys(spatialGrid)) delete spatialGrid[key];
+    selectedItems.clear();
   }
 
   function unselect(ids?: number[]) {
@@ -825,7 +827,10 @@ export function createGraphRenderer(
     requestAnimationFrame(() => {
       isDirty = false;
       if (!ctx || !canvas) return;
-      clear();
+
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.fillStyle = opts.bgColor;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.translate(halfWidth, halfHeight);
