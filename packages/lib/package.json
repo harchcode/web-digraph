@@ -1,6 +1,11 @@
 {
   "name": "web-digraph",
   "version": "1.0.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/harchcode/web-digraph.git",
+    "directory": "packages/lib"
+  },
   "type": "module",
   "main": "dist/index.cjs",
   "module": "dist/index.js",
