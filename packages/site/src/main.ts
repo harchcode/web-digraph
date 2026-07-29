@@ -30,6 +30,7 @@ zoomSlider.addEventListener("zoom-change", (e: Event) => {
 
 // Setup Interactions
 const interactions = createGraphInteractions(canvas, renderer, {
+  bindDefaultKeyboardHandlers: false,
   onAddNode: (x, y) => {
     renderer.addNode(x, y, getRandomNodeShape());
   },
@@ -46,6 +47,25 @@ const interactions = createGraphInteractions(canvas, renderer, {
     zoomSlider.setZoom(zoom);
   }
 });
+
+// Bind UI Toggles
+const modeBtns = document.querySelectorAll("#mode-toggle .toggle-btn");
+modeBtns.forEach(btn => {
+  btn.addEventListener("click", () => {
+    modeBtns.forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    interactions.setMode(btn.getAttribute("data-mode") as "move" | "create");
+  });
+});
+
+const selectBtns = document.querySelectorAll("#select-toggle .toggle-btn");
+selectBtns.forEach(btn => {
+  btn.addEventListener("click", () => {
+    selectBtns.forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    interactions.setMultiSelect(btn.getAttribute("data-select") === "multi");
+  });
+});
 interactions.setMode("move");
 
 // Bind generator button
@@ -56,6 +76,14 @@ document
 document.getElementById("btn-fit")?.addEventListener("click", () => {
   renderer.centerView();
   zoomSlider.setZoom(renderer.getZoom());
+  renderer.flush();
+});
+// Bind delete button
+document.getElementById("btn-delete")?.addEventListener("click", () => {
+  const selected = renderer.getSelectedItems();
+  for (const id of selected) {
+    renderer.removeItem(id);
+  }
   renderer.flush();
 });
 
