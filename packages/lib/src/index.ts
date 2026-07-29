@@ -19,7 +19,7 @@ export const defaultGraphOptions: GraphOptions = {
   gridLineWidth: 1,
   gridDotRadius: 2.5,
   shgCellSize: 500,
-  minZoom: 0.1,
+  minZoom: 0.2,
   maxZoom: 5.0,
   nodeLineWidth: 2,
   nodeLineColor: "#475569",
