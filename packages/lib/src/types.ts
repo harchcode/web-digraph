@@ -79,6 +79,9 @@ export type GraphRenderer = {
   nodes: Record<number, GraphNode>;
   edges: Record<number, GraphEdge>;
 
+  nodeCount: number;
+  edgeCount: number;
+
   mount: (el: HTMLCanvasElement) => void;
   addNode: (x: number, y: number, shape: GraphShape, id?: number) => number;
   addEdge: (

@@ -21,27 +21,37 @@ window.addEventListener("resize", () => {
 // Initialize size and mount
 renderer.mount(canvas);
 const zoomSlider = document.getElementById("zoom-slider") as ZoomSlider;
-
 zoomSlider.addEventListener("zoom-change", (e: Event) => {
   const customEvent = e as CustomEvent;
   renderer.zoomTo(customEvent.detail.zoom);
   renderer.flush();
 });
 
+function updateStats() {
+  document.getElementById("node-count-display")!.textContent =
+    renderer.nodeCount.toString();
+  document.getElementById("edge-count-display")!.textContent =
+    renderer.edgeCount.toString();
+}
+
 // Setup Interactions
 const interactions = createGraphInteractions(canvas, renderer, {
   bindDefaultKeyboardHandlers: false,
   onAddNode: (x, y) => {
     renderer.addNode(x, y, getRandomNodeShape());
+    updateStats();
   },
   onAddEdge: (source, target) => {
     renderer.addEdge(source, target, getRandomEdgeShape());
+    updateStats();
   },
   onDeleteNodes: nodeIds => {
     for (const id of nodeIds) renderer.removeItem(id);
+    updateStats();
   },
   onDeleteEdges: edgeIds => {
     for (const id of edgeIds) renderer.removeItem(id);
+    updateStats();
   },
   onZoom: zoom => {
     zoomSlider.setZoom(zoom);
@@ -95,6 +105,7 @@ window.addEventListener("keydown", e => {
       renderer.removeItem(id);
     }
     renderer.flush();
+    updateStats();
   }
 
   if (e.key === "Shift" && !isShiftDown) {
@@ -114,9 +125,10 @@ window.addEventListener("keyup", e => {
 });
 
 // Bind generator button
-document
-  .getElementById("btn-generate")
-  ?.addEventListener("click", () => generateGrid(renderer));
+document.getElementById("btn-generate")?.addEventListener("click", () => {
+  generateGrid(renderer, updateStats);
+});
+
 // Bind fit button
 document.getElementById("btn-fit")?.addEventListener("click", () => {
   renderer.centerView();
@@ -130,7 +142,8 @@ document.getElementById("btn-delete")?.addEventListener("click", () => {
     renderer.removeItem(id);
   }
   renderer.flush();
+  updateStats();
 });
 
 // Generate initially
-generateGrid(renderer);
+generateGrid(renderer, updateStats);

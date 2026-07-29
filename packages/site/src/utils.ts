@@ -3,7 +3,10 @@ import { getRandomEdgeShape, getRandomNodeShape } from "./shapes";
 
 let isGenerating = false;
 
-export async function generateGrid(renderer: GraphRenderer) {
+export async function generateGrid(
+  renderer: GraphRenderer,
+  onProgress?: () => void
+) {
   if (isGenerating) return;
   const input = document.getElementById("node-count") as HTMLInputElement;
   const btn = document.getElementById("btn-generate") as HTMLButtonElement;
@@ -48,6 +51,7 @@ export async function generateGrid(renderer: GraphRenderer) {
     }
 
     renderer.flush();
+    if (onProgress) onProgress();
 
     if (i < count) {
       // Yield to the browser before continuing

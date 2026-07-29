@@ -47,6 +47,9 @@ export function createGraphRenderer(
 
   const nodes: Record<number, GraphNode> = {};
   const edges: Record<number, GraphEdge> = {};
+  let nodeCount = 0;
+  let edgeCount = 0;
+
   let canvas: HTMLCanvasElement | null = null;
   let ctx: CanvasRenderingContext2D | null = null;
 
@@ -540,6 +543,7 @@ export function createGraphRenderer(
       outgoingEdges: new Set()
     };
     nodes[nodeId] = node;
+    nodeCount++;
     insertNodeToGrid(node);
     return nodeId;
   }
@@ -579,6 +583,7 @@ export function createGraphRenderer(
     }
 
     edges[edgeId] = edge;
+    edgeCount++;
 
     if (nodes[sourceId]) nodes[sourceId].outgoingEdges.add(edgeId);
     if (nodes[targetId]) nodes[targetId].incomingEdges.add(edgeId);
@@ -644,6 +649,7 @@ export function createGraphRenderer(
 
     removeNodeFromGrid(node);
     delete nodes[id];
+    nodeCount--;
     selectedItems.delete(id);
   }
   function removeEdge(id: number) {
@@ -662,6 +668,7 @@ export function createGraphRenderer(
 
     removeEdgeFromGrid(edge);
     delete edges[id];
+    edgeCount--;
     selectedItems.delete(id);
   }
 
@@ -672,6 +679,8 @@ export function createGraphRenderer(
     for (const key of Object.keys(edges)) delete edges[Number(key)];
     for (const key of Object.keys(spatialGrid)) delete spatialGrid[key];
     selectedItems.clear();
+    nodeCount = 0;
+    edgeCount = 0;
   }
 
   function unselect(ids?: number[]) {
@@ -945,6 +954,12 @@ export function createGraphRenderer(
   return {
     nodes,
     edges,
+    get nodeCount() {
+      return nodeCount;
+    },
+    get edgeCount() {
+      return edgeCount;
+    },
     resize,
     mount,
     getZoom: () => zoom,
