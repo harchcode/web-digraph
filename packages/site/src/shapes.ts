@@ -74,6 +74,63 @@ export const hexagonShape = createShape({
   }
 });
 
+const starPath = new Path2D();
+const outerRadius = 60;
+const innerRadius = outerRadius / 2;
+
+// Calculate bounding box visually to center it dynamically
+const topY = -outerRadius;
+const bottomY = outerRadius * Math.sin((54 * Math.PI) / 180);
+const yOffset = -(topY + bottomY) / 2;
+
+for (let i = 0; i < 10; i++) {
+  const radius = i % 2 === 0 ? outerRadius : innerRadius;
+  const angle = (Math.PI / 5) * i - Math.PI / 2;
+  const x = radius * Math.cos(angle);
+  const y = radius * Math.sin(angle) + yOffset;
+  if (i === 0) starPath.moveTo(x, y);
+  else starPath.lineTo(x, y);
+}
+starPath.closePath();
+
+export const starShape = createShape({
+  w: outerRadius * 2,
+  h: outerRadius * 2,
+  path: starPath,
+  draw: (ctx, path, id) => {
+    ctx.fill(path);
+    ctx.stroke(path);
+    drawNodeId(ctx, id);
+  }
+});
+
+export const crossShape = createShape({
+  w: 100,
+  h: 100,
+  path: new Path2D(
+    "M -20 -50 L 20 -50 L 20 -20 L 50 -20 L 50 20 L 20 20 L 20 50 L -20 50 L -20 20 L -50 20 L -50 -20 L -20 -20 Z"
+  ),
+  draw: (ctx, path, id) => {
+    ctx.fill(path);
+    ctx.stroke(path);
+    drawNodeId(ctx, id);
+  }
+});
+
+const blobPath = new Path2D(
+  "M 0 -40 C 30 -50 60 -20 40 10 C 20 40 -10 50 -30 30 C -50 10 -40 -20 0 -40 Z"
+);
+export const blobShape = createShape({
+  w: 100,
+  h: 100,
+  path: blobPath,
+  draw: (ctx, path, id) => {
+    ctx.fill(path);
+    ctx.stroke(path);
+    drawNodeId(ctx, id);
+  }
+});
+
 // ------------------------------------------------------------------
 // Edge Shapes
 // ------------------------------------------------------------------
@@ -113,7 +170,15 @@ export const smallDiamondShape = createShape({
   }
 });
 
-const nodeShapes = [squareShape, circleShape, diamondShape, hexagonShape];
+const nodeShapes = [
+  squareShape,
+  circleShape,
+  diamondShape,
+  hexagonShape,
+  starShape,
+  crossShape,
+  blobShape
+];
 const edgeShapes = [smallCircleShape, smallSquareShape, smallDiamondShape];
 
 export function getRandomNodeShape() {
