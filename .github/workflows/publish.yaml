@@ -64,6 +64,9 @@ jobs:
       - name: Sync README to Package
         run: cp README.md packages/lib/README.md
 
+      - name: Verify Push Permission (Dry Run)
+        run: git push origin HEAD:master --dry-run
+
       - name: Build Framework
         run: pnpm run build:lib
 
