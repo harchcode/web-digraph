@@ -104,6 +104,7 @@ export type GraphRenderer = {
   zoomBy: (dv: number, targetX?: number, targetY?: number) => void;
   panTo: (x: number, y: number) => void;
   panBy: (dx: number, dy: number) => void;
+  centerView: () => void;
   screenToGraph: (x: number, y: number) => Pos;
   graphToScreen: (x: number, y: number) => Pos;
   flush: () => void;

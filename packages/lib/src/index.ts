@@ -799,6 +799,43 @@ export function createGraphRenderer(
     cameraY -= dy / zoom;
   }
 
+  function centerView() {
+    const nodeKeys = Object.keys(nodes);
+    if (nodeKeys.length === 0 || !canvas) return;
+
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+
+    for (const key of nodeKeys) {
+      const n = nodes[Number(key)];
+      minX = Math.min(minX, n.x - n.shape.w / 2);
+      minY = Math.min(minY, n.y - n.shape.h / 2);
+      maxX = Math.max(maxX, n.x + n.shape.w / 2);
+      maxY = Math.max(maxY, n.y + n.shape.h / 2);
+    }
+
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+
+    const graphWidth = Math.max(1, maxX - minX);
+    const graphHeight = Math.max(1, maxY - minY);
+
+    // 100px padding total (50px each side) in logical screen space
+    const usableWidth = Math.max(10, logicalWidth - 100);
+    const usableHeight = Math.max(10, logicalHeight - 100);
+
+    let newZoom = Math.min(
+      usableWidth / graphWidth,
+      usableHeight / graphHeight
+    );
+    newZoom = Math.min(newZoom, opts.maxZoom);
+
+    panTo(centerX, centerY);
+    zoomTo(newZoom);
+  }
+
   function screenToGraph(x: number, y: number): Pos {
     return {
       x: (x - halfWidth) / zoom + cameraX,
@@ -929,6 +966,7 @@ export function createGraphRenderer(
     zoomBy,
     panTo,
     panBy,
+    centerView,
     screenToGraph,
     graphToScreen,
     setGhostEdge,

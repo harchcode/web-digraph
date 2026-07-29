@@ -51,6 +51,12 @@ interactions.setMode("move");
 document
   .getElementById("btn-generate")
   ?.addEventListener("click", () => generateGrid(renderer));
+// Bind fit button
+document.getElementById("btn-fit")?.addEventListener("click", () => {
+  renderer.centerView();
+  zoomSlider.setZoom(renderer.getZoom());
+  renderer.flush();
+});
 
 // Generate initially
 generateGrid(renderer);

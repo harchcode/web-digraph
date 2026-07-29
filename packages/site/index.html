@@ -202,6 +202,15 @@
         background: var(--primary-hover);
       }
 
+      .btn-action {
+        background: #e2e8f0;
+        color: var(--text);
+        padding: 8px;
+      }
+      .btn-action:hover {
+        background: #cbd5e1;
+      }
+
       .btn-danger {
         background: #fee2e2;
         color: var(--danger);
@@ -455,6 +464,19 @@
       <zoom-slider id="zoom-slider"></zoom-slider>
 
       <!-- Actions -->
+      <button class="btn-action" id="btn-fit" title="Fit to View">
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+        </svg>
+        <span class="btn-text">Fit View</span>
+      </button>
       <button class="btn-danger" id="btn-delete" title="Delete Selected">
         <svg
           width="16"
