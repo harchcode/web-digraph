@@ -71,7 +71,8 @@ jobs:
         working-directory: ./packages/lib
         run: npm publish --access public --provenance
 
-      - name: Push Version Update to Main
+      - name: Push Version Update to Master
         run: |
-          git push origin HEAD:main
+          git push origin HEAD:master
           git push origin --tags
+
