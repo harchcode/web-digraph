@@ -29,7 +29,12 @@ export type GraphShape = {
   w: number;
   h: number;
   path: Path2D;
-  draw: (ctx: CanvasRenderingContext2D, path: Path2D, id: number) => void;
+  draw: (
+    ctx: CanvasRenderingContext2D,
+    path: Path2D,
+    id: number,
+    renderer: GraphRenderer
+  ) => void;
 };
 
 export type GraphNode = {

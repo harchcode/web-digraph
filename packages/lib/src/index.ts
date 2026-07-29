@@ -358,7 +358,7 @@ export function createGraphRenderer(
     }
 
     ctx.fillStyle = opts.nodeShapeColor;
-    node.shape.draw(ctx, node.shape.path, node.id);
+    node.shape.draw(ctx, node.shape.path, node.id, api);
   }
 
   function drawEdge(edgeId: number, offsetX: number, offsetY: number) {
@@ -413,7 +413,7 @@ export function createGraphRenderer(
       ctx.lineWidth = isSelected
         ? opts.selectedEdgeLineWidth
         : opts.edgeLineWidth;
-      edge.label.shape.draw(ctx, edge.label.shape.path, edge.id);
+      edge.label.shape.draw(ctx, edge.label.shape.path, edge.id, api);
     }
   }
 
@@ -951,7 +951,7 @@ export function createGraphRenderer(
     });
   }
 
-  return {
+  const api: GraphRenderer = {
     nodes,
     edges,
     get nodeCount() {
@@ -987,6 +987,7 @@ export function createGraphRenderer(
     setGhostEdge,
     flush
   };
+  return api;
 }
 
 const sharedArrowPath = new Path2D();
@@ -999,7 +1000,7 @@ const defaultPath = new Path2D();
 defaultPath.roundRect(-50, -25, 100, 50, 8);
 
 export const defaultShape: GraphShape = {
-  w: 100,
+  w: 50,
   h: 50,
   path: defaultPath,
   draw: (ctx, path, id) => {
@@ -1007,7 +1008,7 @@ export const defaultShape: GraphShape = {
     ctx.stroke(path);
 
     ctx.fillStyle = "#475569";
-    ctx.fillText(`Node ${id}`, 0, 0);
+    ctx.fillText(`${id}`, 0, 0);
   }
 };
 
