@@ -20,6 +20,7 @@ export function createGraphInteractions(
   let lastX = 0,
     lastY = 0;
   let hasMoved = false;
+  let wasMultiTouch = false;
   let pointerDownHitWasSelected = false;
   let edgeSourceId: number | null = null;
 
@@ -31,6 +32,12 @@ export function createGraphInteractions(
   const onPointerDown = (e: PointerEvent) => {
     e.preventDefault();
     activePointers.set(e.pointerId, e);
+
+    if (activePointers.size > 1) {
+      wasMultiTouch = true;
+      return;
+    }
+    wasMultiTouch = false;
 
     const rect = canvas.getBoundingClientRect();
     const rawX = e.clientX - rect.left;
@@ -48,15 +55,16 @@ export function createGraphInteractions(
       hit !== null ? renderer.getSelectedItems().has(hit) : false;
 
     if (hit !== null && renderer.nodes[hit]) {
+      if (!pointerDownHitWasSelected) {
+        if (!multiSelect) renderer.unselect();
+        renderer.select([hit]);
+      }
+
       if (mode === "create") {
         state = "edge";
         edgeSourceId = hit;
       } else {
         state = "dragging";
-        if (!pointerDownHitWasSelected) {
-          if (!multiSelect) renderer.unselect();
-          renderer.select([hit]);
-        }
       }
       canvas.setPointerCapture(e.pointerId);
     } else {
@@ -144,7 +152,7 @@ export function createGraphInteractions(
       lastY = remaining.clientY;
     }
 
-    if (!hasMoved) {
+    if (!hasMoved && !wasMultiTouch) {
       const rect = canvas.getBoundingClientRect();
       const pos = renderer.screenToGraph(
         e.clientX - rect.left,
@@ -156,9 +164,8 @@ export function createGraphInteractions(
         if (mode === "create") {
           if (options?.onAddNode) options.onAddNode(pos.x, pos.y);
           else renderer.addNode(pos.x, pos.y, defaultShape);
-        } else {
-          renderer.unselect();
         }
+        renderer.unselect();
       } else {
         if (multiSelect) {
           const selected = renderer.getSelectedItems();
@@ -207,6 +214,11 @@ export function createGraphInteractions(
     edgeSourceId = null;
     canvas.releasePointerCapture(e.pointerId);
     canvas.style.cursor = "default";
+
+    if (activePointers.size === 0) {
+      wasMultiTouch = false;
+    }
+
     renderer.flush();
   };
 
