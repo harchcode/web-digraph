@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "pnpm --filter site dev",
     "build": "pnpm -r build",
+    "build:lib": "pnpm --filter web-digraph build",
+    "build:site": "pnpm --filter site build",
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "pnpm -r test"
