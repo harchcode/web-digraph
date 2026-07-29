@@ -1,3 +1,8 @@
+import { MIN_ZOOM, MAX_ZOOM } from "./constants";
+
+const MIN_ZOOM_VAL = Math.round(MIN_ZOOM * 100);
+const MAX_ZOOM_VAL = Math.round(MAX_ZOOM * 100);
+
 /**
  * A custom web component for the vertical zoom slider.
  * This is completely unrelated to the core web-digraph library.
@@ -8,6 +13,9 @@ export class ZoomSlider extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: "open" });
+
+    const minVal = MIN_ZOOM_VAL;
+    const maxVal = MAX_ZOOM_VAL;
 
     this.shadowRoot!.innerHTML = `
       <style>
@@ -63,7 +71,7 @@ export class ZoomSlider extends HTMLElement {
           }
         }
       </style>
-      <input type="range" min="10" max="500" value="100" />
+      <input type="range" min="${minVal}" max="${maxVal}" value="100" />
     `;
 
     this.input = this.shadowRoot!.querySelector("input")!;
@@ -83,8 +91,8 @@ export class ZoomSlider extends HTMLElement {
   }
 
   private updateCSS() {
-    const min = parseFloat(this.input.min) || 10;
-    const max = parseFloat(this.input.max) || 500;
+    const min = parseFloat(this.input.min) || MIN_ZOOM_VAL;
+    const max = parseFloat(this.input.max) || MAX_ZOOM_VAL;
     const val = parseFloat(this.input.value);
     const percentage = ((val - min) / (max - min)) * 100;
     this.input.style.setProperty("--val", `${percentage}%`);

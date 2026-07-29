@@ -3,6 +3,7 @@ import { getRandomNodeShape, getRandomEdgeShape } from "./shapes";
 import "./zoomSlider";
 import type { ZoomSlider } from "./zoomSlider";
 import { generateGrid } from "./utils";
+import { MIN_ZOOM, MAX_ZOOM } from "./constants";
 
 const canvas = document.getElementById("graph-canvas") as HTMLCanvasElement;
 if (!canvas) {
@@ -10,7 +11,7 @@ if (!canvas) {
 }
 
 // Setup Renderer
-const renderer = createGraphRenderer();
+const renderer = createGraphRenderer({ minZoom: MIN_ZOOM, maxZoom: MAX_ZOOM });
 
 window.addEventListener("resize", () => {
   renderer.resize();
