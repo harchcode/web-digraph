@@ -49,24 +49,69 @@ const interactions = createGraphInteractions(canvas, renderer, {
 });
 
 // Bind UI Toggles
+let currentMode: "move" | "create" = "move";
+let currentMultiSelect = false;
+
 const modeBtns = document.querySelectorAll("#mode-toggle .toggle-btn");
+const selectBtns = document.querySelectorAll("#select-toggle .toggle-btn");
+
+function updateUIAndInteractions(mode: "move" | "create", multi: boolean) {
+  interactions.setMode(mode);
+  interactions.setMultiSelect(multi);
+
+  modeBtns.forEach(b => {
+    b.classList.toggle("active", b.getAttribute("data-mode") === mode);
+  });
+
+  selectBtns.forEach(b => {
+    b.classList.toggle(
+      "active",
+      (b.getAttribute("data-select") === "multi") === multi
+    );
+  });
+}
+
 modeBtns.forEach(btn => {
   btn.addEventListener("click", () => {
-    modeBtns.forEach(b => b.classList.remove("active"));
-    btn.classList.add("active");
-    interactions.setMode(btn.getAttribute("data-mode") as "move" | "create");
+    currentMode = btn.getAttribute("data-mode") as "move" | "create";
+    updateUIAndInteractions(currentMode, currentMultiSelect);
   });
 });
 
-const selectBtns = document.querySelectorAll("#select-toggle .toggle-btn");
 selectBtns.forEach(btn => {
   btn.addEventListener("click", () => {
-    selectBtns.forEach(b => b.classList.remove("active"));
-    btn.classList.add("active");
-    interactions.setMultiSelect(btn.getAttribute("data-select") === "multi");
+    currentMultiSelect = btn.getAttribute("data-select") === "multi";
+    updateUIAndInteractions(currentMode, currentMultiSelect);
   });
 });
-interactions.setMode("move");
+updateUIAndInteractions(currentMode, currentMultiSelect);
+
+// Global Keyboard Handlers
+let isShiftDown = false;
+window.addEventListener("keydown", e => {
+  if (e.key === "Backspace" || e.key === "Delete") {
+    const selected = renderer.getSelectedItems();
+    for (const id of selected) {
+      renderer.removeItem(id);
+    }
+    renderer.flush();
+  }
+
+  if (e.key === "Shift" && !isShiftDown) {
+    isShiftDown = true;
+    updateUIAndInteractions(
+      currentMode === "move" ? "create" : "move",
+      !currentMultiSelect
+    );
+  }
+});
+
+window.addEventListener("keyup", e => {
+  if (e.key === "Shift") {
+    isShiftDown = false;
+    updateUIAndInteractions(currentMode, currentMultiSelect);
+  }
+});
 
 // Bind generator button
 document
