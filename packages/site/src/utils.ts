@@ -8,7 +8,8 @@ export async function generateGrid(renderer: GraphRenderer) {
   const input = document.getElementById("node-count") as HTMLInputElement;
   const btn = document.getElementById("btn-generate") as HTMLButtonElement;
 
-  const count = parseInt(input.value, 10) || 100;
+  let count = parseInt(input.value, 10);
+  if (isNaN(count)) count = 100;
 
   isGenerating = true;
   input.disabled = true;
