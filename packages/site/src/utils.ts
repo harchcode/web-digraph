@@ -1,0 +1,60 @@
+import type { GraphRenderer } from "web-digraph";
+import { getRandomEdgeShape, getRandomNodeShape } from "./shapes";
+
+let isGenerating = false;
+
+export async function generateGrid(renderer: GraphRenderer) {
+  if (isGenerating) return;
+  const input = document.getElementById("node-count") as HTMLInputElement;
+  const btn = document.getElementById("btn-generate") as HTMLButtonElement;
+
+  const count = parseInt(input.value, 10) || 100;
+
+  isGenerating = true;
+  input.disabled = true;
+  btn.disabled = true;
+
+  renderer.clear();
+  renderer.flush(); // Clear screen immediately
+
+  const cols = Math.ceil(Math.sqrt(count));
+  const rows = Math.ceil(count / cols);
+  const spacing = 180;
+
+  const startX = -((cols - 1) * spacing) / 2;
+  const startY = -((rows - 1) * spacing) / 2;
+
+  const nodeIds: number[] = [];
+  let i = 0;
+
+  while (i < count) {
+    const chunkStartTime = performance.now();
+
+    // Generate nodes until we run out of our 16ms budget
+    while (i < count && performance.now() - chunkStartTime < 16) {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const x = startX + col * spacing;
+      const y = startY + row * spacing;
+
+      const id = renderer.addNode(x, y, getRandomNodeShape());
+      nodeIds.push(id);
+
+      if (i > 0) {
+        renderer.addEdge(nodeIds[i - 1], id, getRandomEdgeShape());
+      }
+      i++;
+    }
+
+    renderer.flush();
+
+    if (i < count) {
+      // Yield to the browser before continuing
+      await new Promise(r => requestAnimationFrame(r));
+    }
+  }
+
+  isGenerating = false;
+  input.disabled = false;
+  btn.disabled = false;
+}
