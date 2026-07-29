@@ -18,6 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      id-token: write
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v7
@@ -68,9 +69,7 @@ jobs:
 
       - name: Publish to NPM
         working-directory: ./packages/lib
-        run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public --provenance
 
       - name: Push Version Update to Main
         run: |
