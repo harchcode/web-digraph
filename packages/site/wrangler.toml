@@ -1,0 +1,12 @@
+name = "web-digraph"
+compatibility_date = "2026-07-29"
+
+# Explicitly enable the workers.dev domain so the site remains accessible
+workers_dev = true
+
+# Disable preview URLs to remove the warning (optional)
+preview_urls = false
+
+# Serve static assets from the Vite output directory
+[assets]
+directory = "dist"
