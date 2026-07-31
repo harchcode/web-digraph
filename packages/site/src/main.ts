@@ -2,7 +2,7 @@ import { createGraphRenderer } from "web-digraph";
 import { registerAllShapes } from "./shapes";
 import "./zoomSlider";
 import type { ZoomSlider } from "./zoomSlider";
-import { generateGrid } from "./utils";
+import { generateGrid, generateGridImmediate } from "./utils";
 import { MIN_ZOOM, MAX_ZOOM } from "./constants";
 
 const canvas = document.getElementById("graph-canvas") as HTMLCanvasElement;
@@ -132,7 +132,9 @@ updateUIAndInteractions(currentMode, currentMultiSelect);
 
 // Bind generator button
 document.getElementById("btn-generate")?.addEventListener("click", () => {
-  generateGrid(renderer, updateStats);
+  // generateGrid(renderer, updateStats);
+  generateGridImmediate(renderer);
+  updateStats();
 });
 
 // // Bind fit button

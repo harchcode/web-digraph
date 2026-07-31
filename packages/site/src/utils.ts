@@ -69,3 +69,47 @@ export async function generateGrid(
   input.disabled = false;
   btn.disabled = false;
 }
+
+export function generateGridImmediate(renderer: GraphRenderer) {
+  if (isGenerating) return;
+  const input = document.getElementById("node-count") as HTMLInputElement;
+  const btn = document.getElementById("btn-generate") as HTMLButtonElement;
+
+  let count = parseInt(input.value, 10);
+  if (isNaN(count)) count = 100;
+
+  isGenerating = true;
+  input.disabled = true;
+  btn.disabled = true;
+
+  renderer.clear();
+
+  const cols = Math.ceil(Math.sqrt(count));
+  const rows = Math.ceil(count / cols);
+  const spacing = 180;
+
+  const startX = -((cols - 1) * spacing) / 2;
+  const startY = -((rows - 1) * spacing) / 2;
+
+  const nodeIds = new Int32Array(count);
+
+  for (let i = 0; i < count; i++) {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const x = startX + col * spacing;
+    const y = startY + row * spacing;
+
+    const id = renderer.addNode(x, y, getRandomNodeShapeId());
+    nodeIds[i] = id;
+
+    if (i > 0) {
+      renderer.addEdge(nodeIds[i - 1], id, getRandomEdgeShapeId());
+    }
+  }
+
+  renderer.flush();
+
+  isGenerating = false;
+  input.disabled = false;
+  btn.disabled = false;
+}
