@@ -4,7 +4,7 @@ import type {
   InteractionMode,
   InteractionOptions
 } from "./types.js";
-import { defaultShape } from "./index.js";
+import { defaultShape } from "./index.old.js";
 
 export function createGraphInteractions(
   canvas: HTMLCanvasElement,

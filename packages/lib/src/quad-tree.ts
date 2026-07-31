@@ -23,33 +23,28 @@ export function createQuadTree(maxItems: number, maxDepth = 10, capacity = 10) {
   let searchCount = 0;
   const outBBox = new Float32Array(4);
 
-  function build(items: Int32Array | number[], getBBox: GetBBoxFn): void {
-    const count = items.length;
+  function build(
+    items: Int32Array | number,
+    getBBox: GetBBoxFn,
+    globalMinX: number,
+    globalMinY: number,
+    globalMaxX: number,
+    globalMaxY: number
+  ): void {
+    const count = typeof items === "number" ? items : items.length;
     if (count === 0) {
       nextNodeIdx = 0;
       return;
     }
 
-    // 1. Calculate global bounds
-    let globalMinX = Infinity;
-    let globalMinY = Infinity;
-    let globalMaxX = -Infinity;
-    let globalMaxY = -Infinity;
-
-    for (let i = 0; i < count; i++) {
-      const id = items[i];
-      itemIds[i] = id;
-
-      getBBox(id, outBBox);
-      const ix = outBBox[0];
-      const iy = outBBox[1];
-      const iMx = outBBox[2];
-      const iMy = outBBox[3];
-
-      if (ix < globalMinX) globalMinX = ix;
-      if (iy < globalMinY) globalMinY = iy;
-      if (iMx > globalMaxX) globalMaxX = iMx;
-      if (iMy > globalMaxY) globalMaxY = iMy;
+    if (typeof items === "number") {
+      // Auto-fill dense IDs from 0 to count - 1
+      for (let i = 0; i < count; i++) {
+        itemIds[i] = i;
+      }
+    } else {
+      // Ultra-fast memcpy for sparse/filtered arrays
+      itemIds.set(items);
     }
 
     // Add tiny padding to global bounds
