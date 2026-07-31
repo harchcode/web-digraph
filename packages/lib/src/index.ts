@@ -79,8 +79,8 @@ export function createGraphRenderer(
 
   let nodeCount = 0;
   let edgeCount = 0;
-  const selectedNodeCount = 0;
-  const selectedEdgeCount = 0;
+  let selectedNodeCount = 0;
+  let selectedEdgeCount = 0;
 
   let canvas!: HTMLCanvasElement;
   let ctx!: CanvasRenderingContext2D;
@@ -672,16 +672,228 @@ export function createGraphRenderer(
     isNodeTreeDirty = true;
     isEdgeTreeDirty = true;
   }
-  function unselectAll() {}
-  function unselectNode(_id?: number) {} // if no id then unselect all nodes
-  function unselectEdge(_id?: number) {}
-  function selectNode(_id: number) {}
-  function selectEdge(_id: number) {}
-  function getNodeAt(_x: number, _y: number): number {
-    return -1;
+  function unselectAll() {
+    for (let i = 0; i < selectedNodeCount; i++) {
+      const id = selectedNodes[i];
+      nodeInts[id * 5 + 2] &= ~(1 << 16);
+    }
+    for (let i = 0; i < selectedEdgeCount; i++) {
+      const id = selectedEdges[i];
+      edgeInts[id * 7 + 2] &= ~(1 << 16);
+    }
+    selectedNodeCount = 0;
+    selectedEdgeCount = 0;
   }
-  function getEdgeAt(_x: number, _y: number): number {
-    return -1;
+  function unselectNode(id?: number) {
+    if (id === undefined) {
+      for (let i = 0; i < selectedNodeCount; i++) {
+        const nid = selectedNodes[i];
+        nodeInts[nid * 5 + 2] &= ~(1 << 16);
+      }
+      selectedNodeCount = 0;
+    } else {
+      const offset = id * 5;
+      if ((nodeInts[offset + 2] & (1 << 16)) === 0) return;
+      nodeInts[offset + 2] &= ~(1 << 16);
+      for (let i = 0; i < selectedNodeCount; i++) {
+        if (selectedNodes[i] === id) {
+          selectedNodes[i] = selectedNodes[selectedNodeCount - 1];
+          selectedNodeCount--;
+          break;
+        }
+      }
+    }
+  }
+  function unselectEdge(id?: number) {
+    if (id === undefined) {
+      for (let i = 0; i < selectedEdgeCount; i++) {
+        const eid = selectedEdges[i];
+        edgeInts[eid * 7 + 2] &= ~(1 << 16);
+      }
+      selectedEdgeCount = 0;
+    } else {
+      const offset = id * 7;
+      if ((edgeInts[offset + 2] & (1 << 16)) === 0) return;
+      edgeInts[offset + 2] &= ~(1 << 16);
+      for (let i = 0; i < selectedEdgeCount; i++) {
+        if (selectedEdges[i] === id) {
+          selectedEdges[i] = selectedEdges[selectedEdgeCount - 1];
+          selectedEdgeCount--;
+          break;
+        }
+      }
+    }
+  }
+  function selectNode(id: number) {
+    const offset = id * 5;
+    if ((nodeInts[offset + 2] & (1 << 16)) !== 0) return;
+    nodeInts[offset + 2] |= 1 << 16;
+    selectedNodes[selectedNodeCount++] = id;
+  }
+  function selectEdge(id: number) {
+    const offset = id * 7;
+    if ((edgeInts[offset + 2] & (1 << 16)) !== 0) return;
+    edgeInts[offset + 2] |= 1 << 16;
+    selectedEdges[selectedEdgeCount++] = id;
+  }
+  function getNodeAt(x: number, y: number): number {
+    const searchRadius = 1;
+    const candidates = nodeTree.search(
+      x - searchRadius,
+      y - searchRadius,
+      x + searchRadius,
+      y + searchRadius
+    );
+    if (candidates.length === 0) return -1;
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+    let matchedNode = -1;
+    let matchedZ = -1;
+    let isMatchedSelected = false;
+
+    for (let i = 0; i < candidates.length; i++) {
+      const id = candidates[i];
+      const offset = id * 5;
+      const nx = nodeFloats[offset + 0];
+      const ny = nodeFloats[offset + 1];
+      const shapeId = nodeInts[offset + 2] & 0xffff;
+      const selected = (nodeInts[offset + 2] & (1 << 16)) !== 0;
+
+      const shape = shapes[shapeId];
+      if (shape && shape.path) {
+        if (ctx.isPointInPath(shape.path, x - nx, y - ny)) {
+          if (selected && !isMatchedSelected) {
+            matchedNode = id;
+            matchedZ = id;
+            isMatchedSelected = true;
+          } else if (selected && isMatchedSelected) {
+            if (id > matchedZ) {
+              matchedNode = id;
+              matchedZ = id;
+            }
+          } else if (!selected && !isMatchedSelected) {
+            if (id > matchedZ) {
+              matchedNode = id;
+              matchedZ = id;
+            }
+          }
+        }
+      }
+    }
+
+    return matchedNode;
+  }
+  function getEdgeAt(x: number, y: number): number {
+    const searchRadius = 8;
+    const candidates = edgeTree.search(
+      x - searchRadius,
+      y - searchRadius,
+      x + searchRadius,
+      y + searchRadius
+    );
+    if (candidates.length === 0) return -1;
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+    let matchedEdge = -1;
+    let matchedZ = -1;
+    let isMatchedSelected = false;
+
+    for (let i = 0; i < candidates.length; i++) {
+      const id = candidates[i];
+      const offset = id * 7;
+      const sourceId = edgeInts[offset + 0];
+      const targetId = edgeInts[offset + 1];
+      const shapeId = edgeInts[offset + 2] & 0xffff;
+      const selected = (edgeInts[offset + 2] & (1 << 16)) !== 0;
+
+      const sx = nodeFloats[sourceId * 5 + 0];
+      const sy = nodeFloats[sourceId * 5 + 1];
+      const tx = edgeFloats[offset + 3];
+      const ty = edgeFloats[offset + 4];
+
+      if (Number.isNaN(tx) || Number.isNaN(ty)) continue;
+
+      let hit = false;
+      const angle = Math.atan2(ty - sy, tx - sx);
+
+      const shape = shapes[shapeId];
+      if (shape && shape.path) {
+        const rawTx = nodeFloats[targetId * 5 + 0];
+        const rawTy = nodeFloats[targetId * 5 + 1];
+        const mx = (sx + rawTx) / 2 - Math.cos(angle) * 5;
+        const my = (sy + rawTy) / 2 - Math.sin(angle) * 5;
+
+        if (ctx.isPointInPath(shape.path, x - mx, y - my)) {
+          hit = true;
+        }
+      }
+
+      if (!hit) {
+        const cos = Math.cos(-angle);
+        const sin = Math.sin(-angle);
+        const dx = x - tx;
+        const dy = y - ty;
+        const rx = dx * cos - dy * sin;
+        const ry = dx * sin + dy * cos;
+        if (ctx.isPointInPath(sharedArrowPath, rx, ry)) {
+          hit = true;
+        }
+      }
+
+      if (!hit) {
+        const A = x - sx;
+        const B = y - sy;
+        const C = tx - sx;
+        const D = ty - sy;
+
+        const dot = A * C + B * D;
+        const len_sq = C * C + D * D;
+        let param = -1;
+        if (len_sq != 0) param = dot / len_sq;
+
+        let xx, yy;
+        if (param < 0) {
+          xx = sx;
+          yy = sy;
+        } else if (param > 1) {
+          xx = tx;
+          yy = ty;
+        } else {
+          xx = sx + param * C;
+          yy = sy + param * D;
+        }
+
+        const dx2 = x - xx;
+        const dy2 = y - yy;
+        const dist = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+
+        if (dist <= 8) {
+          hit = true;
+        }
+      }
+
+      if (hit) {
+        if (selected && !isMatchedSelected) {
+          matchedEdge = id;
+          matchedZ = id;
+          isMatchedSelected = true;
+        } else if (selected && isMatchedSelected) {
+          if (id > matchedZ) {
+            matchedEdge = id;
+            matchedZ = id;
+          }
+        } else if (!selected && !isMatchedSelected) {
+          if (id > matchedZ) {
+            matchedEdge = id;
+            matchedZ = id;
+          }
+        }
+      }
+    }
+
+    return matchedEdge;
   }
   function zoomTo(value: number, targetX?: number, targetY?: number) {
     const newZoom = Math.max(opts.minZoom, Math.min(opts.maxZoom, value));

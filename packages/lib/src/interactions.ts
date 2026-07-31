@@ -3,7 +3,7 @@ import type {
   GraphInteractions,
   InteractionMode,
   InteractionOptions
-} from "./types.js";
+} from "./types.old.js";
 import { defaultShape } from "./index.old.js";
 
 export function createGraphInteractions(
