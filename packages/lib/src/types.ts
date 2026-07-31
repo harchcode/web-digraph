@@ -89,6 +89,9 @@ export type GraphRenderer = {
   readonly edgeCount: number;
   readonly selectedNodes: Int32Array;
   readonly selectedEdges: Int32Array;
+  readonly zoom: number;
+  readonly cameraX: number;
+  readonly cameraY: number;
 
   registerShape: (shape: GraphShape) => number;
   resize: () => void;

@@ -770,6 +770,15 @@ export function createGraphRenderer(
     get selectedEdges() {
       return selectedEdges;
     },
+    get zoom() {
+      return zoom;
+    },
+    get cameraX() {
+      return cameraX;
+    },
+    get cameraY() {
+      return cameraY;
+    },
     registerShape,
     resize,
     mount,
