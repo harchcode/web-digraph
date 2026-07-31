@@ -1,4 +1,4 @@
-import { createGraphRenderer } from "web-digraph";
+import { createGraphRenderer, createGraphInteractions } from "web-digraph";
 import { registerAllShapes } from "./shapes";
 import "./zoomSlider";
 import type { ZoomSlider } from "./zoomSlider";
@@ -41,28 +41,28 @@ function updateStats() {
 }
 
 // Setup Interactions
-// const interactions = createGraphInteractions(canvas, renderer, {
-//   bindDefaultKeyboardHandlers: false,
-//   onAddNode: (x, y) => {
-//     renderer.addNode(x, y, getRandomNodeShapeId());
-//     updateStats();
-//   },
-//   onAddEdge: (source, target) => {
-//     renderer.addEdge(source, target, getRandomEdgeShapeId());
-//     updateStats();
-//   },
-//   onDeleteNodes: nodeIds => {
-//     for (const id of nodeIds) renderer.removeItem(id);
-//     updateStats();
-//   },
-//   onDeleteEdges: edgeIds => {
-//     for (const id of edgeIds) renderer.removeItem(id);
-//     updateStats();
-//   },
-//   onZoom: zoom => {
-//     zoomSlider.setZoom(zoom);
-//   }
-// });
+const interactions = createGraphInteractions(canvas, renderer, {
+  bindDefaultKeyboardHandlers: true,
+  onAddNode: (x, y) => {
+    // renderer.addNode(x, y, getRandomNodeShapeId());
+    // updateStats();
+  },
+  onAddEdge: (source, target) => {
+    // renderer.addEdge(source, target, getRandomEdgeShapeId());
+    // updateStats();
+  },
+  onDeleteNodes: nodeIds => {
+    for (const id of nodeIds) renderer.removeNode(id);
+    updateStats();
+  },
+  onDeleteEdges: edgeIds => {
+    for (const id of edgeIds) renderer.removeEdge(id);
+    updateStats();
+  },
+  onZoom: zoom => {
+    zoomSlider.setZoom(zoom);
+  }
+});
 
 // Bind UI Toggles
 let currentMode: "move" | "create" = "move";
@@ -72,8 +72,8 @@ const modeBtns = document.querySelectorAll("#mode-toggle .toggle-btn");
 const selectBtns = document.querySelectorAll("#select-toggle .toggle-btn");
 
 function updateUIAndInteractions(mode: "move" | "create", multi: boolean) {
-  // interactions.setMode(mode);
-  // interactions.setMultiSelect(multi);
+  interactions.setMode(mode);
+  interactions.setMultiSelect(multi);
 
   modeBtns.forEach(b => {
     b.classList.toggle("active", b.getAttribute("data-mode") === mode);
@@ -103,32 +103,23 @@ selectBtns.forEach(btn => {
 updateUIAndInteractions(currentMode, currentMultiSelect);
 
 // Global Keyboard Handlers
-// let isShiftDown = false;
-// window.addEventListener("keydown", e => {
-//   if (e.key === "Backspace" || e.key === "Delete") {
-//     const selected = renderer.getSelectedItems();
-//     for (const id of selected) {
-//       renderer.removeItem(id);
-//     }
-//     renderer.flush();
-//     updateStats();
-//   }
+let isShiftDown = false;
+window.addEventListener("keydown", e => {
+  if (e.key === "Shift" && !isShiftDown) {
+    isShiftDown = true;
+    updateUIAndInteractions(
+      currentMode === "move" ? "create" : "move",
+      !currentMultiSelect
+    );
+  }
+});
 
-//   if (e.key === "Shift" && !isShiftDown) {
-//     isShiftDown = true;
-//     updateUIAndInteractions(
-//       currentMode === "move" ? "create" : "move",
-//       !currentMultiSelect
-//     );
-//   }
-// });
-
-// window.addEventListener("keyup", e => {
-//   if (e.key === "Shift") {
-//     isShiftDown = false;
-//     updateUIAndInteractions(currentMode, currentMultiSelect);
-//   }
-// });
+window.addEventListener("keyup", e => {
+  if (e.key === "Shift") {
+    isShiftDown = false;
+    updateUIAndInteractions(currentMode, currentMultiSelect);
+  }
+});
 
 // Bind generator button
 document.getElementById("btn-generate")?.addEventListener("click", () => {
@@ -137,21 +128,26 @@ document.getElementById("btn-generate")?.addEventListener("click", () => {
   updateStats();
 });
 
-// // Bind fit button
-// document.getElementById("btn-fit")?.addEventListener("click", () => {
-//   renderer.centerView();
-//   zoomSlider.setZoom(renderer.getZoom());
-//   renderer.flush();
-// });
-// // Bind delete button
-// document.getElementById("btn-delete")?.addEventListener("click", () => {
-//   const selected = renderer.getSelectedItems();
-//   for (const id of selected) {
-//     renderer.removeItem(id);
-//   }
-//   renderer.flush();
-//   updateStats();
-// });
+// Bind fit button
+document.getElementById("btn-fit")?.addEventListener("click", () => {
+  renderer.centerView();
+  zoomSlider.setZoom(renderer.zoom);
+  renderer.flush();
+});
+// Bind delete button
+document.getElementById("btn-delete")?.addEventListener("click", () => {
+  const nodeInts = new Int32Array(renderer.nodeBuffer);
+  const edgeInts = new Int32Array(renderer.edgeBuffer);
+  for (let i = 0; i < renderer.nodeCount; i++) {
+    if ((nodeInts[i * 5 + 2] & (1 << 16)) !== 0) renderer.removeNode(i);
+  }
+  for (let i = 0; i < renderer.edgeCount; i++) {
+    if ((edgeInts[i * 7 + 2] & (1 << 16)) !== 0) renderer.removeEdge(i);
+  }
+  renderer.unselectAll();
+  renderer.flush();
+  updateStats();
+});
 
 // Help Dialog
 const helpDialog = document.getElementById("help-dialog") as HTMLDialogElement;

@@ -2,6 +2,7 @@ import { createQuadTree } from "./quad-tree.js";
 import { GraphOptions, GraphShape, GraphRenderer } from "./types.js";
 
 export * from "./types.js";
+export * from "./interactions.js";
 
 export const defaultGraphOptions: GraphOptions = {
   maxNodes: 1000,
