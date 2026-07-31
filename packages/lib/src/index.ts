@@ -330,57 +330,74 @@ export function createGraphRenderer(
       isEdgeTreeDirty = false;
     }
   }
-  // function drawEdge(id: number, selected: boolean) {
-  //   const offset = id * 7;
-  //   const sourceId = edgeInts[offset + 0];
-  //   const targetId = edgeInts[offset + 1];
-  //   const shapeId = edgeInts[offset + 2] & 0xffff;
+  function drawEdge(id: number, selected: boolean) {
+    const offset = id * 7;
+    const sourceId = edgeInts[offset + 0];
+    const targetId = edgeInts[offset + 1];
+    const shapeId = edgeInts[offset + 2] & 0xffff;
 
-  //   let tx = edgeFloats[offset + 3];
-  //   let ty = edgeFloats[offset + 4];
+    let tx = edgeFloats[offset + 3];
+    let ty = edgeFloats[offset + 4];
 
-  //   const sx = nodeFloats[sourceId * 5 + 0];
-  //   const sy = nodeFloats[sourceId * 5 + 1];
+    const sx = nodeFloats[sourceId * 5 + 0];
+    const sy = nodeFloats[sourceId * 5 + 1];
 
-  //   if (Number.isNaN(tx) || Number.isNaN(ty)) {
-  //     const targetShapeId = nodeInts[targetId * 5 + 2] & 0xffff;
-  //     const targetShape = shapes[targetShapeId];
-  //     const rawTx = nodeFloats[targetId * 5 + 0];
-  //     const rawTy = nodeFloats[targetId * 5 + 1];
+    if (Number.isNaN(tx) || Number.isNaN(ty)) {
+      const targetShapeId = nodeInts[targetId * 5 + 2] & 0xffff;
+      const targetShape = shapes[targetShapeId];
+      const rawTx = nodeFloats[targetId * 5 + 0];
+      const rawTy = nodeFloats[targetId * 5 + 1];
 
-  //     if (targetShape && targetShape.path) {
-  //       const intersection = getBoundaryIntersection(
-  //         targetShape.path,
-  //         rawTx,
-  //         rawTy,
-  //         sx,
-  //         sy
-  //       );
-  //       tx = intersection.x;
-  //       ty = intersection.y;
-  //     } else {
-  //       tx = rawTx;
-  //       ty = rawTy;
-  //     }
+      if (targetShape && targetShape.path) {
+        const intersection = getBoundaryIntersection(
+          targetShape.path,
+          rawTx,
+          rawTy,
+          sx,
+          sy
+        );
+        tx = intersection.x;
+        ty = intersection.y;
+      } else {
+        tx = rawTx;
+        ty = rawTy;
+      }
 
-  //     edgeFloats[offset + 3] = tx;
-  //     edgeFloats[offset + 4] = ty;
-  //   }
+      edgeFloats[offset + 3] = tx;
+      edgeFloats[offset + 4] = ty;
+    }
 
-  //   ctx.beginPath();
-  //   ctx.moveTo(sx, sy);
-  //   ctx.lineTo(tx, ty);
-  //   ctx.lineWidth = selected ? opts.selectedEdgeLineWidth : opts.edgeLineWidth;
-  //   ctx.strokeStyle = selected
-  //     ? opts.selectedEdgeLineColor
-  //     : opts.edgeLineColor;
-  //   ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(tx, ty);
+    ctx.lineWidth = selected ? opts.selectedEdgeLineWidth : opts.edgeLineWidth;
+    ctx.strokeStyle = selected
+      ? opts.selectedEdgeLineColor
+      : opts.edgeLineColor;
+    ctx.stroke();
 
-  //   const shape = shapes[shapeId];
-  //   if (shape && shape.draw) {
-  //     shape.draw(ctx, shape.path, id, api);
-  //   }
-  // }
+    const shape = shapes[shapeId];
+    if (shape && shape.draw) {
+      const rawTx = nodeFloats[targetId * 5 + 0];
+      const rawTy = nodeFloats[targetId * 5 + 1];
+      const mx = (sx + rawTx) / 2;
+      const my = (sy + rawTy) / 2;
+
+      ctx.translate(mx, my);
+
+      ctx.fillStyle = opts.edgeShapeColor;
+      ctx.strokeStyle = selected
+        ? opts.selectedEdgeLineColor
+        : opts.edgeLineColor;
+      ctx.lineWidth = selected
+        ? opts.selectedEdgeLineWidth
+        : opts.edgeLineWidth;
+
+      shape.draw(ctx, shape.path, id, api);
+
+      ctx.translate(-mx, -my);
+    }
+  }
 
   function drawNode(id: number, selected: boolean) {
     const offset = id * 5;
@@ -440,18 +457,18 @@ export function createGraphRenderer(
     ctx.textBaseline = "middle";
 
     // Edges (Unselected)
-    // for (let i = 0; i < visibleEdges.length; i++) {
-    //   const id = visibleEdges[i];
-    //   const selected = (edgeInts[id * 7 + 2] & (1 << 16)) !== 0;
-    //   if (!selected) drawEdge(id, false);
-    // }
+    for (let i = 0; i < visibleEdges.length; i++) {
+      const id = visibleEdges[i];
+      const selected = (edgeInts[id * 7 + 2] & (1 << 16)) !== 0;
+      if (!selected) drawEdge(id, false);
+    }
 
     // // Edges (Selected)
-    // for (let i = 0; i < visibleEdges.length; i++) {
-    //   const id = visibleEdges[i];
-    //   const selected = (edgeInts[id * 7 + 2] & (1 << 16)) !== 0;
-    //   if (selected) drawEdge(id, true);
-    // }
+    for (let i = 0; i < visibleEdges.length; i++) {
+      const id = visibleEdges[i];
+      const selected = (edgeInts[id * 7 + 2] & (1 << 16)) !== 0;
+      if (selected) drawEdge(id, true);
+    }
 
     ctx.font = opts.nodeFont;
     ctx.fillStyle = opts.nodeShapeColor;

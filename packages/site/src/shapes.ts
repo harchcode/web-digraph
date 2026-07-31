@@ -191,5 +191,5 @@ export function getRandomNodeShapeId() {
 }
 
 export function getRandomEdgeShapeId() {
-  return Math.floor(Math.random() * edgeShapes.length);
+  return nodeShapes.length + Math.floor(Math.random() * edgeShapes.length);
 }
