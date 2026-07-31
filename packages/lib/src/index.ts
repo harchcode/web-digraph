@@ -376,12 +376,22 @@ export function createGraphRenderer(
       : opts.edgeLineColor;
     ctx.stroke();
 
+    const angle = Math.atan2(ty - sy, tx - sx);
+    ctx.translate(tx, ty);
+    ctx.rotate(angle);
+    ctx.fillStyle = selected
+      ? opts.selectedEdgeLineColor
+      : opts.edgeLineColor;
+    ctx.fill(sharedArrowPath);
+    ctx.rotate(-angle);
+    ctx.translate(-tx, -ty);
+
     const shape = shapes[shapeId];
     if (shape && shape.draw) {
       const rawTx = nodeFloats[targetId * 5 + 0];
       const rawTy = nodeFloats[targetId * 5 + 1];
-      const mx = (sx + rawTx) / 2;
-      const my = (sy + rawTy) / 2;
+      const mx = (sx + rawTx) / 2 - Math.cos(angle) * 5;
+      const my = (sy + rawTy) / 2 - Math.sin(angle) * 5;
 
       ctx.translate(mx, my);
 
