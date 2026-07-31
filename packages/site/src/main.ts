@@ -11,7 +11,12 @@ if (!canvas) {
 }
 
 // Setup Renderer
-const renderer = createGraphRenderer({ minZoom: MIN_ZOOM, maxZoom: MAX_ZOOM });
+const renderer = createGraphRenderer({
+  minZoom: MIN_ZOOM,
+  maxZoom: MAX_ZOOM,
+  maxNodes: 1000000,
+  maxEdges: 1000000
+});
 registerAllShapes(renderer);
 
 window.addEventListener("resize", () => {

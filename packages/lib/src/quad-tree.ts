@@ -18,6 +18,7 @@ export function createQuadTree(maxItems: number, maxDepth = 10, capacity = 10) {
 
   const itemIds = new Int32Array(maxItems);
   const searchResult = new Int32Array(maxItems);
+  const bboxCache = new Float32Array(maxItems * 4);
 
   let nextNodeIdx = 0;
   let searchCount = 0;
@@ -41,10 +42,23 @@ export function createQuadTree(maxItems: number, maxDepth = 10, capacity = 10) {
       // Auto-fill dense IDs from 0 to count - 1
       for (let i = 0; i < count; i++) {
         itemIds[i] = i;
+        getBBox(i, outBBox);
+        bboxCache[i * 4 + 0] = outBBox[0];
+        bboxCache[i * 4 + 1] = outBBox[1];
+        bboxCache[i * 4 + 2] = outBBox[2];
+        bboxCache[i * 4 + 3] = outBBox[3];
       }
     } else {
       // Ultra-fast memcpy for sparse/filtered arrays
       itemIds.set(items);
+      for (let i = 0; i < count; i++) {
+        const id = items[i];
+        getBBox(id, outBBox);
+        bboxCache[id * 4 + 0] = outBBox[0];
+        bboxCache[id * 4 + 1] = outBBox[1];
+        bboxCache[id * 4 + 2] = outBBox[2];
+        bboxCache[id * 4 + 3] = outBBox[3];
+      }
     }
 
     // Add tiny padding to global bounds
@@ -62,8 +76,7 @@ export function createQuadTree(maxItems: number, maxDepth = 10, capacity = 10) {
       globalMinY,
       globalMaxX,
       globalMaxY,
-      0,
-      getBBox
+      0
     );
   }
 
@@ -75,8 +88,7 @@ export function createQuadTree(maxItems: number, maxDepth = 10, capacity = 10) {
     minY: number,
     maxX: number,
     maxY: number,
-    depth: number,
-    getBBox: GetBBoxFn
+    depth: number
   ): void {
     const offset = nodeIdx * STRIDE;
 
@@ -100,12 +112,16 @@ export function createQuadTree(maxItems: number, maxDepth = 10, capacity = 10) {
     let tail = startIdx + count - 1;
     while (head <= tail) {
       const id = itemIds[head];
-      getBBox(id, outBBox);
+      const offset = id * 4;
+      const bMinX = bboxCache[offset + 0];
+      const bMinY = bboxCache[offset + 1];
+      const bMaxX = bboxCache[offset + 2];
+      const bMaxY = bboxCache[offset + 3];
 
-      const fitsTL = outBBox[2] < midX && outBBox[3] < midY;
-      const fitsTR = outBBox[0] >= midX && outBBox[3] < midY;
-      const fitsBL = outBBox[2] < midX && outBBox[1] >= midY;
-      const fitsBR = outBBox[0] >= midX && outBBox[1] >= midY;
+      const fitsTL = bMaxX < midX && bMaxY < midY;
+      const fitsTR = bMinX >= midX && bMaxY < midY;
+      const fitsBL = bMaxX < midX && bMinY >= midY;
+      const fitsBR = bMinX >= midX && bMinY >= midY;
 
       if (!fitsTL && !fitsTR && !fitsBL && !fitsBR) {
         head++; // It's a straddle, leave it at the head
@@ -129,8 +145,7 @@ export function createQuadTree(maxItems: number, maxDepth = 10, capacity = 10) {
     tail = startIdx + count - 1;
     while (cur <= tail) {
       const id = itemIds[cur];
-      getBBox(id, outBBox);
-      if (outBBox[2] < midX && outBBox[3] < midY) {
+      if (bboxCache[id * 4 + 2] < midX && bboxCache[id * 4 + 3] < midY) {
         cur++;
       } else {
         const temp = itemIds[tail];
@@ -147,8 +162,7 @@ export function createQuadTree(maxItems: number, maxDepth = 10, capacity = 10) {
     tail = startIdx + count - 1;
     while (cur <= tail) {
       const id = itemIds[cur];
-      getBBox(id, outBBox);
-      if (outBBox[0] >= midX && outBBox[3] < midY) {
+      if (bboxCache[id * 4 + 0] >= midX && bboxCache[id * 4 + 3] < midY) {
         cur++;
       } else {
         const temp = itemIds[tail];
@@ -165,8 +179,7 @@ export function createQuadTree(maxItems: number, maxDepth = 10, capacity = 10) {
     tail = startIdx + count - 1;
     while (cur <= tail) {
       const id = itemIds[cur];
-      getBBox(id, outBBox);
-      if (outBBox[2] < midX && outBBox[1] >= midY) {
+      if (bboxCache[id * 4 + 2] < midX && bboxCache[id * 4 + 1] >= midY) {
         cur++;
       } else {
         const temp = itemIds[tail];
@@ -207,8 +220,7 @@ export function createQuadTree(maxItems: number, maxDepth = 10, capacity = 10) {
       minY,
       midX,
       midY,
-      depth + 1,
-      getBBox
+      depth + 1
     );
     _buildNodeAt(
       firstChildIdx + 1,
@@ -218,8 +230,7 @@ export function createQuadTree(maxItems: number, maxDepth = 10, capacity = 10) {
       minY,
       maxX,
       midY,
-      depth + 1,
-      getBBox
+      depth + 1
     );
     _buildNodeAt(
       firstChildIdx + 2,
@@ -229,8 +240,7 @@ export function createQuadTree(maxItems: number, maxDepth = 10, capacity = 10) {
       midY,
       midX,
       maxY,
-      depth + 1,
-      getBBox
+      depth + 1
     );
     _buildNodeAt(
       firstChildIdx + 3,
@@ -240,8 +250,7 @@ export function createQuadTree(maxItems: number, maxDepth = 10, capacity = 10) {
       midY,
       maxX,
       maxY,
-      depth + 1,
-      getBBox
+      depth + 1
     );
   }
 
