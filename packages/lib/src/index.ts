@@ -101,50 +101,6 @@ export function createGraphRenderer(options?: Partial<GraphOptions>) {
     ty: 0
   };
 
-  const nodeView = {
-    id: 0,
-    get x() { return nodeFloats[this.id * 5 + 0]; },
-    set x(v: number) { nodeFloats[this.id * 5 + 0] = v; },
-    get y() { return nodeFloats[this.id * 5 + 1]; },
-    set y(v: number) { nodeFloats[this.id * 5 + 1] = v; },
-    get shapeId() { return nodeInts[this.id * 5 + 2] & 0xFFFF; },
-    set shapeId(v: number) {
-      const flags = nodeInts[this.id * 5 + 2] & ~0xFFFF;
-      nodeInts[this.id * 5 + 2] = flags | v;
-    },
-    get isSelected() { return (nodeInts[this.id * 5 + 2] & (1 << 16)) !== 0; },
-    set isSelected(v: boolean) {
-      if (v) nodeInts[this.id * 5 + 2] |= (1 << 16);
-      else nodeInts[this.id * 5 + 2] &= ~(1 << 16);
-    },
-    get incomingEdge() { return nodeInts[this.id * 5 + 3]; },
-    get outgoingEdge() { return nodeInts[this.id * 5 + 4]; }
-  };
-
-  const edgeView = {
-    id: 0,
-    get source() { return edgeInts[this.id * 7 + 0]; },
-    set source(v: number) { edgeInts[this.id * 7 + 0] = v; },
-    get target() { return edgeInts[this.id * 7 + 1]; },
-    set target(v: number) { edgeInts[this.id * 7 + 1] = v; },
-    get shapeId() { return edgeInts[this.id * 7 + 2] & 0xFFFF; },
-    set shapeId(v: number) {
-      const flags = edgeInts[this.id * 7 + 2] & ~0xFFFF;
-      edgeInts[this.id * 7 + 2] = flags | v;
-    },
-    get isSelected() { return (edgeInts[this.id * 7 + 2] & (1 << 16)) !== 0; },
-    set isSelected(v: boolean) {
-      if (v) edgeInts[this.id * 7 + 2] |= (1 << 16);
-      else edgeInts[this.id * 7 + 2] &= ~(1 << 16);
-    },
-    get tx() { return edgeFloats[this.id * 7 + 3]; },
-    set tx(v: number) { edgeFloats[this.id * 7 + 3] = v; },
-    get ty() { return edgeFloats[this.id * 7 + 4]; },
-    set ty(v: number) { edgeFloats[this.id * 7 + 4] = v; },
-    get nextIncomingEdge() { return edgeInts[this.id * 7 + 5]; },
-    get nextOutgoingEdge() { return edgeInts[this.id * 7 + 6]; }
-  };
-
   const shapes: GraphShape[] = [];
 
   function getBoundaryIntersection(
@@ -423,8 +379,6 @@ export function createGraphRenderer(options?: Partial<GraphOptions>) {
     get selectedEdges() {
       return selectedEdges;
     },
-    nodeView,
-    edgeView,
     mount,
     addNode,
     addEdge,
