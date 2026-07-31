@@ -189,10 +189,10 @@ export function createGraphRenderer(
   }
 
   function applyCameraTransform() {
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.translate(halfWidth, halfHeight);
-    ctx.scale(zoom, zoom);
-    ctx.translate(-cameraX, -cameraY);
+    const s = dpr * zoom;
+    const tx = (halfWidth - cameraX * zoom) * dpr;
+    const ty = (halfHeight - cameraY * zoom) * dpr;
+    ctx.setTransform(s, 0, 0, s, tx, ty);
   }
 
   function resize() {
