@@ -77,10 +77,6 @@ export function createGraphRenderer(options?: Partial<GraphOptions>) {
   let edgeCount = 0;
   const selectedNodeCount = 0;
   const selectedEdgeCount = 0;
-  const minX = 0;
-  const minY = 0;
-  const maxX = 0;
-  const maxY = 0;
 
   let canvas!: HTMLCanvasElement;
   let ctx!: CanvasRenderingContext2D;
@@ -92,7 +88,7 @@ export function createGraphRenderer(options?: Partial<GraphOptions>) {
   let logicalHeight = 0;
   let halfWidth = 0;
   let halfHeight = 0;
-  const isDirty = false;
+  let isDirty = false;
   const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
 
   const ghostEdge = {
@@ -102,6 +98,44 @@ export function createGraphRenderer(options?: Partial<GraphOptions>) {
   };
 
   const shapes: GraphShape[] = [];
+
+  const tmpBBox = new Float32Array(4);
+
+  function getNodeBBox(id: number, out: Float32Array) {
+    const offset = id * 5;
+    const x = nodeFloats[offset + 0];
+    const y = nodeFloats[offset + 1];
+    const shapeId = nodeInts[offset + 2] & 0xffff;
+    const shape = shapes[shapeId];
+
+    const padding = opts.nodeLineWidth;
+    const hw = (shape ? shape.w / 2 : 10) + padding;
+    const hh = (shape ? shape.h / 2 : 10) + padding;
+
+    out[0] = x - hw;
+    out[1] = y - hh;
+    out[2] = x + hw;
+    out[3] = y + hh;
+  }
+
+  function getEdgeBBox(id: number, out: Float32Array) {
+    const offset = id * 7;
+    const sourceId = edgeInts[offset + 0];
+    const targetId = edgeInts[offset + 1];
+
+    const sx = nodeFloats[sourceId * 5 + 0];
+    const sy = nodeFloats[sourceId * 5 + 1];
+
+    const tx = nodeFloats[targetId * 5 + 0];
+    const ty = nodeFloats[targetId * 5 + 1];
+
+    const padding = opts.edgeLineWidth;
+
+    out[0] = Math.min(sx, tx) - padding;
+    out[1] = Math.min(sy, ty) - padding;
+    out[2] = Math.max(sx, tx) + padding;
+    out[3] = Math.max(sy, ty) + padding;
+  }
 
   function getBoundaryIntersection(
     path: Path2D,
@@ -216,9 +250,49 @@ export function createGraphRenderer(options?: Partial<GraphOptions>) {
   }
   function moveNodeTo(id: number, x: number, y: number) {}
   function moveNodeBy(id: number, dx: number, dy: number) {}
-  function buildNodeTree() {}
-  function buildEdgeTree() {}
-  function buildTree() {}
+  function buildNodeTree() {
+    if (nodeCount === 0) return;
+
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+
+    for (let i = 0; i < nodeCount; i++) {
+      getNodeBBox(i, tmpBBox);
+      if (tmpBBox[0] < minX) minX = tmpBBox[0];
+      if (tmpBBox[1] < minY) minY = tmpBBox[1];
+      if (tmpBBox[2] > maxX) maxX = tmpBBox[2];
+      if (tmpBBox[3] > maxY) maxY = tmpBBox[3];
+    }
+
+    nodeTree.build(nodeCount, getNodeBBox, minX, minY, maxX, maxY);
+  }
+
+  function buildEdgeTree() {
+    if (edgeCount === 0) return;
+
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+
+    for (let i = 0; i < edgeCount; i++) {
+      getEdgeBBox(i, tmpBBox);
+      if (tmpBBox[0] < minX) minX = tmpBBox[0];
+      if (tmpBBox[1] < minY) minY = tmpBBox[1];
+      if (tmpBBox[2] > maxX) maxX = tmpBBox[2];
+      if (tmpBBox[3] > maxY) maxY = tmpBBox[3];
+    }
+
+    edgeTree.build(edgeCount, getEdgeBBox, minX, minY, maxX, maxY);
+  }
+
+  function buildTree() {
+    buildNodeTree();
+    buildEdgeTree();
+    isDirty = false;
+  }
   function draw() {}
   function flush() {} // buildTree() + draw()
   function removeEdge(id: number) {
