@@ -1,6 +1,8 @@
 import { createQuadTree } from "./quad-tree.js";
 import { GraphOptions, GraphShape, GraphRenderer } from "./types.js";
 
+export * from "./types.js";
+
 export const defaultGraphOptions: GraphOptions = {
   maxNodes: 1000,
   maxEdges: 10000,
@@ -102,6 +104,12 @@ export function createGraphRenderer(
   };
 
   const shapes: GraphShape[] = [];
+
+  function registerShape(shape: GraphShape): number {
+    const id = shapes.length;
+    shapes.push(shape);
+    return id;
+  }
 
   const tmpBBox = new Float32Array(4);
 
@@ -623,6 +631,8 @@ export function createGraphRenderer(
     get selectedEdges() {
       return selectedEdges;
     },
+    registerShape,
+    resize,
     mount,
     addNode,
     addEdge,
@@ -653,4 +663,33 @@ export function createGraphRenderer(
   };
 
   return api;
+}
+
+const sharedArrowPath = new Path2D();
+sharedArrowPath.moveTo(0, 0);
+sharedArrowPath.lineTo(-10, -5);
+sharedArrowPath.lineTo(-10, 5);
+sharedArrowPath.closePath();
+
+const defaultPath = new Path2D();
+defaultPath.roundRect(-50, -25, 100, 50, 8);
+
+export const defaultShape: GraphShape = {
+  w: 50,
+  h: 50,
+  path: defaultPath,
+  draw: (ctx, path, id) => {
+    ctx.fill(path);
+    ctx.stroke(path);
+
+    ctx.fillStyle = "#475569";
+    ctx.fillText(`${id}`, 0, 0);
+  }
+};
+
+export function createShape(shape: Partial<GraphShape> = {}): GraphShape {
+  return {
+    ...defaultShape,
+    ...shape
+  };
 }

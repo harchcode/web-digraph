@@ -90,6 +90,8 @@ export type GraphRenderer = {
   readonly selectedNodes: Int32Array;
   readonly selectedEdges: Int32Array;
 
+  registerShape: (shape: GraphShape) => number;
+  resize: () => void;
   mount: (el: HTMLCanvasElement) => void;
   addNode: (x: number, y: number, shapeId: number) => number;
   addEdge: (sourceId: number, targetId: number, shapeId: number) => number;

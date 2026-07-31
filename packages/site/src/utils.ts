@@ -1,5 +1,5 @@
 import type { GraphRenderer } from "web-digraph";
-import { getRandomEdgeShape, getRandomNodeShape } from "./shapes";
+import { getRandomEdgeShapeId, getRandomNodeShapeId } from "./shapes";
 
 let isGenerating = false;
 
@@ -42,11 +42,11 @@ export async function generateGrid(
       const x = startX + col * spacing;
       const y = startY + row * spacing;
 
-      const id = renderer.addNode(x, y, getRandomNodeShape());
+      const id = renderer.addNode(x, y, getRandomNodeShapeId());
       nodeIds.push(id);
 
       if (i > 0) {
-        renderer.addEdge(nodeIds[i - 1], id, getRandomEdgeShape());
+        renderer.addEdge(nodeIds[i - 1], id, getRandomEdgeShapeId());
       }
       i++;
     }

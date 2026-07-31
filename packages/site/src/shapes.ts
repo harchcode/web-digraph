@@ -1,4 +1,4 @@
-import { createShape } from "web-digraph";
+import { createShape, type GraphRenderer } from "web-digraph";
 
 // Helper to draw text
 function drawNodeId(ctx: CanvasRenderingContext2D, id: number | string) {
@@ -181,10 +181,15 @@ const nodeShapes = [
 ];
 const edgeShapes = [smallCircleShape, smallSquareShape, smallDiamondShape];
 
-export function getRandomNodeShape() {
-  return nodeShapes[Math.floor(Math.random() * nodeShapes.length)];
+export function registerAllShapes(renderer: GraphRenderer) {
+  nodeShapes.forEach(s => renderer.registerShape(s));
+  edgeShapes.forEach(s => renderer.registerShape(s));
 }
 
-export function getRandomEdgeShape() {
-  return edgeShapes[Math.floor(Math.random() * edgeShapes.length)];
+export function getRandomNodeShapeId() {
+  return Math.floor(Math.random() * nodeShapes.length);
+}
+
+export function getRandomEdgeShapeId() {
+  return Math.floor(Math.random() * edgeShapes.length);
 }
