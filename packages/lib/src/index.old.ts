@@ -8,7 +8,7 @@ import type {
 } from "./types.old.js";
 
 export * from "./types.js";
-export * from "./interactions.js";
+export * from "./interactions.old.js";
 
 export const defaultGraphOptions: GraphOptions = {
   bgColor: "#fffdf7",
