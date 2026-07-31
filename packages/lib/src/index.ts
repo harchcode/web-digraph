@@ -85,9 +85,9 @@ export function createGraphRenderer(
   let canvas!: HTMLCanvasElement;
   let ctx!: CanvasRenderingContext2D;
 
-  const cameraX = 0;
-  const cameraY = 0;
-  const zoom = 1;
+  let cameraX = 0;
+  let cameraY = 0;
+  let zoom = 1;
   let logicalWidth = 0;
   let logicalHeight = 0;
   let halfWidth = 0;
@@ -683,18 +683,71 @@ export function createGraphRenderer(
   function getEdgeAt(_x: number, _y: number): number {
     return -1;
   }
-  function zoomTo(_value: number, _targetX?: number, _targetY?: number) {}
-  function zoomBy(_dv: number, _targetX?: number, _targetY?: number) {}
-  function panTo(_x: number, _y: number) {}
-  function panBy(_dx: number, _dy: number) {}
-  function centerView() {}
-  function screenToGraph(_x: number, _y: number, out: [number, number]) {
-    out[0] = 0;
-    out[1] = 0;
+  function zoomTo(value: number, targetX?: number, targetY?: number) {
+    const newZoom = Math.max(opts.minZoom, Math.min(opts.maxZoom, value));
+    if (newZoom === zoom) return;
+
+    const cx = targetX ?? halfWidth;
+    const cy = targetY ?? halfHeight;
+
+    const gx = (cx - halfWidth) / zoom + cameraX;
+    const gy = (cy - halfHeight) / zoom + cameraY;
+
+    zoom = newZoom;
+
+    cameraX = gx - (cx - halfWidth) / zoom;
+    cameraY = gy - (cy - halfHeight) / zoom;
   }
-  function graphToScreen(_x: number, _y: number, out: [number, number]) {
-    out[0] = 0;
-    out[1] = 0;
+  function zoomBy(dv: number, targetX?: number, targetY?: number) {
+    zoomTo(zoom + dv, targetX, targetY);
+  }
+  function panTo(x: number, y: number) {
+    cameraX = x;
+    cameraY = y;
+  }
+  function panBy(dx: number, dy: number) {
+    cameraX -= dx / zoom;
+    cameraY -= dy / zoom;
+  }
+  function centerView() {
+    if (nodeCount === 0) return;
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+
+    for (let i = 0; i < nodeCount; i++) {
+      getNodeBBox(i, tmpBBox);
+      if (tmpBBox[0] < minX) minX = tmpBBox[0];
+      if (tmpBBox[1] < minY) minY = tmpBBox[1];
+      if (tmpBBox[2] > maxX) maxX = tmpBBox[2];
+      if (tmpBBox[3] > maxY) maxY = tmpBBox[3];
+    }
+
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+    const graphWidth = Math.max(1, maxX - minX);
+    const graphHeight = Math.max(1, maxY - minY);
+
+    const usableWidth = Math.max(10, logicalWidth - 100);
+    const usableHeight = Math.max(10, logicalHeight - 100);
+
+    let newZoom = Math.min(
+      usableWidth / graphWidth,
+      usableHeight / graphHeight
+    );
+    newZoom = Math.min(newZoom, opts.maxZoom);
+
+    panTo(centerX, centerY);
+    zoomTo(newZoom);
+  }
+  function screenToGraph(x: number, y: number, out: [number, number]) {
+    out[0] = (x - halfWidth) / zoom + cameraX;
+    out[1] = (y - halfHeight) / zoom + cameraY;
+  }
+  function graphToScreen(x: number, y: number, out: [number, number]) {
+    out[0] = (x - cameraX) * zoom + halfWidth;
+    out[1] = (y - cameraY) * zoom + halfHeight;
   }
   function setGhostEdge(_sourceId: number, _tx?: number, _ty?: number) {}
 
