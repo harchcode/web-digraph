@@ -10,39 +10,23 @@ const FIRST_CHILD = 4; // Index of the first child node. -1 if leaf.
 const ITEM_START = 5; // Start index in itemIds array.
 const ITEM_COUNT = 6; // Number of items in this node.
 
-export class QuadTree {
-  public treeBuffer: Float32Array;
-  public treeIntBuffer: Int32Array;
-  public itemIds: Int32Array;
+export function createQuadTree(maxItems: number, maxDepth = 10, capacity = 10) {
+  const maxNodes = Math.max(1000, Math.ceil((maxItems / capacity) * 4));
 
-  private maxDepth: number;
-  private capacity: number;
-  private nextNodeIdx: number = 0;
-  private outBBox: Float32Array = new Float32Array(4);
+  let treeBuffer = new Float32Array(maxNodes * STRIDE);
+  let treeIntBuffer = new Int32Array(treeBuffer.buffer);
 
-  private searchResult: Int32Array;
-  private searchCount: number = 0;
+  const itemIds = new Int32Array(maxItems);
+  const searchResult = new Int32Array(maxItems);
 
-  constructor(maxItems: number, maxDepth = 10, capacity = 10) {
-    this.maxDepth = maxDepth;
-    this.capacity = capacity;
+  let nextNodeIdx = 0;
+  let searchCount = 0;
+  const outBBox = new Float32Array(4);
 
-    // Allocate enough nodes. A quad tree has roughly 4/3 * (maxItems / capacity) nodes.
-    // We allocate plenty of headroom to prevent out-of-bounds.
-    const maxNodes = Math.max(1000, Math.ceil((maxItems / capacity) * 4));
-
-    const buffer = new ArrayBuffer(maxNodes * STRIDE * 4);
-    this.treeBuffer = new Float32Array(buffer);
-    this.treeIntBuffer = new Int32Array(buffer);
-
-    this.itemIds = new Int32Array(maxItems);
-    this.searchResult = new Int32Array(maxItems);
-  }
-
-  public build(items: Int32Array | number[], getBBox: GetBBoxFn): void {
+  function build(items: Int32Array | number[], getBBox: GetBBoxFn): void {
     const count = items.length;
     if (count === 0) {
-      this.nextNodeIdx = 0;
+      nextNodeIdx = 0;
       return;
     }
 
@@ -54,13 +38,13 @@ export class QuadTree {
 
     for (let i = 0; i < count; i++) {
       const id = items[i];
-      this.itemIds[i] = id;
+      itemIds[i] = id;
 
-      getBBox(id, this.outBBox);
-      const ix = this.outBBox[0];
-      const iy = this.outBBox[1];
-      const iMx = this.outBBox[2];
-      const iMy = this.outBBox[3];
+      getBBox(id, outBBox);
+      const ix = outBBox[0];
+      const iy = outBBox[1];
+      const iMx = outBBox[2];
+      const iMy = outBBox[3];
 
       if (ix < globalMinX) globalMinX = ix;
       if (iy < globalMinY) globalMinY = iy;
@@ -74,8 +58,8 @@ export class QuadTree {
     globalMaxX += 0.1;
     globalMaxY += 0.1;
 
-    this.nextNodeIdx = 1; // Root is index 0
-    this._buildNodeAt(
+    nextNodeIdx = 1; // Root is index 0
+    _buildNodeAt(
       0,
       0,
       count,
@@ -88,7 +72,7 @@ export class QuadTree {
     );
   }
 
-  private _buildNodeAt(
+  function _buildNodeAt(
     nodeIdx: number,
     startIdx: number,
     count: number,
@@ -101,15 +85,15 @@ export class QuadTree {
   ): void {
     const offset = nodeIdx * STRIDE;
 
-    this.treeBuffer[offset + MIN_X] = minX;
-    this.treeBuffer[offset + MIN_Y] = minY;
-    this.treeBuffer[offset + MAX_X] = maxX;
-    this.treeBuffer[offset + MAX_Y] = maxY;
-    this.treeIntBuffer[offset + FIRST_CHILD] = -1;
+    treeBuffer[offset + MIN_X] = minX;
+    treeBuffer[offset + MIN_Y] = minY;
+    treeBuffer[offset + MAX_X] = maxX;
+    treeBuffer[offset + MAX_Y] = maxY;
+    treeIntBuffer[offset + FIRST_CHILD] = -1;
 
-    if (count <= this.capacity || depth >= this.maxDepth) {
-      this.treeIntBuffer[offset + ITEM_START] = startIdx;
-      this.treeIntBuffer[offset + ITEM_COUNT] = count;
+    if (count <= capacity || depth >= maxDepth) {
+      treeIntBuffer[offset + ITEM_START] = startIdx;
+      treeIntBuffer[offset + ITEM_COUNT] = count;
       return;
     }
 
@@ -120,21 +104,21 @@ export class QuadTree {
     let head = startIdx;
     let tail = startIdx + count - 1;
     while (head <= tail) {
-      const id = this.itemIds[head];
-      getBBox(id, this.outBBox);
+      const id = itemIds[head];
+      getBBox(id, outBBox);
 
-      const fitsTL = this.outBBox[2] < midX && this.outBBox[3] < midY;
-      const fitsTR = this.outBBox[0] >= midX && this.outBBox[3] < midY;
-      const fitsBL = this.outBBox[2] < midX && this.outBBox[1] >= midY;
-      const fitsBR = this.outBBox[0] >= midX && this.outBBox[1] >= midY;
+      const fitsTL = outBBox[2] < midX && outBBox[3] < midY;
+      const fitsTR = outBBox[0] >= midX && outBBox[3] < midY;
+      const fitsBL = outBBox[2] < midX && outBBox[1] >= midY;
+      const fitsBR = outBBox[0] >= midX && outBBox[1] >= midY;
 
       if (!fitsTL && !fitsTR && !fitsBL && !fitsBR) {
         head++; // It's a straddle, leave it at the head
       } else {
         // Swap to tail
-        const temp = this.itemIds[tail];
-        this.itemIds[tail] = id;
-        this.itemIds[head] = temp;
+        const temp = itemIds[tail];
+        itemIds[tail] = id;
+        itemIds[head] = temp;
         tail--;
       }
     }
@@ -142,21 +126,21 @@ export class QuadTree {
     const straddleStart = startIdx;
     const straddleCount = head - startIdx;
 
-    this.treeIntBuffer[offset + ITEM_START] = straddleStart;
-    this.treeIntBuffer[offset + ITEM_COUNT] = straddleCount;
+    treeIntBuffer[offset + ITEM_START] = straddleStart;
+    treeIntBuffer[offset + ITEM_COUNT] = straddleCount;
 
     // Pass 2: Partition TL vs Rest
     let cur = head;
     tail = startIdx + count - 1;
     while (cur <= tail) {
-      const id = this.itemIds[cur];
-      getBBox(id, this.outBBox);
-      if (this.outBBox[2] < midX && this.outBBox[3] < midY) {
+      const id = itemIds[cur];
+      getBBox(id, outBBox);
+      if (outBBox[2] < midX && outBBox[3] < midY) {
         cur++;
       } else {
-        const temp = this.itemIds[tail];
-        this.itemIds[tail] = id;
-        this.itemIds[cur] = temp;
+        const temp = itemIds[tail];
+        itemIds[tail] = id;
+        itemIds[cur] = temp;
         tail--;
       }
     }
@@ -167,14 +151,14 @@ export class QuadTree {
     head = cur;
     tail = startIdx + count - 1;
     while (cur <= tail) {
-      const id = this.itemIds[cur];
-      getBBox(id, this.outBBox);
-      if (this.outBBox[0] >= midX && this.outBBox[3] < midY) {
+      const id = itemIds[cur];
+      getBBox(id, outBBox);
+      if (outBBox[0] >= midX && outBBox[3] < midY) {
         cur++;
       } else {
-        const temp = this.itemIds[tail];
-        this.itemIds[tail] = id;
-        this.itemIds[cur] = temp;
+        const temp = itemIds[tail];
+        itemIds[tail] = id;
+        itemIds[cur] = temp;
         tail--;
       }
     }
@@ -185,14 +169,14 @@ export class QuadTree {
     head = cur;
     tail = startIdx + count - 1;
     while (cur <= tail) {
-      const id = this.itemIds[cur];
-      getBBox(id, this.outBBox);
-      if (this.outBBox[2] < midX && this.outBBox[1] >= midY) {
+      const id = itemIds[cur];
+      getBBox(id, outBBox);
+      if (outBBox[2] < midX && outBBox[1] >= midY) {
         cur++;
       } else {
-        const temp = this.itemIds[tail];
-        this.itemIds[tail] = id;
-        this.itemIds[cur] = temp;
+        const temp = itemIds[tail];
+        itemIds[tail] = id;
+        itemIds[cur] = temp;
         tail--;
       }
     }
@@ -203,24 +187,24 @@ export class QuadTree {
     const brCount = startIdx + count - cur;
 
     // Allocate 4 contiguous children
-    const firstChildIdx = this.nextNodeIdx;
+    const firstChildIdx = nextNodeIdx;
 
     // Dynamic resizing check
-    if ((firstChildIdx + 4) * STRIDE >= this.treeBuffer.length) {
+    if ((firstChildIdx + 4) * STRIDE >= treeBuffer.length) {
       // Reallocate buffers
-      const newSize = this.treeBuffer.length * 2;
+      const newSize = treeBuffer.length * 2;
       const newBuffer = new ArrayBuffer(newSize * 4);
       const newTreeBuffer = new Float32Array(newBuffer);
       const newTreeIntBuffer = new Int32Array(newBuffer);
-      newTreeBuffer.set(this.treeBuffer);
-      this.treeBuffer = newTreeBuffer;
-      this.treeIntBuffer = newTreeIntBuffer;
+      newTreeBuffer.set(treeBuffer);
+      treeBuffer = newTreeBuffer;
+      treeIntBuffer = newTreeIntBuffer;
     }
 
-    this.treeIntBuffer[offset + FIRST_CHILD] = firstChildIdx;
-    this.nextNodeIdx += 4;
+    treeIntBuffer[offset + FIRST_CHILD] = firstChildIdx;
+    nextNodeIdx += 4;
 
-    this._buildNodeAt(
+    _buildNodeAt(
       firstChildIdx,
       tlStart,
       tlCount,
@@ -231,7 +215,7 @@ export class QuadTree {
       depth + 1,
       getBBox
     );
-    this._buildNodeAt(
+    _buildNodeAt(
       firstChildIdx + 1,
       trStart,
       trCount,
@@ -242,7 +226,7 @@ export class QuadTree {
       depth + 1,
       getBBox
     );
-    this._buildNodeAt(
+    _buildNodeAt(
       firstChildIdx + 2,
       blStart,
       blCount,
@@ -253,7 +237,7 @@ export class QuadTree {
       depth + 1,
       getBBox
     );
-    this._buildNodeAt(
+    _buildNodeAt(
       firstChildIdx + 3,
       brStart,
       brCount,
@@ -266,20 +250,20 @@ export class QuadTree {
     );
   }
 
-  public search(
+  function search(
     minX: number,
     minY: number,
     maxX: number,
     maxY: number
   ): Int32Array {
-    this.searchCount = 0;
-    if (this.nextNodeIdx > 0) {
-      this._searchNode(0, minX, minY, maxX, maxY);
+    searchCount = 0;
+    if (nextNodeIdx > 0) {
+      _searchNode(0, minX, minY, maxX, maxY);
     }
-    return this.searchResult.subarray(0, this.searchCount);
+    return searchResult.subarray(0, searchCount);
   }
 
-  private _searchNode(
+  function _searchNode(
     nodeIdx: number,
     minX: number,
     minY: number,
@@ -288,28 +272,33 @@ export class QuadTree {
   ) {
     const offset = nodeIdx * STRIDE;
 
-    const nMinX = this.treeBuffer[offset + MIN_X];
-    const nMinY = this.treeBuffer[offset + MIN_Y];
-    const nMaxX = this.treeBuffer[offset + MAX_X];
-    const nMaxY = this.treeBuffer[offset + MAX_Y];
+    const nMinX = treeBuffer[offset + MIN_X];
+    const nMinY = treeBuffer[offset + MIN_Y];
+    const nMaxX = treeBuffer[offset + MAX_X];
+    const nMaxY = treeBuffer[offset + MAX_Y];
 
     if (maxX < nMinX || minX > nMaxX || maxY < nMinY || minY > nMaxY) {
       return;
     }
 
-    const start = this.treeIntBuffer[offset + ITEM_START];
-    const count = this.treeIntBuffer[offset + ITEM_COUNT];
+    const start = treeIntBuffer[offset + ITEM_START];
+    const count = treeIntBuffer[offset + ITEM_COUNT];
 
     for (let i = 0; i < count; i++) {
-      this.searchResult[this.searchCount++] = this.itemIds[start + i];
+      searchResult[searchCount++] = itemIds[start + i];
     }
 
-    const firstChildIdx = this.treeIntBuffer[offset + FIRST_CHILD];
+    const firstChildIdx = treeIntBuffer[offset + FIRST_CHILD];
     if (firstChildIdx !== -1) {
-      this._searchNode(firstChildIdx, minX, minY, maxX, maxY);
-      this._searchNode(firstChildIdx + 1, minX, minY, maxX, maxY);
-      this._searchNode(firstChildIdx + 2, minX, minY, maxX, maxY);
-      this._searchNode(firstChildIdx + 3, minX, minY, maxX, maxY);
+      _searchNode(firstChildIdx, minX, minY, maxX, maxY);
+      _searchNode(firstChildIdx + 1, minX, minY, maxX, maxY);
+      _searchNode(firstChildIdx + 2, minX, minY, maxX, maxY);
+      _searchNode(firstChildIdx + 3, minX, minY, maxX, maxY);
     }
   }
+
+  return {
+    build,
+    search
+  };
 }
