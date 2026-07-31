@@ -61,7 +61,13 @@ export function createGraphRenderer(options?: Partial<GraphOptions>) {
   const opts = { ...defaultGraphOptions, ...options };
 
   const nodeBuffer = new ArrayBuffer(NODE_BYTES * opts.maxNodes);
+  const nodeInts = new Int32Array(nodeBuffer);
+  const nodeFloats = new Float32Array(nodeBuffer);
+
   const edgeBuffer = new ArrayBuffer(EDGE_BYTES * opts.maxEdges);
+  const edgeInts = new Int32Array(edgeBuffer);
+  const edgeFloats = new Float32Array(edgeBuffer);
+
   const selectedNodes = new Int32Array(opts.maxNodes);
   const selectedEdges = new Int32Array(opts.maxEdges);
   const nodeTree = createQuadTree(opts.maxNodes);
@@ -69,6 +75,8 @@ export function createGraphRenderer(options?: Partial<GraphOptions>) {
 
   const nodeCount = 0;
   const edgeCount = 0;
+  const selectedNodeCount = 0;
+  const selectedEdgeCount = 0;
   const minX = 0;
   const minY = 0;
   const maxX = 0;
