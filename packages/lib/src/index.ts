@@ -182,11 +182,17 @@ export function createGraphRenderer(
       }
     }
 
-    // Restore the base DPR matrix that exists outside of flush()
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    applyCameraTransform();
 
     const finalT = start / e;
     return { x: cx + finalT * dx, y: cy + finalT * dy };
+  }
+
+  function applyCameraTransform() {
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.translate(halfWidth, halfHeight);
+    ctx.scale(zoom, zoom);
+    ctx.translate(-cameraX, -cameraY);
   }
 
   function resize() {
@@ -408,10 +414,7 @@ export function createGraphRenderer(
     ctx.fillStyle = opts.bgColor;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.translate(halfWidth, halfHeight);
-    ctx.scale(zoom, zoom);
-    ctx.translate(-cameraX, -cameraY);
+    applyCameraTransform();
 
     const visibleMinX = cameraX - halfWidth / zoom;
     const visibleMinY = cameraY - halfHeight / zoom;

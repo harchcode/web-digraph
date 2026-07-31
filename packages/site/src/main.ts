@@ -1,9 +1,5 @@
 import { createGraphRenderer } from "web-digraph";
-import {
-  getRandomNodeShapeId,
-  getRandomEdgeShapeId,
-  registerAllShapes
-} from "./shapes";
+import { registerAllShapes } from "./shapes";
 import "./zoomSlider";
 import type { ZoomSlider } from "./zoomSlider";
 import { generateGrid } from "./utils";
