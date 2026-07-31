@@ -74,8 +74,8 @@ export function createGraphRenderer(
 
   const selectedNodes = new Int32Array(opts.maxNodes);
   const selectedEdges = new Int32Array(opts.maxEdges);
-  const nodeTree = createQuadTree(opts.maxNodes, 10, 10);
-  const edgeTree = createQuadTree(opts.maxEdges, 10, 10);
+  const nodeTree = createQuadTree(opts.maxNodes, 8, 10);
+  const edgeTree = createQuadTree(opts.maxEdges, 8, 10);
 
   let nodeCount = 0;
   let edgeCount = 0;
@@ -330,6 +330,7 @@ export function createGraphRenderer(
       isEdgeTreeDirty = false;
     }
   }
+
   function drawEdge(id: number, selected: boolean) {
     const offset = id * 7;
     const sourceId = edgeInts[offset + 0];
@@ -379,9 +380,7 @@ export function createGraphRenderer(
     const angle = Math.atan2(ty - sy, tx - sx);
     ctx.translate(tx, ty);
     ctx.rotate(angle);
-    ctx.fillStyle = selected
-      ? opts.selectedEdgeLineColor
-      : opts.edgeLineColor;
+    ctx.fillStyle = selected ? opts.selectedEdgeLineColor : opts.edgeLineColor;
     ctx.fill(sharedArrowPath);
     ctx.rotate(-angle);
     ctx.translate(-tx, -ty);
@@ -436,6 +435,48 @@ export function createGraphRenderer(
     ctx.translate(-x, -y);
   }
 
+  function drawBackground(
+    left: number,
+    top: number,
+    right: number,
+    bottom: number
+  ) {
+    if (!opts.drawGrid) return;
+    const gridSize = opts.gridSize;
+    if (gridSize * zoom < 10) return; // Hide grid when zoomed too far out
+
+    const startX = Math.floor(left / gridSize) * gridSize;
+    const startY = Math.floor(top / gridSize) * gridSize;
+
+    ctx.beginPath();
+    if (opts.gridType === "dot") {
+      const radius = opts.gridDotRadius;
+      ctx.lineWidth = radius * 2;
+      ctx.lineCap = "round";
+      ctx.setLineDash([0, gridSize]);
+      ctx.strokeStyle = opts.gridLineColor;
+      for (let y = startY; y < bottom + gridSize; y += gridSize) {
+        ctx.moveTo(startX, y);
+        ctx.lineTo(right + gridSize, y);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.lineCap = "butt";
+    } else {
+      for (let x = startX; x < right + gridSize; x += gridSize) {
+        ctx.moveTo(x, top);
+        ctx.lineTo(x, bottom);
+      }
+      for (let y = startY; y < bottom + gridSize; y += gridSize) {
+        ctx.moveTo(left, y);
+        ctx.lineTo(right, y);
+      }
+      ctx.strokeStyle = opts.gridLineColor;
+      ctx.lineWidth = opts.gridLineWidth;
+      ctx.stroke();
+    }
+  }
+
   function draw() {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = opts.bgColor;
@@ -447,6 +488,8 @@ export function createGraphRenderer(
     const visibleMinY = cameraY - halfHeight / zoom;
     const visibleMaxX = cameraX + halfWidth / zoom;
     const visibleMaxY = cameraY + halfHeight / zoom;
+
+    drawBackground(visibleMinX, visibleMinY, visibleMaxX, visibleMaxY);
 
     const visibleEdges = edgeTree.search(
       visibleMinX,
