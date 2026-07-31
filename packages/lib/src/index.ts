@@ -1,5 +1,5 @@
 import { createQuadTree } from "./quad-tree.js";
-import { GraphOptions, GraphShape } from "./types.js";
+import { GraphOptions, GraphShape, GraphRenderer } from "./types.js";
 
 export const defaultGraphOptions: GraphOptions = {
   maxNodes: 1000,
@@ -57,7 +57,9 @@ export const edgeStrides = {
   nextOutgoingEdge: 6
 };
 
-export function createGraphRenderer(options?: Partial<GraphOptions>) {
+export function createGraphRenderer(
+  options?: Partial<GraphOptions>
+): GraphRenderer {
   const opts = { ...defaultGraphOptions, ...options };
 
   const nodeBuffer = new ArrayBuffer(NODE_BYTES * opts.maxNodes);
@@ -89,6 +91,8 @@ export function createGraphRenderer(options?: Partial<GraphOptions>) {
   let halfWidth = 0;
   let halfHeight = 0;
   let isDirty = false;
+  let isNodeTreeDirty = true;
+  let isEdgeTreeDirty = true;
   const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
 
   const ghostEdge = {
@@ -217,6 +221,7 @@ export function createGraphRenderer(options?: Partial<GraphOptions>) {
     nodeInts[offset + 2] = shapeId;
     nodeInts[offset + 3] = -1; // incomingEdge
     nodeInts[offset + 4] = -1; // outgoingEdge
+    isNodeTreeDirty = true;
 
     return id;
   }
@@ -245,11 +250,24 @@ export function createGraphRenderer(options?: Partial<GraphOptions>) {
     const targetOffset = targetId * 5;
     edgeInts[offset + 5] = nodeInts[targetOffset + 3];
     nodeInts[targetOffset + 3] = id;
+    isEdgeTreeDirty = true;
 
     return id;
   }
-  function moveNodeTo(id: number, x: number, y: number) {}
-  function moveNodeBy(id: number, dx: number, dy: number) {}
+  function moveNodeTo(id: number, x: number, y: number) {
+    const offset = id * 5;
+    nodeFloats[offset + 0] = x;
+    nodeFloats[offset + 1] = y;
+    isNodeTreeDirty = true;
+    isEdgeTreeDirty = true;
+  }
+  function moveNodeBy(id: number, dx: number, dy: number) {
+    const offset = id * 5;
+    nodeFloats[offset + 0] += dx;
+    nodeFloats[offset + 1] += dy;
+    isNodeTreeDirty = true;
+    isEdgeTreeDirty = true;
+  }
   function buildNodeTree() {
     if (nodeCount === 0) return;
 
@@ -289,15 +307,165 @@ export function createGraphRenderer(options?: Partial<GraphOptions>) {
   }
 
   function buildTree() {
-    buildNodeTree();
-    buildEdgeTree();
-    isDirty = false;
+    if (isNodeTreeDirty) {
+      buildNodeTree();
+      isNodeTreeDirty = false;
+    }
+    if (isEdgeTreeDirty) {
+      buildEdgeTree();
+      isEdgeTreeDirty = false;
+    }
   }
-  function draw() {}
-  function flush() {} // buildTree() + draw()
+  function drawEdge(id: number, selected: boolean) {
+    const offset = id * 7;
+    const sourceId = edgeInts[offset + 0];
+    const targetId = edgeInts[offset + 1];
+    const shapeId = edgeInts[offset + 2] & 0xffff;
+
+    let tx = edgeFloats[offset + 3];
+    let ty = edgeFloats[offset + 4];
+
+    const sx = nodeFloats[sourceId * 5 + 0];
+    const sy = nodeFloats[sourceId * 5 + 1];
+
+    if (Number.isNaN(tx) || Number.isNaN(ty)) {
+      const targetShapeId = nodeInts[targetId * 5 + 2] & 0xffff;
+      const targetShape = shapes[targetShapeId];
+      const rawTx = nodeFloats[targetId * 5 + 0];
+      const rawTy = nodeFloats[targetId * 5 + 1];
+
+      if (targetShape && targetShape.path) {
+        const intersection = getBoundaryIntersection(
+          targetShape.path,
+          rawTx,
+          rawTy,
+          sx,
+          sy
+        );
+        tx = intersection.x;
+        ty = intersection.y;
+      } else {
+        tx = rawTx;
+        ty = rawTy;
+      }
+
+      edgeFloats[offset + 3] = tx;
+      edgeFloats[offset + 4] = ty;
+    }
+
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(tx, ty);
+    ctx.lineWidth = selected ? opts.selectedEdgeLineWidth : opts.edgeLineWidth;
+    ctx.strokeStyle = selected
+      ? opts.selectedEdgeLineColor
+      : opts.edgeLineColor;
+    ctx.stroke();
+
+    const shape = shapes[shapeId];
+    if (shape && shape.draw) {
+      shape.draw(ctx, shape.path, id, api);
+    }
+  }
+
+  function drawNode(id: number, selected: boolean) {
+    const offset = id * 5;
+    const x = nodeFloats[offset + 0];
+    const y = nodeFloats[offset + 1];
+    const shapeId = nodeInts[offset + 2] & 0xffff;
+
+    const shape = shapes[shapeId];
+    if (!shape) return;
+
+    ctx.translate(x, y);
+
+    ctx.fillStyle = opts.nodeShapeColor;
+    ctx.fill(shape.path);
+
+    ctx.lineWidth = selected ? opts.selectedNodeLineWidth : opts.nodeLineWidth;
+    ctx.strokeStyle = selected
+      ? opts.selectedNodeLineColor
+      : opts.nodeLineColor;
+    ctx.stroke(shape.path);
+
+    if (shape.draw) {
+      shape.draw(ctx, shape.path, id, api);
+    }
+
+    ctx.translate(-x, -y);
+  }
+
+  function draw() {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = opts.bgColor;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.translate(halfWidth, halfHeight);
+    ctx.scale(zoom, zoom);
+    ctx.translate(-cameraX, -cameraY);
+
+    const visibleMinX = cameraX - halfWidth / zoom;
+    const visibleMinY = cameraY - halfHeight / zoom;
+    const visibleMaxX = cameraX + halfWidth / zoom;
+    const visibleMaxY = cameraY + halfHeight / zoom;
+
+    const visibleEdges = edgeTree.search(
+      visibleMinX,
+      visibleMinY,
+      visibleMaxX,
+      visibleMaxY
+    );
+    const visibleNodes = nodeTree.search(
+      visibleMinX,
+      visibleMinY,
+      visibleMaxX,
+      visibleMaxY
+    );
+
+    // Edges (Unselected)
+    for (let i = 0; i < visibleEdges.length; i++) {
+      const id = visibleEdges[i];
+      const selected = (edgeInts[id * 7 + 2] & (1 << 16)) !== 0;
+      if (!selected) drawEdge(id, false);
+    }
+
+    // Edges (Selected)
+    for (let i = 0; i < visibleEdges.length; i++) {
+      const id = visibleEdges[i];
+      const selected = (edgeInts[id * 7 + 2] & (1 << 16)) !== 0;
+      if (selected) drawEdge(id, true);
+    }
+
+    // Nodes (Unselected)
+    for (let i = 0; i < visibleNodes.length; i++) {
+      const id = visibleNodes[i];
+      const selected = (nodeInts[id * 5 + 2] & (1 << 16)) !== 0;
+      if (!selected) drawNode(id, false);
+    }
+
+    // Nodes (Selected)
+    for (let i = 0; i < visibleNodes.length; i++) {
+      const id = visibleNodes[i];
+      const selected = (nodeInts[id * 5 + 2] & (1 << 16)) !== 0;
+      if (selected) drawNode(id, true);
+    }
+  }
+
+  function flush() {
+    if (isDirty) return;
+    isDirty = true;
+
+    requestAnimationFrame(() => {
+      isDirty = false;
+      buildTree();
+      draw();
+    });
+  }
+
   function removeEdge(id: number) {
     if (id < 0 || id >= edgeCount) return;
-
+    isEdgeTreeDirty = true;
     const offset = id * 7;
     const sourceId = edgeInts[offset + 0];
     const targetId = edgeInts[offset + 1];
@@ -373,6 +541,8 @@ export function createGraphRenderer(options?: Partial<GraphOptions>) {
 
   function removeNode(id: number) {
     if (id < 0 || id >= nodeCount) return;
+    isNodeTreeDirty = true;
+    isEdgeTreeDirty = true;
 
     // 1. Delete all edges connected to this node by popping heads
     while (nodeInts[id * 5 + 3] !== -1) {
@@ -409,32 +579,32 @@ export function createGraphRenderer(options?: Partial<GraphOptions>) {
   }
   function clear() {}
   function unselectAll() {}
-  function unselectNode(id?: number) {} // if no id then unselect all nodes
-  function unselectEdge(id?: number) {}
-  function selectNode(id: number) {}
-  function selectEdge(id: number) {}
-  function getNodeAt(x: number, y: number): number {
+  function unselectNode(_id?: number) {} // if no id then unselect all nodes
+  function unselectEdge(_id?: number) {}
+  function selectNode(_id: number) {}
+  function selectEdge(_id: number) {}
+  function getNodeAt(_x: number, _y: number): number {
     return -1;
   }
-  function getEdgeAt(x: number, y: number): number {
+  function getEdgeAt(_x: number, _y: number): number {
     return -1;
   }
-  function zoomTo(value: number, targetX?: number, targetY?: number) {}
-  function zoomBy(dv: number, targetX?: number, targetY?: number) {}
-  function panTo(x: number, y: number) {}
-  function panBy(dx: number, dy: number) {}
+  function zoomTo(_value: number, _targetX?: number, _targetY?: number) {}
+  function zoomBy(_dv: number, _targetX?: number, _targetY?: number) {}
+  function panTo(_x: number, _y: number) {}
+  function panBy(_dx: number, _dy: number) {}
   function centerView() {}
-  function screenToGraph(x: number, y: number, out: [number, number]) {
+  function screenToGraph(_x: number, _y: number, out: [number, number]) {
     out[0] = 0;
     out[1] = 0;
   }
-  function graphToScreen(x: number, y: number, out: [number, number]) {
+  function graphToScreen(_x: number, _y: number, out: [number, number]) {
     out[0] = 0;
     out[1] = 0;
   }
-  function setGhostEdge(sourceId: number, tx?: number, ty?: number) {}
+  function setGhostEdge(_sourceId: number, _tx?: number, _ty?: number) {}
 
-  return {
+  const api = {
     get nodeBuffer() {
       return nodeBuffer;
     },
@@ -461,7 +631,6 @@ export function createGraphRenderer(options?: Partial<GraphOptions>) {
     buildNodeTree,
     buildEdgeTree,
     buildTree,
-    draw,
     flush,
     removeNode,
     removeEdge,
@@ -482,6 +651,6 @@ export function createGraphRenderer(options?: Partial<GraphOptions>) {
     graphToScreen,
     setGhostEdge
   };
-}
 
-export type GraphRenderer = ReturnType<typeof createGraphRenderer>;
+  return api;
+}

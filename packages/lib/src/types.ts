@@ -83,43 +83,40 @@ export type GraphEdge = {
 export type GraphItem = GraphNode | GraphEdge;
 
 export type GraphRenderer = {
-  nodes: Record<number, GraphNode>;
-  edges: Record<number, GraphEdge>;
-
-  nodeCount: number;
-  edgeCount: number;
+  readonly nodeBuffer: ArrayBuffer;
+  readonly edgeBuffer: ArrayBuffer;
+  readonly nodeCount: number;
+  readonly edgeCount: number;
+  readonly selectedNodes: Int32Array;
+  readonly selectedEdges: Int32Array;
 
   mount: (el: HTMLCanvasElement) => void;
-  addNode: (x: number, y: number, shape: GraphShape, id?: number) => number;
-  addEdge: (
-    sourceId: number,
-    targetId: number,
-    label?: GraphShape,
-    id?: number
-  ) => number;
-  moveNodeTo: (id: number, x: number, y: number, skipGrid?: boolean) => void;
-  moveNodeBy: (id: number, dx: number, dy: number, skipGrid?: boolean) => void;
-  updateNodeGrid: (id: number) => void;
-  updateEdgeGrid: (id: number) => void;
-  removeItem: (id: number) => void;
+  addNode: (x: number, y: number, shapeId: number) => number;
+  addEdge: (sourceId: number, targetId: number, shapeId: number) => number;
+  moveNodeTo: (id: number, x: number, y: number) => void;
+  moveNodeBy: (id: number, dx: number, dy: number) => void;
+  buildNodeTree: () => void;
+  buildEdgeTree: () => void;
+  buildTree: () => void;
+  flush: () => void;
   removeNode: (id: number) => void;
   removeEdge: (id: number) => void;
   clear: () => void;
-  unselect: (ids?: number[]) => void;
-  select: (ids: number[]) => void;
-  getSelectedItems: () => Set<number>;
-  getItemAt: (x: number, y: number) => number | null;
-  getZoom: () => number;
+  unselectAll: () => void;
+  unselectNode: (id?: number) => void;
+  unselectEdge: (id?: number) => void;
+  selectNode: (id: number) => void;
+  selectEdge: (id: number) => void;
+  getNodeAt: (x: number, y: number) => number;
+  getEdgeAt: (x: number, y: number) => number;
   zoomTo: (value: number, targetX?: number, targetY?: number) => void;
   zoomBy: (dv: number, targetX?: number, targetY?: number) => void;
   panTo: (x: number, y: number) => void;
   panBy: (dx: number, dy: number) => void;
   centerView: () => void;
-  screenToGraph: (x: number, y: number) => Pos;
-  graphToScreen: (x: number, y: number) => Pos;
-  flush: () => void;
-  resize: () => void;
-  setGhostEdge: (sourceId: number | null, x?: number, y?: number) => void;
+  screenToGraph: (x: number, y: number, out: [number, number]) => void;
+  graphToScreen: (x: number, y: number, out: [number, number]) => void;
+  setGhostEdge: (sourceId: number, tx?: number, ty?: number) => void;
 };
 
 export type InteractionMode = "move" | "create";
