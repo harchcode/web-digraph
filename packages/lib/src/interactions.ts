@@ -34,8 +34,10 @@ export function createGraphInteractions(
   const nodeInts = new Int32Array(renderer.nodeBuffer);
   const edgeInts = new Int32Array(renderer.edgeBuffer);
 
-  const isNodeSelected = (id: number) => (nodeInts[id * 5 + 2] & (1 << 16)) !== 0;
-  const isEdgeSelected = (id: number) => (edgeInts[id * 7 + 2] & (1 << 16)) !== 0;
+  const isNodeSelected = (id: number) =>
+    (nodeInts[id * 5 + 2] & (1 << 16)) !== 0;
+  const isEdgeSelected = (id: number) =>
+    (edgeInts[id * 7 + 2] & (1 << 16)) !== 0;
 
   const onPointerDown = (e: PointerEvent) => {
     e.preventDefault();
@@ -59,10 +61,10 @@ export function createGraphInteractions(
     hasMoved = false;
 
     renderer.screenToGraph(rawX, rawY, pos);
-    
+
     let hitId = renderer.getNodeAt(pos[0], pos[1]);
     let hitType: "node" | "edge" | null = null;
-    
+
     if (hitId !== -1) {
       hitType = "node";
     } else {
@@ -71,7 +73,8 @@ export function createGraphInteractions(
     }
 
     if (hitType !== null) {
-      pointerDownHitWasSelected = hitType === "node" ? isNodeSelected(hitId) : isEdgeSelected(hitId);
+      pointerDownHitWasSelected =
+        hitType === "node" ? isNodeSelected(hitId) : isEdgeSelected(hitId);
 
       if (!pointerDownHitWasSelected) {
         if (!multiSelect) renderer.unselectAll();
@@ -104,8 +107,9 @@ export function createGraphInteractions(
         pts[0].clientX - pts[1].clientX,
         pts[0].clientY - pts[1].clientY
       );
-      const cx = (pts[0].clientX + pts[1].clientX) / 2;
-      const cy = (pts[0].clientY + pts[1].clientY) / 2;
+      const rect = canvas.getBoundingClientRect();
+      const cx = (pts[0].clientX + pts[1].clientX) / 2 - rect.left;
+      const cy = (pts[0].clientY + pts[1].clientY) / 2 - rect.top;
 
       if (lastPinchDist > 0) {
         renderer.zoomBy((dist - lastPinchDist) * 0.005, cx, cy);
@@ -185,12 +189,8 @@ export function createGraphInteractions(
 
     if (!hasMoved && !wasMultiTouch) {
       const rect = canvas.getBoundingClientRect();
-      renderer.screenToGraph(
-        e.clientX - rect.left,
-        e.clientY - rect.top,
-        pos
-      );
-      
+      renderer.screenToGraph(e.clientX - rect.left, e.clientY - rect.top, pos);
+
       let hitId = renderer.getNodeAt(pos[0], pos[1]);
       let hitType: "node" | "edge" | null = null;
       if (hitId !== -1) hitType = "node";
@@ -210,9 +210,11 @@ export function createGraphInteractions(
         renderer.unselectAll();
       } else {
         if (multiSelect) {
-          const isSelected = hitType === "node" ? isNodeSelected(hitId) : isEdgeSelected(hitId);
+          const isSelected =
+            hitType === "node" ? isNodeSelected(hitId) : isEdgeSelected(hitId);
           if (isSelected) {
-            const wasAlreadySelected = hitType === "node" ? pointerDownHitWasSelected : true;
+            const wasAlreadySelected =
+              hitType === "node" ? pointerDownHitWasSelected : true;
             if (wasAlreadySelected) {
               if (hitType === "node") renderer.unselectNode(hitId);
               else renderer.unselectEdge(hitId);
@@ -288,7 +290,7 @@ export function createGraphInteractions(
         for (let i = 0; i < renderer.nodeCount; i++) {
           if (isNodeSelected(i)) nodeIds.push(i);
         }
-        
+
         const edgeIds: number[] = [];
         for (let i = 0; i < renderer.edgeCount; i++) {
           if (isEdgeSelected(i)) edgeIds.push(i);
@@ -298,11 +300,11 @@ export function createGraphInteractions(
           if (options?.onDeleteNodes && nodeIds.length > 0)
             options.onDeleteNodes(nodeIds);
           else for (const id of nodeIds) renderer.removeNode(id);
-          
+
           if (options?.onDeleteEdges && edgeIds.length > 0)
             options.onDeleteEdges(edgeIds);
           else for (const id of edgeIds) renderer.removeEdge(id);
-          
+
           renderer.unselectAll();
           renderer.flush();
         }

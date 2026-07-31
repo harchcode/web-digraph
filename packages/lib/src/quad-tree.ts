@@ -289,7 +289,16 @@ export function createQuadTree(maxItems: number, maxDepth = 10, capacity = 10) {
     const count = treeIntBuffer[offset + ITEM_COUNT];
 
     for (let i = 0; i < count; i++) {
-      searchResult[searchCount++] = itemIds[start + i];
+      const id = itemIds[start + i];
+      const offset = id * 4;
+      if (
+        bboxCache[offset + 2] >= minX &&
+        bboxCache[offset + 0] <= maxX &&
+        bboxCache[offset + 3] >= minY &&
+        bboxCache[offset + 1] <= maxY
+      ) {
+        searchResult[searchCount++] = id;
+      }
     }
 
     const firstChildIdx = treeIntBuffer[offset + FIRST_CHILD];
