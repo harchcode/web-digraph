@@ -87,6 +87,7 @@ export function createGraphInteractions(
         edgeSourceId = hitId;
       } else {
         state = "dragging";
+        renderer.beginDrag(Array.from(renderer.selectedNodes));
       }
       canvas.setPointerCapture(e.pointerId);
     } else {
@@ -144,28 +145,16 @@ export function createGraphInteractions(
       renderer.flush();
     } else if (state === "dragging") {
       if (e.pointerType === "touch" && !hasMoved) return;
-      // NOTE: node movement disabled for now
-      /*
       const rect = canvas.getBoundingClientRect();
-      renderer.screenToGraph(
-        e.clientX - rect.left,
-        e.clientY - rect.top,
-        pos
-      );
-      renderer.screenToGraph(
-        lastX - rect.left,
-        lastY - rect.top,
-        lastPos
-      );
+      renderer.screenToGraph(e.clientX - rect.left, e.clientY - rect.top, pos);
+      renderer.screenToGraph(lastX - rect.left, lastY - rect.top, lastPos);
       const dx = pos[0] - lastPos[0],
         dy = pos[1] - lastPos[1];
 
-      for (let i = 0; i < renderer.nodeCount; i++) {
-        if (isNodeSelected(i)) {
-          renderer.moveNodeBy(i, dx, dy);
-        }
+      for (let i = 0; i < renderer.selectedNodes.length; i++) {
+        renderer.moveNodeBy(renderer.selectedNodes[i], dx, dy);
       }
-      */
+
       renderer.flush();
     } else if (state === "panning") {
       if (e.pointerType === "touch" && !hasMoved) return;
@@ -250,8 +239,10 @@ export function createGraphInteractions(
         */
       }
       // renderer.setGhostEdge(-1);
-    } else if (state === "dragging") {
-      // nothing needed for DOD mode, tree is rebuilt on flush
+    }
+
+    if (state === "dragging") {
+      renderer.endDrag();
     }
 
     state = "idle";
