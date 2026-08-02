@@ -19,6 +19,7 @@ export function createGraphInteractions(
   let lastX = 0,
     lastY = 0;
   let hasMoved = false;
+  let isActuallyDragging = false;
   let wasMultiTouch = false;
   let pointerDownHitWasSelected = false;
   let edgeSourceId: number | null = null;
@@ -87,7 +88,7 @@ export function createGraphInteractions(
         edgeSourceId = hitId;
       } else {
         state = "dragging";
-        renderer.beginDrag(renderer.selectedNodes);
+        isActuallyDragging = false;
       }
       canvas.setPointerCapture(e.pointerId);
     } else {
@@ -137,7 +138,12 @@ export function createGraphInteractions(
         renderer.setGhostEdge(edgeSourceId, pos[0], pos[1]);
       renderer.flush();
     } else if (state === "dragging") {
-      if (e.pointerType === "touch" && !hasMoved) return;
+      if (!hasMoved) return;
+      if (!isActuallyDragging) {
+        isActuallyDragging = true;
+        renderer.beginDrag(renderer.selectedNodes);
+      }
+
       const rect = canvas.getBoundingClientRect();
       renderer.screenToGraph(e.clientX - rect.left, e.clientY - rect.top, pos);
       renderer.screenToGraph(lastX - rect.left, lastY - rect.top, lastPos);
@@ -229,7 +235,10 @@ export function createGraphInteractions(
     }
 
     if (state === "dragging") {
-      renderer.endDrag();
+      if (isActuallyDragging) {
+        renderer.endDrag();
+      }
+      isActuallyDragging = false;
     }
 
     state = "idle";
@@ -257,32 +266,27 @@ export function createGraphInteractions(
       mode = "create";
     }
     if (e.key === "Backspace" || e.key === "Delete") {
-      if (
-        document.activeElement === document.body ||
-        document.activeElement === canvas
-      ) {
-        const nodeIds: number[] = [];
-        for (let i = 0; i < renderer.nodeCount; i++) {
-          if (isNodeSelected(i)) nodeIds.push(i);
-        }
+      const nodeIds: number[] = [];
+      for (let i = 0; i < renderer.nodeCount; i++) {
+        if (isNodeSelected(i)) nodeIds.push(i);
+      }
 
-        const edgeIds: number[] = [];
-        for (let i = 0; i < renderer.edgeCount; i++) {
-          if (isEdgeSelected(i)) edgeIds.push(i);
-        }
+      const edgeIds: number[] = [];
+      for (let i = 0; i < renderer.edgeCount; i++) {
+        if (isEdgeSelected(i)) edgeIds.push(i);
+      }
 
-        if (nodeIds.length > 0 || edgeIds.length > 0) {
-          if (options?.onDeleteNodes && nodeIds.length > 0)
-            options.onDeleteNodes(nodeIds);
-          else for (const id of nodeIds) renderer.removeNode(id);
+      if (nodeIds.length > 0 || edgeIds.length > 0) {
+        if (options?.onDeleteNodes && nodeIds.length > 0)
+          options.onDeleteNodes(nodeIds);
+        else for (const id of nodeIds) renderer.removeNode(id);
 
-          if (options?.onDeleteEdges && edgeIds.length > 0)
-            options.onDeleteEdges(edgeIds);
-          else for (const id of edgeIds) renderer.removeEdge(id);
+        if (options?.onDeleteEdges && edgeIds.length > 0)
+          options.onDeleteEdges(edgeIds);
+        else for (const id of edgeIds) renderer.removeEdge(id);
 
-          renderer.unselectAll();
-          renderer.flush();
-        }
+        renderer.unselectAll();
+        renderer.flush();
       }
     }
   };

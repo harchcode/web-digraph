@@ -19,7 +19,7 @@ const renderer = createGraphRenderer({
   minZoom: MIN_ZOOM,
   maxZoom: MAX_ZOOM,
   maxNodes: 1000000,
-  maxEdges: 1000000
+  maxEdges: 1500000
 });
 registerAllShapes(renderer);
 
@@ -138,15 +138,14 @@ document.getElementById("btn-fit")?.addEventListener("click", () => {
   zoomSlider.setZoom(renderer.zoom);
   renderer.flush();
 });
+
 // Bind delete button
 document.getElementById("btn-delete")?.addEventListener("click", () => {
-  const nodeInts = new Int32Array(renderer.nodeBuffer);
-  const edgeInts = new Int32Array(renderer.edgeBuffer);
-  for (let i = 0; i < renderer.nodeCount; i++) {
-    if ((nodeInts[i * 5 + 2] & (1 << 16)) !== 0) renderer.removeNode(i);
+  for (let i = 0; i < renderer.selectedNodes.length; i++) {
+    renderer.removeNode(renderer.selectedNodes[i]);
   }
-  for (let i = 0; i < renderer.edgeCount; i++) {
-    if ((edgeInts[i * 7 + 2] & (1 << 16)) !== 0) renderer.removeEdge(i);
+  for (let i = 0; i < renderer.selectedEdges.length; i++) {
+    renderer.removeEdge(renderer.selectedEdges[i]);
   }
   renderer.unselectAll();
   renderer.flush();

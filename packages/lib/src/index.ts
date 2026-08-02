@@ -945,11 +945,41 @@ export function createGraphRenderer(
 
       if (Number.isNaN(tx) || Number.isNaN(ty)) continue;
 
+      const A = x - sx;
+      const B = y - sy;
+      const C = tx - sx;
+      const D = ty - sy;
+
+      const dot = A * C + B * D;
+      const len_sq = C * C + D * D;
+      let param = -1;
+      if (len_sq != 0) param = dot / len_sq;
+
+      let xx, yy;
+      if (param < 0) {
+        xx = sx;
+        yy = sy;
+      } else if (param > 1) {
+        xx = tx;
+        yy = ty;
+      } else {
+        xx = sx + param * C;
+        yy = sy + param * D;
+      }
+
+      const dx2 = x - xx;
+      const dy2 = y - yy;
+      const dist = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+
+      if (dist > searchRadius + 15) continue;
+
       let hit = false;
+      if (dist <= searchRadius + 2) hit = true;
+
       const angle = Math.atan2(ty - sy, tx - sx);
 
       const shape = shapes[shapeId];
-      if (shape && shape.path) {
+      if (!hit && shape && shape.path) {
         const rawTx = nodeFloats[targetId * 5 + 0];
         const rawTy = nodeFloats[targetId * 5 + 1];
         const mx = (sx + rawTx) / 2 - Math.cos(angle) * 5;
@@ -968,38 +998,6 @@ export function createGraphRenderer(
         const rx = dx * cos - dy * sin;
         const ry = dx * sin + dy * cos;
         if (ctx.isPointInPath(sharedArrowPath, rx, ry)) {
-          hit = true;
-        }
-      }
-
-      if (!hit) {
-        const A = x - sx;
-        const B = y - sy;
-        const C = tx - sx;
-        const D = ty - sy;
-
-        const dot = A * C + B * D;
-        const len_sq = C * C + D * D;
-        let param = -1;
-        if (len_sq != 0) param = dot / len_sq;
-
-        let xx, yy;
-        if (param < 0) {
-          xx = sx;
-          yy = sy;
-        } else if (param > 1) {
-          xx = tx;
-          yy = ty;
-        } else {
-          xx = sx + param * C;
-          yy = sy + param * D;
-        }
-
-        const dx2 = x - xx;
-        const dy2 = y - yy;
-        const dist = Math.sqrt(dx2 * dx2 + dy2 * dy2);
-
-        if (dist <= 8) {
           hit = true;
         }
       }
