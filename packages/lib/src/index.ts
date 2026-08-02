@@ -370,16 +370,18 @@ export function createGraphRenderer(
       edgeFloats[offset + 4] = ty;
     }
 
+    const angle = Math.atan2(ty - sy, tx - sx);
+    const lineEndX = tx - Math.cos(angle) * 8;
+    const lineEndY = ty - Math.sin(angle) * 8;
+
     ctx.beginPath();
     ctx.moveTo(sx, sy);
-    ctx.lineTo(tx, ty);
+    ctx.lineTo(lineEndX, lineEndY);
     ctx.lineWidth = selected ? opts.selectedEdgeLineWidth : opts.edgeLineWidth;
     ctx.strokeStyle = selected
       ? opts.selectedEdgeLineColor
       : opts.edgeLineColor;
     ctx.stroke();
-
-    const angle = Math.atan2(ty - sy, tx - sx);
     ctx.translate(tx, ty);
     ctx.rotate(angle);
     ctx.fillStyle = selected ? opts.selectedEdgeLineColor : opts.edgeLineColor;
@@ -418,14 +420,16 @@ export function createGraphRenderer(
     const tx = ghostEdge.tx;
     const ty = ghostEdge.ty;
 
+    const angle = Math.atan2(ty - sy, tx - sx);
+    const lineEndX = tx - Math.cos(angle) * 8;
+    const lineEndY = ty - Math.sin(angle) * 8;
+
     ctx.beginPath();
     ctx.moveTo(sx, sy);
-    ctx.lineTo(tx, ty);
+    ctx.lineTo(lineEndX, lineEndY);
     ctx.lineWidth = opts.edgeLineWidth;
     ctx.strokeStyle = opts.edgeLineColor;
     ctx.stroke();
-
-    const angle = Math.atan2(ty - sy, tx - sx);
     ctx.translate(tx, ty);
     ctx.rotate(angle);
     ctx.fillStyle = opts.edgeLineColor;
