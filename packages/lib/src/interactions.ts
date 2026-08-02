@@ -87,7 +87,7 @@ export function createGraphInteractions(
         edgeSourceId = hitId;
       } else {
         state = "dragging";
-        renderer.beginDrag(Array.from(renderer.selectedNodes));
+        renderer.beginDrag(renderer.selectedNodes);
       }
       canvas.setPointerCapture(e.pointerId);
     } else {

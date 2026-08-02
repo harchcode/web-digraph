@@ -718,11 +718,12 @@ export function createGraphRenderer(
     moveNodeTo(id, nodeFloats[offset + 0] + dx, nodeFloats[offset + 1] + dy);
   }
 
-  function beginDrag(nodeIds: number[]) {
+  function beginDrag(nodeIds: ArrayLike<number>) {
     activeDragNodeCount = 0;
     activeDragEdgeCount = 0;
 
-    for (const id of nodeIds) {
+    for (let i = 0; i < nodeIds.length; i++) {
+      const id = nodeIds[i];
       if (id < 0 || id >= nodeCount) continue;
       nodeInts[id * 5 + 2] |= 1 << 17; // Set isDragging bit
       activeDragNodes[activeDragNodeCount++] = id;
