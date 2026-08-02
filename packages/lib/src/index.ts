@@ -1,4 +1,4 @@
-import { createQuadTree } from "./quad-tree.js";
+import { createQuadTree2 } from "./quad-tree-2.js";
 import { GraphOptions, GraphShape, GraphRenderer } from "./types.js";
 
 export * from "./types.js";
@@ -60,48 +60,8 @@ export function createGraphRenderer(
 
   const selectedNodes = new Int32Array(opts.maxNodes);
   const selectedEdges = new Int32Array(opts.maxEdges);
-  const nodeTree = createQuadTree(opts.maxNodes, 5, 50);
-  const edgeTree = createQuadTree(opts.maxEdges, 5, 50);
 
-  let nodeCount = 0;
-  let edgeCount = 0;
-  let selectedNodeCount = 0;
-  let selectedEdgeCount = 0;
-
-  const activeDragNodes = new Int32Array(opts.maxNodes);
-  const activeDragEdges = new Int32Array(opts.maxEdges);
-  let activeDragNodeCount = 0;
-  let activeDragEdgeCount = 0;
-
-  let canvas!: HTMLCanvasElement;
-  let ctx!: CanvasRenderingContext2D;
-
-  let cameraX = 0;
-  let cameraY = 0;
-  let zoom = 1;
-  let logicalWidth = 0;
-  let logicalHeight = 0;
-  let halfWidth = 0;
-  let halfHeight = 0;
-  let isDirty = false;
-  let isNodeTreeDirty = true;
-  let isEdgeTreeDirty = true;
-  const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
-
-  const ghostEdge = {
-    source: -1, // -1 mean inactive, do not draw
-    tx: 0,
-    ty: 0
-  };
-
-  const shapes: GraphShape[] = [];
-
-  function registerShape(shape: GraphShape): number {
-    const id = shapes.length;
-    shapes.push(shape);
-    return id;
-  }
-
+  // Forward declare for the quad tree callbacks
   const tmpBBox = new Float32Array(4);
 
   function getNodeBBox(id: number, out: Float32Array) {
@@ -137,7 +97,6 @@ export function createGraphRenderer(
     let maxX = Math.max(sx, tx);
     let maxY = Math.max(sy, ty);
 
-    // Arrowhead and baseline padding
     const arrowPad = Math.max(10, opts.edgeLineWidth);
     minX -= arrowPad;
     minY -= arrowPad;
@@ -163,6 +122,46 @@ export function createGraphRenderer(
     out[1] = minY;
     out[2] = maxX;
     out[3] = maxY;
+  }
+
+  const nodeTree = createQuadTree2(opts.maxNodes, getNodeBBox, 16, 50);
+  const edgeTree = createQuadTree2(opts.maxEdges, getEdgeBBox, 16, 50);
+
+  let nodeCount = 0;
+  let edgeCount = 0;
+  let selectedNodeCount = 0;
+  let selectedEdgeCount = 0;
+
+  const activeDragNodes = new Int32Array(opts.maxNodes);
+  const activeDragEdges = new Int32Array(opts.maxEdges);
+  let activeDragNodeCount = 0;
+  let activeDragEdgeCount = 0;
+
+  let canvas!: HTMLCanvasElement;
+  let ctx!: CanvasRenderingContext2D;
+
+  let cameraX = 0;
+  let cameraY = 0;
+  let zoom = 1;
+  let logicalWidth = 0;
+  let logicalHeight = 0;
+  let halfWidth = 0;
+  let halfHeight = 0;
+  let isDirty = false;
+  const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
+
+  const ghostEdge = {
+    source: -1, // -1 mean inactive, do not draw
+    tx: 0,
+    ty: 0
+  };
+
+  const shapes: GraphShape[] = [];
+
+  function registerShape(shape: GraphShape): number {
+    const id = shapes.length;
+    shapes.push(shape);
+    return id;
   }
 
   function getBoundaryIntersection(
@@ -251,7 +250,7 @@ export function createGraphRenderer(
     nodeInts[offset + 2] = shapeId;
     nodeInts[offset + 3] = -1; // incomingEdge
     nodeInts[offset + 4] = -1; // outgoingEdge
-    isNodeTreeDirty = true;
+    nodeTree.insert(id);
 
     return id;
   }
@@ -280,57 +279,10 @@ export function createGraphRenderer(
     const targetOffset = targetId * 5;
     edgeInts[offset + 5] = nodeInts[targetOffset + 3];
     nodeInts[targetOffset + 3] = id;
-    isEdgeTreeDirty = true;
+    nodeInts[targetOffset + 3] = id;
+    edgeTree.insert(id);
 
     return id;
-  }
-  function buildNodeTree() {
-    if (nodeCount === 0) return;
-
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
-
-    for (let i = 0; i < nodeCount; i++) {
-      getNodeBBox(i, tmpBBox);
-      if (tmpBBox[0] < minX) minX = tmpBBox[0];
-      if (tmpBBox[1] < minY) minY = tmpBBox[1];
-      if (tmpBBox[2] > maxX) maxX = tmpBBox[2];
-      if (tmpBBox[3] > maxY) maxY = tmpBBox[3];
-    }
-
-    nodeTree.build(nodeCount, getNodeBBox, minX, minY, maxX, maxY);
-  }
-
-  function buildEdgeTree() {
-    if (edgeCount === 0) return;
-
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
-
-    for (let i = 0; i < edgeCount; i++) {
-      getEdgeBBox(i, tmpBBox);
-      if (tmpBBox[0] < minX) minX = tmpBBox[0];
-      if (tmpBBox[1] < minY) minY = tmpBBox[1];
-      if (tmpBBox[2] > maxX) maxX = tmpBBox[2];
-      if (tmpBBox[3] > maxY) maxY = tmpBBox[3];
-    }
-
-    edgeTree.build(edgeCount, getEdgeBBox, minX, minY, maxX, maxY);
-  }
-
-  function buildTree() {
-    if (isNodeTreeDirty) {
-      buildNodeTree();
-      isNodeTreeDirty = false;
-    }
-    if (isEdgeTreeDirty) {
-      buildEdgeTree();
-      isEdgeTreeDirty = false;
-    }
   }
 
   function drawEdge(id: number, selected: boolean) {
@@ -603,14 +555,13 @@ export function createGraphRenderer(
 
     requestAnimationFrame(() => {
       isDirty = false;
-      buildTree();
       draw();
     });
   }
 
   function removeEdge(id: number) {
     if (id < 0 || id >= edgeCount) return;
-    isEdgeTreeDirty = true;
+    edgeTree.remove(id);
     const offset = id * 7;
     const sourceId = edgeInts[offset + 0];
     const targetId = edgeInts[offset + 1];
@@ -646,6 +597,7 @@ export function createGraphRenderer(
     // Swap-and-Pop
     const lastEdgeId = edgeCount - 1;
     if (id !== lastEdgeId) {
+      edgeTree.remove(lastEdgeId);
       const lastOffset = lastEdgeId * 7;
       for (let i = 0; i < 7; i++) {
         edgeInts[offset + i] = edgeInts[lastOffset + i]; // 32-bit copy handles both ints and floats
@@ -679,6 +631,8 @@ export function createGraphRenderer(
         pIn = cIn;
         cIn = edgeInts[cIn * 7 + 5];
       }
+
+      edgeTree.insert(id);
     }
 
     edgeCount--;
@@ -686,8 +640,7 @@ export function createGraphRenderer(
 
   function removeNode(id: number) {
     if (id < 0 || id >= nodeCount) return;
-    isNodeTreeDirty = true;
-    isEdgeTreeDirty = true;
+    nodeTree.remove(id);
 
     // 1. Delete all edges connected to this node by popping heads
     while (nodeInts[id * 5 + 3] !== -1) {
@@ -700,6 +653,7 @@ export function createGraphRenderer(
     // 2. Swap-and-Pop
     const lastNodeId = nodeCount - 1;
     if (id !== lastNodeId) {
+      nodeTree.remove(lastNodeId);
       const offset = id * 5;
       const lastOffset = lastNodeId * 5;
       for (let i = 0; i < 5; i++) {
@@ -718,6 +672,8 @@ export function createGraphRenderer(
         edgeInts[cOut * 7 + 0] = id; // update edge source
         cOut = edgeInts[cOut * 7 + 6];
       }
+
+      nodeTree.insert(id);
     }
 
     nodeCount--;
@@ -734,14 +690,18 @@ export function createGraphRenderer(
     while (edgeId !== -1) {
       edgeFloats[edgeId * 7 + 3] = NaN;
       edgeFloats[edgeId * 7 + 4] = NaN;
+      edgeTree.update(edgeId);
       edgeId = edgeInts[edgeId * 7 + 5];
     }
     edgeId = nodeInts[offset + 4];
     while (edgeId !== -1) {
       edgeFloats[edgeId * 7 + 3] = NaN;
       edgeFloats[edgeId * 7 + 4] = NaN;
-      edgeId = edgeInts[edgeId * 7 + 6];
+      edgeTree.update(edgeId);
+      edgeId = edgeInts[edgeId * 7 + 6]; // next outgoing
     }
+
+    nodeTree.update(id);
   }
 
   function moveNodeBy(id: number, dx: number, dy: number) {
@@ -791,16 +751,13 @@ export function createGraphRenderer(
     }
     activeDragNodeCount = 0;
     activeDragEdgeCount = 0;
-
-    isNodeTreeDirty = true;
-    isEdgeTreeDirty = true;
   }
 
   function clear() {
     nodeCount = 0;
     edgeCount = 0;
-    isNodeTreeDirty = true;
-    isEdgeTreeDirty = true;
+    nodeTree.clear();
+    edgeTree.clear();
   }
   function unselectAll() {
     for (let i = 0; i < selectedNodeCount; i++) {
@@ -1132,9 +1089,6 @@ export function createGraphRenderer(
     addEdge,
     moveNodeTo,
     moveNodeBy,
-    buildNodeTree,
-    buildEdgeTree,
-    buildTree,
     flush,
     removeNode,
     removeEdge,
