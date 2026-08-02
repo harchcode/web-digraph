@@ -131,17 +131,10 @@ export function createGraphInteractions(
     if (moveDist > 3) hasMoved = true;
 
     if (state === "edge") {
-      // NOTE: edge drawing disabled for now
-      /*
       const rect = canvas.getBoundingClientRect();
-      renderer.screenToGraph(
-        e.clientX - rect.left,
-        e.clientY - rect.top,
-        pos
-      );
+      renderer.screenToGraph(e.clientX - rect.left, e.clientY - rect.top, pos);
       if (edgeSourceId !== null)
         renderer.setGhostEdge(edgeSourceId, pos[0], pos[1]);
-      */
       renderer.flush();
     } else if (state === "dragging") {
       if (e.pointerType === "touch" && !hasMoved) return;
@@ -219,8 +212,6 @@ export function createGraphInteractions(
 
     if (state === "edge") {
       if (hasMoved && edgeSourceId !== null) {
-        // NOTE: edge creation disabled for now
-        /*
         const rect = canvas.getBoundingClientRect();
         renderer.screenToGraph(
           e.clientX - rect.left,
@@ -229,16 +220,12 @@ export function createGraphInteractions(
         );
         const targetHit = renderer.getNodeAt(pos[0], pos[1]);
 
-        if (
-          targetHit !== -1 &&
-          targetHit !== edgeSourceId
-        ) {
+        if (targetHit !== -1 && targetHit !== edgeSourceId) {
           if (options?.onAddEdge) options.onAddEdge(edgeSourceId, targetHit);
           else renderer.addEdge(edgeSourceId, targetHit, 0);
         }
-        */
       }
-      // renderer.setGhostEdge(-1);
+      renderer.setGhostEdge(-1);
     }
 
     if (state === "dragging") {

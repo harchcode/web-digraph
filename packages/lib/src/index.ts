@@ -410,6 +410,30 @@ export function createGraphRenderer(
     }
   }
 
+  function drawGhostEdge() {
+    if (ghostEdge.source === -1) return;
+
+    const sx = nodeFloats[ghostEdge.source * 5 + 0];
+    const sy = nodeFloats[ghostEdge.source * 5 + 1];
+    const tx = ghostEdge.tx;
+    const ty = ghostEdge.ty;
+
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(tx, ty);
+    ctx.lineWidth = opts.edgeLineWidth;
+    ctx.strokeStyle = opts.edgeLineColor;
+    ctx.stroke();
+
+    const angle = Math.atan2(ty - sy, tx - sx);
+    ctx.translate(tx, ty);
+    ctx.rotate(angle);
+    ctx.fillStyle = opts.edgeLineColor;
+    ctx.fill(sharedArrowPath);
+    ctx.rotate(-angle);
+    ctx.translate(-tx, -ty);
+  }
+
   function drawNode(id: number, selected: boolean) {
     const offset = id * 5;
     const x = nodeFloats[offset + 0];
@@ -545,6 +569,10 @@ export function createGraphRenderer(
       if ((nodeInts[id * 5 + 2] & (1 << 17)) !== 0) continue; // Skip dragging
       const selected = (nodeInts[id * 5 + 2] & (1 << 16)) !== 0;
       if (!selected) drawNode(id, false);
+    }
+
+    if (ghostEdge.source !== -1) {
+      drawGhostEdge();
     }
 
     // Nodes (Selected)
@@ -1059,7 +1087,13 @@ export function createGraphRenderer(
     out[0] = (x - cameraX) * zoom + halfWidth;
     out[1] = (y - cameraY) * zoom + halfHeight;
   }
-  function setGhostEdge(_sourceId: number, _tx?: number, _ty?: number) {}
+  function setGhostEdge(sourceId: number, tx?: number, ty?: number) {
+    ghostEdge.source = sourceId;
+    if (tx !== undefined && ty !== undefined) {
+      ghostEdge.tx = tx;
+      ghostEdge.ty = ty;
+    }
+  }
 
   const api = {
     get nodeBuffer() {
