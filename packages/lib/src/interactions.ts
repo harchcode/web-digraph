@@ -201,11 +201,8 @@ export function createGraphInteractions(
 
       if (hitType === null) {
         if (mode === "create") {
-          // NOTE: node creation disabled for now
-          /*
           if (options?.onAddNode) options.onAddNode(pos[0], pos[1]);
           else renderer.addNode(pos[0], pos[1], 0);
-          */
         }
         renderer.unselectAll();
       } else {

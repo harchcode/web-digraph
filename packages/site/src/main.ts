@@ -1,5 +1,9 @@
 import { createGraphRenderer, createGraphInteractions } from "web-digraph";
-import { registerAllShapes } from "./shapes";
+import {
+  registerAllShapes,
+  getRandomNodeShapeId,
+  getRandomEdgeShapeId
+} from "./shapes";
 import "./zoomSlider";
 import type { ZoomSlider } from "./zoomSlider";
 import { generateGrid, generateGridImmediate } from "./utils";
@@ -44,12 +48,12 @@ function updateStats() {
 const interactions = createGraphInteractions(canvas, renderer, {
   bindDefaultKeyboardHandlers: true,
   onAddNode: (x, y) => {
-    // renderer.addNode(x, y, getRandomNodeShapeId());
-    // updateStats();
+    renderer.addNode(x, y, getRandomNodeShapeId());
+    updateStats();
   },
   onAddEdge: (source, target) => {
-    // renderer.addEdge(source, target, getRandomEdgeShapeId());
-    // updateStats();
+    renderer.addEdge(source, target, getRandomEdgeShapeId());
+    updateStats();
   },
   onDeleteNodes: nodeIds => {
     for (const id of nodeIds) renderer.removeNode(id);
