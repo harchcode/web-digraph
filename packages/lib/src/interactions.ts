@@ -112,7 +112,7 @@ export function createGraphInteractions(
       const cy = (pts[0].clientY + pts[1].clientY) / 2 - rect.top;
 
       if (lastPinchDist > 0) {
-        renderer.zoomBy((dist - lastPinchDist) * 0.005, cx, cy);
+        renderer.zoomBy(dist / lastPinchDist, cx, cy);
         options?.onZoom?.(renderer.zoom);
         const panDx = cx - lastPinchCenterX,
           panDy = cy - lastPinchCenterY;
@@ -271,7 +271,7 @@ export function createGraphInteractions(
 
   const onWheel = (e: WheelEvent) => {
     e.preventDefault();
-    renderer.zoomBy(-e.deltaY * 0.002, e.offsetX, e.offsetY);
+    renderer.zoomBy(Math.exp(-e.deltaY * 0.002), e.offsetX, e.offsetY);
     options?.onZoom?.(renderer.zoom);
     renderer.flush();
   };

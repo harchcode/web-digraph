@@ -936,8 +936,8 @@ export function createGraphRenderer(
     cameraX = gx - (cx - halfWidth) / zoom;
     cameraY = gy - (cy - halfHeight) / zoom;
   }
-  function zoomBy(dv: number, targetX?: number, targetY?: number) {
-    zoomTo(zoom + dv, targetX, targetY);
+  function zoomBy(factor: number, targetX?: number, targetY?: number) {
+    zoomTo(zoom * factor, targetX, targetY);
   }
   function panTo(x: number, y: number) {
     cameraX = x;
