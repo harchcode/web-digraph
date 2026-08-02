@@ -75,8 +75,8 @@ export function createGraphRenderer(
 
   const selectedNodes = new Int32Array(opts.maxNodes);
   const selectedEdges = new Int32Array(opts.maxEdges);
-  const nodeTree = createQuadTree(opts.maxNodes, 8, 10);
-  const edgeTree = createQuadTree(opts.maxEdges, 8, 10);
+  const nodeTree = createQuadTree(opts.maxNodes, 5, 50);
+  const edgeTree = createQuadTree(opts.maxEdges, 5, 50);
 
   let nodeCount = 0;
   let edgeCount = 0;
@@ -142,12 +142,37 @@ export function createGraphRenderer(
     const tx = nodeFloats[targetId * 5 + 0];
     const ty = nodeFloats[targetId * 5 + 1];
 
-    const padding = opts.edgeLineWidth;
+    let minX = Math.min(sx, tx);
+    let minY = Math.min(sy, ty);
+    let maxX = Math.max(sx, tx);
+    let maxY = Math.max(sy, ty);
 
-    out[0] = Math.min(sx, tx) - padding;
-    out[1] = Math.min(sy, ty) - padding;
-    out[2] = Math.max(sx, tx) + padding;
-    out[3] = Math.max(sy, ty) + padding;
+    // Arrowhead and baseline padding
+    const arrowPad = Math.max(10, opts.edgeLineWidth);
+    minX -= arrowPad;
+    minY -= arrowPad;
+    maxX += arrowPad;
+    maxY += arrowPad;
+
+    const shapeId = edgeInts[offset + 2] & 0xffff;
+    const shape = shapes[shapeId];
+
+    if (shape) {
+      const mx = (sx + tx) / 2;
+      const my = (sy + ty) / 2;
+      const hw = shape.w / 2;
+      const hh = shape.h / 2;
+      
+      if (mx - hw < minX) minX = mx - hw;
+      if (my - hh < minY) minY = my - hh;
+      if (mx + hw > maxX) maxX = mx + hw;
+      if (my + hh > maxY) maxY = my + hh;
+    }
+
+    out[0] = minX;
+    out[1] = minY;
+    out[2] = maxX;
+    out[3] = maxY;
   }
 
   function getBoundaryIntersection(
