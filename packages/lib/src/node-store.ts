@@ -1,14 +1,15 @@
-export function createNodeStore(maxNodes: number) {
+export function createNodeStore(initialMaxNodes: number) {
   return {
+    capacity: initialMaxNodes,
     count: 0,
-    x: new Float32Array(maxNodes),
-    y: new Float32Array(maxNodes),
-    config: new Int32Array(maxNodes), // bit 0-15: shapeId, bit 16: selected, bit 17: dragging
-    incomingEdge: new Int32Array(maxNodes).fill(-1),
-    outgoingEdge: new Int32Array(maxNodes).fill(-1),
+    x: new Float32Array(initialMaxNodes),
+    y: new Float32Array(initialMaxNodes),
+    config: new Int32Array(initialMaxNodes), // bit 0-15: shapeId, bit 16: selected, bit 17: dragging
+    incomingEdge: new Int32Array(initialMaxNodes).fill(-1),
+    outgoingEdge: new Int32Array(initialMaxNodes).fill(-1),
     
     add(x: number, y: number, shapeId: number) {
-      if (this.count >= maxNodes) return -1;
+      if (this.count >= this.capacity) return -1;
       const id = this.count++;
       this.x[id] = x;
       this.y[id] = y;
@@ -31,6 +32,32 @@ export function createNodeStore(maxNodes: number) {
       }
       this.count--;
       return lastId; // return the id of the node that got moved to 'id', so we can fix up pointers
+    },
+
+    resize(newCapacity: number) {
+      if (newCapacity <= this.capacity) return;
+
+      const newX = new Float32Array(newCapacity);
+      newX.set(this.x);
+      this.x = newX;
+
+      const newY = new Float32Array(newCapacity);
+      newY.set(this.y);
+      this.y = newY;
+
+      const newConfig = new Int32Array(newCapacity);
+      newConfig.set(this.config);
+      this.config = newConfig;
+
+      const newIncomingEdge = new Int32Array(newCapacity).fill(-1);
+      newIncomingEdge.set(this.incomingEdge);
+      this.incomingEdge = newIncomingEdge;
+
+      const newOutgoingEdge = new Int32Array(newCapacity).fill(-1);
+      newOutgoingEdge.set(this.outgoingEdge);
+      this.outgoingEdge = newOutgoingEdge;
+
+      this.capacity = newCapacity;
     }
   };
 }

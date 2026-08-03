@@ -1,16 +1,17 @@
-export function createEdgeStore(maxEdges: number) {
+export function createEdgeStore(initialMaxEdges: number) {
   return {
+    capacity: initialMaxEdges,
     count: 0,
-    source: new Int32Array(maxEdges),
-    target: new Int32Array(maxEdges),
-    config: new Int32Array(maxEdges), // bit 0-15: shapeId, bit 16: selected
-    tx: new Float32Array(maxEdges),
-    ty: new Float32Array(maxEdges),
-    nextIncomingEdge: new Int32Array(maxEdges).fill(-1),
-    nextOutgoingEdge: new Int32Array(maxEdges).fill(-1),
+    source: new Int32Array(initialMaxEdges),
+    target: new Int32Array(initialMaxEdges),
+    config: new Int32Array(initialMaxEdges), // bit 0-15: shapeId, bit 16: selected
+    tx: new Float32Array(initialMaxEdges),
+    ty: new Float32Array(initialMaxEdges),
+    nextIncomingEdge: new Int32Array(initialMaxEdges).fill(-1),
+    nextOutgoingEdge: new Int32Array(initialMaxEdges).fill(-1),
 
     add(sourceId: number, targetId: number, shapeId: number) {
-      if (this.count >= maxEdges) return -1;
+      if (this.count >= this.capacity) return -1;
       const id = this.count++;
       this.source[id] = sourceId;
       this.target[id] = targetId;
@@ -37,6 +38,40 @@ export function createEdgeStore(maxEdges: number) {
       }
       this.count--;
       return lastId; // return the id of the edge that got moved to 'id', so we can fix up pointers
+    },
+
+    resize(newCapacity: number) {
+      if (newCapacity <= this.capacity) return;
+
+      const newSource = new Int32Array(newCapacity);
+      newSource.set(this.source);
+      this.source = newSource;
+
+      const newTarget = new Int32Array(newCapacity);
+      newTarget.set(this.target);
+      this.target = newTarget;
+
+      const newConfig = new Int32Array(newCapacity);
+      newConfig.set(this.config);
+      this.config = newConfig;
+
+      const newTx = new Float32Array(newCapacity);
+      newTx.set(this.tx);
+      this.tx = newTx;
+
+      const newTy = new Float32Array(newCapacity);
+      newTy.set(this.ty);
+      this.ty = newTy;
+
+      const newNextIncomingEdge = new Int32Array(newCapacity).fill(-1);
+      newNextIncomingEdge.set(this.nextIncomingEdge);
+      this.nextIncomingEdge = newNextIncomingEdge;
+
+      const newNextOutgoingEdge = new Int32Array(newCapacity).fill(-1);
+      newNextOutgoingEdge.set(this.nextOutgoingEdge);
+      this.nextOutgoingEdge = newNextOutgoingEdge;
+
+      this.capacity = newCapacity;
     }
   };
 }

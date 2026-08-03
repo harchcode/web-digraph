@@ -6,16 +6,16 @@ export function createQuadTree(
   capacity = 50
 ) {
   // Allocate memory for tree cells. maxItems * 2 is a safe upper bound.
-  const MAX_CELLS = Math.max(100000, maxItems * 2);
-  const cellBounds = new Float32Array(MAX_CELLS * 4); // minX, minY, maxX, maxY
-  const cellHeads = new Int32Array(MAX_CELLS); // head of linked list
-  const cellCounts = new Int32Array(MAX_CELLS); // number of items
-  const cellFirstChild = new Int32Array(MAX_CELLS); // index of first child (4 contiguous children)
+  let MAX_CELLS = Math.max(100000, maxItems * 2);
+  let cellBounds = new Float32Array(MAX_CELLS * 4); // minX, minY, maxX, maxY
+  let cellHeads = new Int32Array(MAX_CELLS); // head of linked list
+  let cellCounts = new Int32Array(MAX_CELLS); // number of items
+  let cellFirstChild = new Int32Array(MAX_CELLS); // index of first child (4 contiguous children)
 
   // Allocate memory for items
-  const nextNodeId = new Int32Array(maxItems); // linked list next pointer for each item
-  const bboxCache = new Float32Array(maxItems * 4); // cache the AABB of each item
-  const searchResult = new Uint32Array(maxItems);
+  let nextNodeId = new Int32Array(maxItems); // linked list next pointer for each item
+  let bboxCache = new Float32Array(maxItems * 4); // cache the AABB of each item
+  let searchResult = new Uint32Array(maxItems);
 
   let cellCount = 0;
 
@@ -162,7 +162,7 @@ export function createQuadTree(
     }
 
     if (needsExpand) {
-      resize(currentSize);
+      resizeBounds(currentSize);
     }
 
     const offset = itemId * 4;
@@ -228,7 +228,7 @@ export function createQuadTree(
     insert(itemId);
   }
 
-  function resize(newBounds: number) {
+  function resizeBounds(newBounds: number) {
     if (newBounds <= cellBounds[2]) return;
     const allItems = search(cellBounds[0], cellBounds[1], cellBounds[2], cellBounds[3]);
     const activeItems = new Uint32Array(allItems);
@@ -239,6 +239,43 @@ export function createQuadTree(
     for (let i = 0; i < activeItems.length; i++) {
       _insert(0, activeItems[i], 0);
     }
+  }
+
+  function resizeCapacity(newMaxItems: number) {
+    if (newMaxItems <= maxItems) return;
+    
+    const newNextNodeId = new Int32Array(newMaxItems);
+    newNextNodeId.set(nextNodeId);
+    nextNodeId = newNextNodeId;
+    
+    const newBboxCache = new Float32Array(newMaxItems * 4);
+    newBboxCache.set(bboxCache);
+    bboxCache = newBboxCache;
+    
+    searchResult = new Uint32Array(newMaxItems);
+    
+    const newMaxCells = Math.max(100000, newMaxItems * 2);
+    if (newMaxCells > MAX_CELLS) {
+      const newCellBounds = new Float32Array(newMaxCells * 4);
+      newCellBounds.set(cellBounds);
+      cellBounds = newCellBounds;
+      
+      const newCellHeads = new Int32Array(newMaxCells);
+      newCellHeads.set(cellHeads);
+      cellHeads = newCellHeads;
+      
+      const newCellCounts = new Int32Array(newMaxCells);
+      newCellCounts.set(cellCounts);
+      cellCounts = newCellCounts;
+      
+      const newCellFirstChild = new Int32Array(newMaxCells);
+      newCellFirstChild.set(cellFirstChild);
+      cellFirstChild = newCellFirstChild;
+      
+      MAX_CELLS = newMaxCells;
+    }
+    
+    maxItems = newMaxItems;
   }
 
   function clear() {
@@ -303,7 +340,8 @@ export function createQuadTree(
     remove,
     update,
     clear,
-    resize,
+    resizeBounds,
+    resizeCapacity,
     search
   };
 }

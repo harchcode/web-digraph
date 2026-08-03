@@ -1,8 +1,8 @@
 export type Pos = { x: number; y: number };
 
 export type GraphOptions = {
-  maxNodes: number;
-  maxEdges: number;
+  initialMaxNodes: number;
+  initialMaxEdges: number;
   bgColor: string;
   drawGrid: boolean;
   gridType: "line" | "dot";

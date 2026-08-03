@@ -7,8 +7,8 @@ export * from "./types.js";
 export * from "./interactions.js";
 
 export const defaultGraphOptions: GraphOptions = {
-  maxNodes: 1000,
-  maxEdges: 10000,
+  initialMaxNodes: 1000,
+  initialMaxEdges: 10000,
   bgColor: "#fffdf7",
   drawGrid: true,
   gridType: "dot",
@@ -39,11 +39,11 @@ export function createGraphRenderer(
 ): GraphRenderer {
   const opts = { ...defaultGraphOptions, ...options };
 
-  const nodes = createNodeStore(opts.maxNodes);
-  const edges = createEdgeStore(opts.maxEdges);
+  const nodes = createNodeStore(opts.initialMaxNodes);
+  const edges = createEdgeStore(opts.initialMaxEdges);
 
-  const selectedNodes = new Int32Array(opts.maxNodes);
-  const selectedEdges = new Int32Array(opts.maxEdges);
+  let selectedNodes = new Int32Array(opts.initialMaxNodes);
+  let selectedEdges = new Int32Array(opts.initialMaxEdges);
 
   // Forward declare for the quad tree callbacks
   const tmpBBox = new Float32Array(4);
@@ -107,14 +107,14 @@ export function createGraphRenderer(
   }
 
   const nodeTree = createQuadTree(
-    opts.maxNodes,
+    opts.initialMaxNodes,
     getNodeBBox,
     opts.initialWorldSize,
     16,
     50
   );
   const edgeTree = createQuadTree(
-    opts.maxEdges,
+    opts.initialMaxEdges,
     getEdgeBBox,
     opts.initialWorldSize,
     16,
@@ -124,20 +124,64 @@ export function createGraphRenderer(
   let selectedNodeCount = 0;
   let selectedEdgeCount = 0;
 
-  const activeDragNodes = new Int32Array(opts.maxNodes);
-  const activeDragEdges = new Int32Array(opts.maxEdges);
+  let activeDragNodes = new Int32Array(opts.initialMaxNodes);
+  let activeDragEdges = new Int32Array(opts.initialMaxEdges);
   let activeDragNodeCount = 0;
   let activeDragEdgeCount = 0;
 
-  const nodeSwapDeletedLog = new Int32Array(opts.maxNodes);
-  const nodeSwapMovedLog = new Int32Array(opts.maxNodes);
+  let nodeSwapDeletedLog = new Int32Array(opts.initialMaxNodes);
+  let nodeSwapMovedLog = new Int32Array(opts.initialMaxNodes);
   let currentNodeSwapCount = 0;
 
-  const edgeSwapDeletedLog = new Int32Array(opts.maxEdges);
-  const edgeSwapMovedLog = new Int32Array(opts.maxEdges);
+  let edgeSwapDeletedLog = new Int32Array(opts.initialMaxEdges);
+  let edgeSwapMovedLog = new Int32Array(opts.initialMaxEdges);
   let currentEdgeSwapCount = 0;
 
-  const scratchBuffer = new Int32Array(Math.max(opts.maxNodes, opts.maxEdges));
+  let scratchBuffer = new Int32Array(
+    Math.max(opts.initialMaxNodes, opts.initialMaxEdges)
+  );
+
+  function resizeNodes(newCapacity: number) {
+    nodes.resize(newCapacity);
+    nodeTree.resizeCapacity(newCapacity);
+
+    const newSelectedNodes = new Int32Array(newCapacity);
+    newSelectedNodes.set(selectedNodes);
+    selectedNodes = newSelectedNodes;
+
+    const newActiveDragNodes = new Int32Array(newCapacity);
+    newActiveDragNodes.set(activeDragNodes);
+    activeDragNodes = newActiveDragNodes;
+
+    nodeSwapDeletedLog = new Int32Array(newCapacity);
+    nodeSwapMovedLog = new Int32Array(newCapacity);
+
+    const maxCap = Math.max(newCapacity, edges.capacity);
+    if (maxCap > scratchBuffer.length) {
+      scratchBuffer = new Int32Array(maxCap);
+    }
+  }
+
+  function resizeEdges(newCapacity: number) {
+    edges.resize(newCapacity);
+    edgeTree.resizeCapacity(newCapacity);
+
+    const newSelectedEdges = new Int32Array(newCapacity);
+    newSelectedEdges.set(selectedEdges);
+    selectedEdges = newSelectedEdges;
+
+    const newActiveDragEdges = new Int32Array(newCapacity);
+    newActiveDragEdges.set(activeDragEdges);
+    activeDragEdges = newActiveDragEdges;
+
+    edgeSwapDeletedLog = new Int32Array(newCapacity);
+    edgeSwapMovedLog = new Int32Array(newCapacity);
+
+    const maxCap = Math.max(nodes.capacity, newCapacity);
+    if (maxCap > scratchBuffer.length) {
+      scratchBuffer = new Int32Array(maxCap);
+    }
+  }
 
   let canvas!: HTMLCanvasElement;
   let ctx!: CanvasRenderingContext2D;
@@ -243,11 +287,14 @@ export function createGraphRenderer(
   }
 
   function setWorldSize(size: number) {
-    nodeTree.resize(size);
-    edgeTree.resize(size);
+    nodeTree.resizeBounds(size);
+    edgeTree.resizeBounds(size);
   }
 
   function addNode(x: number, y: number, shapeId: number): number {
+    if (nodes.count >= nodes.capacity) {
+      resizeNodes(nodes.capacity * 2);
+    }
     const id = nodes.add(x, y, shapeId);
     if (id !== -1) {
       nodeTree.insert(id);
@@ -260,6 +307,9 @@ export function createGraphRenderer(
     targetId: number,
     shapeId: number
   ): number {
+    if (edges.count >= edges.capacity) {
+      resizeEdges(edges.capacity * 2);
+    }
     const id = edges.add(sourceId, targetId, shapeId);
     if (id === -1) return -1;
 
@@ -626,7 +676,7 @@ export function createGraphRenderer(
 
       edgeTree.insert(id);
     }
-    if (currentEdgeSwapCount < opts.maxEdges) {
+    if (currentEdgeSwapCount < edges.capacity) {
       edgeSwapDeletedLog[currentEdgeSwapCount] = id;
       edgeSwapMovedLog[currentEdgeSwapCount] = movedEdgeId;
       currentEdgeSwapCount++;
@@ -666,7 +716,7 @@ export function createGraphRenderer(
 
       nodeTree.insert(id);
     }
-    if (currentNodeSwapCount < opts.maxNodes) {
+    if (currentNodeSwapCount < nodes.capacity) {
       nodeSwapDeletedLog[currentNodeSwapCount] = id;
       nodeSwapMovedLog[currentNodeSwapCount] = movedNodeId;
       currentNodeSwapCount++;
@@ -676,10 +726,7 @@ export function createGraphRenderer(
 
   const sortDescending = (a: number, b: number) => b - a;
 
-  function removeItems(
-    nodeIds: ArrayLike<number>,
-    edgeIds: ArrayLike<number>
-  ) {
+  function removeItems(nodeIds: ArrayLike<number>, edgeIds: ArrayLike<number>) {
     currentNodeSwapCount = 0;
     currentEdgeSwapCount = 0;
 
