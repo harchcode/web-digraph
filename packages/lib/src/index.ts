@@ -1,5 +1,9 @@
 import { createQuadTree } from "./quad-tree.js";
-import { GraphOptions, GraphShape, GraphRenderer } from "./types.js";
+import type {
+  GraphOptions,
+  GraphShape,
+  GraphRenderer
+} from "./types.js";
 import { createNodeStore } from "./node-store.js";
 import { createEdgeStore } from "./edge-store.js";
 

@@ -89,8 +89,8 @@ export function createQuadTree(
       const midY = (cMinY + cMaxY) / 2;
 
       const child0 = allocCell(cMinX, cMinY, midX, midY);
-      const child1 = allocCell(midX, cMinY, cMaxX, midY);
-      const child2 = allocCell(cMinX, midY, midX, cMaxY);
+      allocCell(midX, cMinY, cMaxX, midY); // child1
+      allocCell(cMinX, midY, midX, cMaxY); // child2
       const child3 = allocCell(midX, midY, cMaxX, cMaxY);
 
       if (child0 !== -1 && child3 !== -1) {

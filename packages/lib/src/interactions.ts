@@ -32,13 +32,10 @@ export function createGraphInteractions(
   const pos: [number, number] = [0, 0];
   const lastPos: [number, number] = [0, 0];
 
-  const nodeInts = new Int32Array(renderer.nodeBuffer);
-  const edgeInts = new Int32Array(renderer.edgeBuffer);
-
   const isNodeSelected = (id: number) =>
-    (nodeInts[id * 5 + 2] & (1 << 16)) !== 0;
+    (renderer.nodes.config[id] & (1 << 16)) !== 0;
   const isEdgeSelected = (id: number) =>
-    (edgeInts[id * 7 + 2] & (1 << 16)) !== 0;
+    (renderer.edges.config[id] & (1 << 16)) !== 0;
 
   const onPointerDown = (e: PointerEvent) => {
     e.preventDefault();
