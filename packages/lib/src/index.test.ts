@@ -12,18 +12,16 @@ describe("createGraphRenderer - DOD Mutations", () => {
     expect(renderer.nodeCount).toBe(2);
 
     // Check Float32 values (x, y)
-    const floats = new Float32Array(renderer.nodeBuffer);
-    expect(floats[id1 * 5 + 0]).toBe(10);
-    expect(floats[id1 * 5 + 1]).toBe(20);
-    expect(floats[id2 * 5 + 0]).toBe(30);
-    expect(floats[id2 * 5 + 1]).toBe(40);
+    expect(renderer.nodes.x[id1]).toBe(10);
+    expect(renderer.nodes.y[id1]).toBe(20);
+    expect(renderer.nodes.x[id2]).toBe(30);
+    expect(renderer.nodes.y[id2]).toBe(40);
 
     // Check Int32 values (config, incoming, outgoing)
-    const ints = new Int32Array(renderer.nodeBuffer);
-    expect(ints[id1 * 5 + 2]).toBe(1);
-    expect(ints[id2 * 5 + 2]).toBe(2);
-    expect(ints[id1 * 5 + 3]).toBe(-1);
-    expect(ints[id1 * 5 + 4]).toBe(-1);
+    expect(renderer.nodes.config[id1]).toBe(1);
+    expect(renderer.nodes.config[id2]).toBe(2);
+    expect(renderer.nodes.incomingEdge[id1]).toBe(-1);
+    expect(renderer.nodes.outgoingEdge[id1]).toBe(-1);
   });
 
   it("should add edges and maintain intrusive linked list", () => {
@@ -36,20 +34,17 @@ describe("createGraphRenderer - DOD Mutations", () => {
     const e1 = renderer.addEdge(n0, n2, 6); // 0 -> 2
     const e2 = renderer.addEdge(n2, n1, 7); // 2 -> 1
 
-    const nodeInts = new Int32Array(renderer.nodeBuffer);
-    const edgeInts = new Int32Array(renderer.edgeBuffer);
-
     // n0 outgoing should be e1 (since it prepends), and e1.next = e0, e0.next = -1
-    const outHead = nodeInts[n0 * 5 + 4];
+    const outHead = renderer.nodes.outgoingEdge[n0];
     expect(outHead).toBe(e1);
-    expect(edgeInts[e1 * 7 + 6]).toBe(e0);
-    expect(edgeInts[e0 * 7 + 6]).toBe(-1);
+    expect(renderer.edges.nextOutgoingEdge[e1]).toBe(e0);
+    expect(renderer.edges.nextOutgoingEdge[e0]).toBe(-1);
 
     // n1 incoming should be e2 (prepended), e2.next = e0, e0.next = -1
-    const inHead = nodeInts[n1 * 5 + 3];
+    const inHead = renderer.nodes.incomingEdge[n1];
     expect(inHead).toBe(e2);
-    expect(edgeInts[e2 * 7 + 5]).toBe(e0);
-    expect(edgeInts[e0 * 7 + 5]).toBe(-1);
+    expect(renderer.edges.nextIncomingEdge[e2]).toBe(e0);
+    expect(renderer.edges.nextIncomingEdge[e0]).toBe(-1);
   });
 
   it("should remove edges with Swap-and-Pop and fix pointers", () => {
@@ -69,20 +64,17 @@ describe("createGraphRenderer - DOD Mutations", () => {
 
     expect(renderer.edgeCount).toBe(3);
 
-    const nodeInts = new Int32Array(renderer.nodeBuffer);
-    const edgeInts = new Int32Array(renderer.edgeBuffer);
-
     // e1 slot should now contain what was e3 (1 -> 2, shape 8)
-    expect(edgeInts[e1 * 7 + 0]).toBe(1); // source n1
-    expect(edgeInts[e1 * 7 + 1]).toBe(2); // target n2
-    expect(edgeInts[e1 * 7 + 2]).toBe(8); // shapeId 8
+    expect(renderer.edges.source[e1]).toBe(1); // source n1
+    expect(renderer.edges.target[e1]).toBe(2); // target n2
+    expect(renderer.edges.config[e1]).toBe(8); // shapeId 8
 
     // n0 outgoing should just be e0 now (since e1 was deleted)
-    expect(nodeInts[n0 * 5 + 4]).toBe(e0);
-    expect(edgeInts[e0 * 7 + 6]).toBe(-1);
+    expect(renderer.nodes.outgoingEdge[n0]).toBe(e0);
+    expect(renderer.edges.nextOutgoingEdge[e0]).toBe(-1);
 
     // n1 outgoing should be e1 (which holds e3's data)
-    expect(nodeInts[n1 * 5 + 4]).toBe(e1);
+    expect(renderer.nodes.outgoingEdge[n1]).toBe(e1);
   });
 
   it("should remove nodes, cascade delete edges, and fix pointers", () => {
@@ -109,11 +101,8 @@ describe("createGraphRenderer - DOD Mutations", () => {
     expect(renderer.nodeCount).toBe(3);
     expect(renderer.edgeCount).toBe(2); // Only e2 and e3 remain!
 
-    const nodeInts = new Int32Array(renderer.nodeBuffer);
-    const edgeInts = new Int32Array(renderer.edgeBuffer);
-
     // n1 slot should now contain what was n3 (shapeId 3)
-    expect(nodeInts[n1 * 5 + 2]).toBe(3);
+    expect(renderer.nodes.config[n1]).toBe(3);
 
     // The remaining edges were e2 (n2->n3) and e3 (n3->n0).
     // Because of Swap-and-Pop on the edge array, e2 and e3 might have been moved.
@@ -122,8 +111,8 @@ describe("createGraphRenderer - DOD Mutations", () => {
     let foundN3ToN0 = false;
 
     for (let i = 0; i < renderer.edgeCount; i++) {
-      const source = edgeInts[i * 7 + 0];
-      const target = edgeInts[i * 7 + 1];
+      const source = renderer.edges.source[i];
+      const target = renderer.edges.target[i];
 
       // Remember, n3 was swapped into n1's slot. So the new ID for n3 is n1!
       if (source === n2 && target === n1) foundN2ToN3 = true;

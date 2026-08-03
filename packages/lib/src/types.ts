@@ -41,8 +41,24 @@ export type GraphShape = {
 };
 
 export type GraphRenderer = {
-  readonly nodeBuffer: ArrayBuffer;
-  readonly edgeBuffer: ArrayBuffer;
+  readonly nodes: {
+    readonly count: number;
+    readonly x: Float32Array;
+    readonly y: Float32Array;
+    readonly config: Int32Array;
+    readonly incomingEdge: Int32Array;
+    readonly outgoingEdge: Int32Array;
+  };
+  readonly edges: {
+    readonly count: number;
+    readonly source: Int32Array;
+    readonly target: Int32Array;
+    readonly config: Int32Array;
+    readonly tx: Float32Array;
+    readonly ty: Float32Array;
+    readonly nextIncomingEdge: Int32Array;
+    readonly nextOutgoingEdge: Int32Array;
+  };
   readonly nodeCount: number;
   readonly edgeCount: number;
   readonly selectedNodes: Int32Array;
