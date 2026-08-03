@@ -17,6 +17,11 @@ on:
         description: "Custom Version (Only used if type is 'custom')"
         required: false
         type: string
+      npm_tag:
+        description: "NPM Release Tag (e.g., 'latest', 'next', 'v2-legacy')"
+        required: true
+        default: "latest"
+        type: string
 
 jobs:
   publish:
@@ -82,7 +87,7 @@ jobs:
 
       - name: Publish to NPM
         working-directory: ./packages/lib
-        run: npm publish --access public --provenance
+        run: npm publish --access public --provenance --tag ${{ inputs.npm_tag }}
 
       - name: Push Version Update to Master
         run: |
