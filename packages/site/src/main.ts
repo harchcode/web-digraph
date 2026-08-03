@@ -1,8 +1,16 @@
 import { createGraphRenderer, createGraphInteractions } from "web-digraph";
-import { getRandomNodeShape, getRandomEdgeShape } from "./shapes";
+import {
+  registerAllShapes,
+  getRandomNodeShapeId,
+  getRandomEdgeShapeId,
+  addNodeLabel,
+  addEdgeLabel,
+  handleNodeDeleted,
+  handleEdgeDeleted
+} from "./shapes";
 import "./zoomSlider";
 import type { ZoomSlider } from "./zoomSlider";
-import { generateGrid } from "./utils";
+import { generateGrid, generateGridImmediate } from "./utils";
 import { MIN_ZOOM, MAX_ZOOM } from "./constants";
 
 const canvas = document.getElementById("graph-canvas") as HTMLCanvasElement;
@@ -11,7 +19,11 @@ if (!canvas) {
 }
 
 // Setup Renderer
-const renderer = createGraphRenderer({ minZoom: MIN_ZOOM, maxZoom: MAX_ZOOM });
+const renderer = createGraphRenderer({
+  minZoom: MIN_ZOOM,
+  maxZoom: MAX_ZOOM
+});
+registerAllShapes(renderer);
 
 window.addEventListener("resize", () => {
   renderer.resize();
@@ -36,21 +48,27 @@ function updateStats() {
 
 // Setup Interactions
 const interactions = createGraphInteractions(canvas, renderer, {
-  bindDefaultKeyboardHandlers: false,
+  bindDefaultKeyboardHandlers: true,
   onAddNode: (x, y) => {
-    renderer.addNode(x, y, getRandomNodeShape());
+    const id = renderer.addNode(x, y, getRandomNodeShapeId());
+    addNodeLabel(id);
     updateStats();
   },
   onAddEdge: (source, target) => {
-    renderer.addEdge(source, target, getRandomEdgeShape());
+    const id = renderer.addEdge(source, target, getRandomEdgeShapeId());
+    addEdgeLabel(id);
     updateStats();
   },
-  onDeleteNodes: nodeIds => {
-    for (const id of nodeIds) renderer.removeItem(id);
-    updateStats();
-  },
-  onDeleteEdges: edgeIds => {
-    for (const id of edgeIds) renderer.removeItem(id);
+  onDeleteSelectedItems: (nodeIds, edgeIds) => {
+    const stats = renderer.removeItems(nodeIds, edgeIds);
+
+    for (let i = 0; i < stats.nodeSwapDeletedLog.length; i++) {
+      handleNodeDeleted(stats.nodeSwapDeletedLog[i], stats.nodeSwapMovedLog[i]);
+    }
+    for (let i = 0; i < stats.edgeSwapDeletedLog.length; i++) {
+      handleEdgeDeleted(stats.edgeSwapDeletedLog[i], stats.edgeSwapMovedLog[i]);
+    }
+
     updateStats();
   },
   onZoom: zoom => {
@@ -99,15 +117,6 @@ updateUIAndInteractions(currentMode, currentMultiSelect);
 // Global Keyboard Handlers
 let isShiftDown = false;
 window.addEventListener("keydown", e => {
-  if (e.key === "Backspace" || e.key === "Delete") {
-    const selected = renderer.getSelectedItems();
-    for (const id of selected) {
-      renderer.removeItem(id);
-    }
-    renderer.flush();
-    updateStats();
-  }
-
   if (e.key === "Shift" && !isShiftDown) {
     isShiftDown = true;
     updateUIAndInteractions(
@@ -126,23 +135,21 @@ window.addEventListener("keyup", e => {
 
 // Bind generator button
 document.getElementById("btn-generate")?.addEventListener("click", () => {
-  generateGrid(renderer, updateStats);
+  // generateGrid(renderer, updateStats);
+  generateGridImmediate(renderer);
+  updateStats();
 });
 
 // Bind fit button
 document.getElementById("btn-fit")?.addEventListener("click", () => {
   renderer.centerView();
-  zoomSlider.setZoom(renderer.getZoom());
+  zoomSlider.setZoom(renderer.zoom);
   renderer.flush();
 });
+
 // Bind delete button
 document.getElementById("btn-delete")?.addEventListener("click", () => {
-  const selected = renderer.getSelectedItems();
-  for (const id of selected) {
-    renderer.removeItem(id);
-  }
-  renderer.flush();
-  updateStats();
+  interactions.triggerDeleteSelectedItems();
 });
 
 // Help Dialog

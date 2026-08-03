@@ -1,6 +1,8 @@
 export type Pos = { x: number; y: number };
 
 export type GraphOptions = {
+  initialMaxNodes: number;
+  initialMaxEdges: number;
   bgColor: string;
   drawGrid: boolean;
   gridType: "line" | "dot";
@@ -23,6 +25,7 @@ export type GraphOptions = {
   selectedEdgeLineWidth: number;
   selectedEdgeLineColor: string;
   edgeFont: string;
+  initialWorldSize: number;
 };
 
 export type GraphShape = {
@@ -37,87 +40,75 @@ export type GraphShape = {
   ) => void;
 };
 
-export type GraphNode = {
-  id: number;
-  x: number;
-  y: number;
-  shape: GraphShape;
-  cells: string[];
-  incomingEdges: Set<number>;
-  outgoingEdges: Set<number>;
+export type GraphNodeStore = {
+  count: number;
+  x: Float32Array;
+  y: Float32Array;
+  config: Int32Array;
+  incomingEdge: Int32Array;
+  outgoingEdge: Int32Array;
 };
 
-export type GraphEdgeLabel = {
-  shape: GraphShape;
-  x: number;
-  y: number;
-  cells: string[];
+export type GraphEdgeStore = {
+  count: number;
+  source: Int32Array;
+  target: Int32Array;
+  config: Int32Array;
+  tx: Float32Array;
+  ty: Float32Array;
+  nextIncomingEdge: Int32Array;
+  nextOutgoingEdge: Int32Array;
 };
-
-export type GraphEdgeLine = {
-  sx: number;
-  sy: number;
-  tx: number;
-  ty: number;
-  cells: string[];
-};
-
-export type GraphEdgeArrow = {
-  x: number;
-  y: number;
-  angle: number;
-  cells: string[];
-};
-
-export type GraphEdge = {
-  id: number;
-  source: number;
-  target: number;
-  label?: GraphEdgeLabel;
-  line: GraphEdgeLine;
-  arrow: GraphEdgeArrow;
-};
-
-export type GraphItem = GraphNode | GraphEdge;
 
 export type GraphRenderer = {
-  nodes: Record<number, GraphNode>;
-  edges: Record<number, GraphEdge>;
+  readonly nodes: GraphNodeStore;
+  readonly edges: GraphEdgeStore;
+  readonly nodeCount: number;
+  readonly edgeCount: number;
+  readonly selectedNodes: Int32Array;
+  readonly selectedEdges: Int32Array;
+  readonly zoom: number;
+  readonly cameraX: number;
+  readonly cameraY: number;
 
-  nodeCount: number;
-  edgeCount: number;
-
+  registerShape: (shape: GraphShape) => number;
+  resize: () => void;
+  setWorldSize: (size: number) => void;
   mount: (el: HTMLCanvasElement) => void;
-  addNode: (x: number, y: number, shape: GraphShape, id?: number) => number;
-  addEdge: (
-    sourceId: number,
-    targetId: number,
-    label?: GraphShape,
-    id?: number
-  ) => number;
-  moveNodeTo: (id: number, x: number, y: number, skipGrid?: boolean) => void;
-  moveNodeBy: (id: number, dx: number, dy: number, skipGrid?: boolean) => void;
-  updateNodeGrid: (id: number) => void;
-  updateEdgeGrid: (id: number) => void;
-  removeItem: (id: number) => void;
-  removeNode: (id: number) => void;
-  removeEdge: (id: number) => void;
+  addNode: (x: number, y: number, shapeId: number) => number;
+  addEdge: (sourceId: number, targetId: number, shapeId?: number) => number;
+  moveNodeTo: (id: number, x: number, y: number) => void;
+  moveNodeBy: (id: number, dx: number, dy: number) => void;
+  beginDrag: (nodeIds: ArrayLike<number>) => void;
+  endDrag: () => void;
+  flush: () => void;
+  removeNode: (id: number) => number;
+  removeEdge: (id: number) => number;
+  removeItems: (
+    nodeIds: ArrayLike<number>,
+    edgeIds: ArrayLike<number>
+  ) => {
+    nodeSwapDeletedLog: Int32Array;
+    nodeSwapMovedLog: Int32Array;
+    edgeSwapDeletedLog: Int32Array;
+    edgeSwapMovedLog: Int32Array;
+  };
   clear: () => void;
-  unselect: (ids?: number[]) => void;
-  select: (ids: number[]) => void;
-  getSelectedItems: () => Set<number>;
-  getItemAt: (x: number, y: number) => number | null;
-  getZoom: () => number;
+  unselectAll: () => void;
+  unselectNode: (id?: number) => void;
+  unselectEdge: (id?: number) => void;
+  selectNode: (id: number) => void;
+  selectEdge: (id: number) => void;
+  getNodeAt: (x: number, y: number) => number;
+  getEdgeAt: (x: number, y: number) => number;
   zoomTo: (value: number, targetX?: number, targetY?: number) => void;
   zoomBy: (dv: number, targetX?: number, targetY?: number) => void;
   panTo: (x: number, y: number) => void;
   panBy: (dx: number, dy: number) => void;
   centerView: () => void;
-  screenToGraph: (x: number, y: number) => Pos;
-  graphToScreen: (x: number, y: number) => Pos;
-  flush: () => void;
-  resize: () => void;
-  setGhostEdge: (sourceId: number | null, x?: number, y?: number) => void;
+  screenToGraph: (x: number, y: number, out: [number, number]) => void;
+  graphToScreen: (x: number, y: number, out: [number, number]) => void;
+  setGhostEdge: (sourceId: number, tx?: number, ty?: number) => void;
 };
 
 export type InteractionMode = "move" | "create";
@@ -127,6 +118,7 @@ export type GraphInteractions = {
   getMode: () => InteractionMode;
   setMultiSelect: (active: boolean) => void;
   getMultiSelect: () => boolean;
+  triggerDeleteSelectedItems: () => void;
   dispose: () => void;
 };
 
@@ -134,7 +126,6 @@ export type InteractionOptions = {
   bindDefaultKeyboardHandlers?: boolean;
   onAddNode?: (x: number, y: number) => void;
   onAddEdge?: (source: number, target: number) => void;
-  onDeleteNodes?: (nodeIds: number[]) => void;
-  onDeleteEdges?: (edgeIds: number[]) => void;
+  onDeleteSelectedItems?: (nodeIds: number[], edgeIds: number[]) => void;
   onZoom?: (zoom: number) => void;
 };

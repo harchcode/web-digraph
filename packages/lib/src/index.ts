@@ -1,16 +1,14 @@
-import type {
-  GraphRenderer,
-  GraphShape,
-  GraphNode,
-  GraphEdge,
-  Pos,
-  GraphOptions
-} from "./types.js";
+import { createQuadTree } from "./quad-tree.js";
+import type { GraphOptions, GraphShape, GraphRenderer } from "./types.js";
+import { createNodeStore } from "./node-store.js";
+import { createEdgeStore } from "./edge-store.js";
 
 export * from "./types.js";
 export * from "./interactions.js";
 
 export const defaultGraphOptions: GraphOptions = {
+  initialMaxNodes: 1000,
+  initialMaxEdges: 10000,
   bgColor: "#fffdf7",
   drawGrid: true,
   gridType: "dot",
@@ -32,7 +30,8 @@ export const defaultGraphOptions: GraphOptions = {
   edgeShapeColor: "#ffffff",
   selectedEdgeLineWidth: 3,
   selectedEdgeLineColor: "#0066ff",
-  edgeFont: "500 12px Inter, sans-serif"
+  edgeFont: "500 12px Inter, sans-serif",
+  initialWorldSize: 10000
 };
 
 export function createGraphRenderer(
@@ -40,18 +39,125 @@ export function createGraphRenderer(
 ): GraphRenderer {
   const opts = { ...defaultGraphOptions, ...options };
 
-  let nextId = 1;
-  function generateId(): number {
-    return nextId++;
+  const nodes = createNodeStore(opts.initialMaxNodes);
+  const edges = createEdgeStore(opts.initialMaxEdges);
+
+  // Forward declare for the quad tree callbacks
+  const tmpBBox = new Float32Array(4);
+
+  function getNodeBBox(id: number, out: Float32Array) {
+    const x = nodes.x[id];
+    const y = nodes.y[id];
+    const shapeId = nodes.config[id] & 0xffff;
+    const shape = shapes[shapeId];
+
+    const padding = opts.nodeLineWidth;
+    const hw = (shape ? shape.w / 2 : 10) + padding;
+    const hh = (shape ? shape.h / 2 : 10) + padding;
+
+    out[0] = x - hw;
+    out[1] = y - hh;
+    out[2] = x + hw;
+    out[3] = y + hh;
   }
 
-  const nodes: Record<number, GraphNode> = {};
-  const edges: Record<number, GraphEdge> = {};
-  let nodeCount = 0;
-  let edgeCount = 0;
+  function getEdgeBBox(id: number, out: Float32Array) {
+    const sourceId = edges.source[id];
+    const targetId = edges.target[id];
 
-  let canvas: HTMLCanvasElement | null = null;
-  let ctx: CanvasRenderingContext2D | null = null;
+    const sx = nodes.x[sourceId];
+    const sy = nodes.y[sourceId];
+
+    const tx = nodes.x[targetId];
+    const ty = nodes.y[targetId];
+
+    let minX = Math.min(sx, tx);
+    let minY = Math.min(sy, ty);
+    let maxX = Math.max(sx, tx);
+    let maxY = Math.max(sy, ty);
+
+    const arrowPad = Math.max(10, opts.edgeLineWidth);
+    minX -= arrowPad;
+    minY -= arrowPad;
+    maxX += arrowPad;
+    maxY += arrowPad;
+
+    const shapeId = edges.config[id] & 0xffff;
+    const shape = shapes[shapeId];
+
+    if (shape) {
+      const mx = (sx + tx) / 2;
+      const my = (sy + ty) / 2;
+      const hw = shape.w / 2;
+      const hh = shape.h / 2;
+
+      if (mx - hw < minX) minX = mx - hw;
+      if (my - hh < minY) minY = my - hh;
+      if (mx + hw > maxX) maxX = mx + hw;
+      if (my + hh > maxY) maxY = my + hh;
+    }
+
+    out[0] = minX;
+    out[1] = minY;
+    out[2] = maxX;
+    out[3] = maxY;
+  }
+
+  const nodeTree = createQuadTree(
+    opts.initialMaxNodes,
+    getNodeBBox,
+    opts.initialWorldSize,
+    16,
+    50
+  );
+  const edgeTree = createQuadTree(
+    opts.initialMaxEdges,
+    getEdgeBBox,
+    opts.initialWorldSize,
+    16,
+    50
+  );
+
+  let nodeSwapDeletedLog = new Int32Array(opts.initialMaxNodes);
+  let nodeSwapMovedLog = new Int32Array(opts.initialMaxNodes);
+  let currentNodeSwapCount = 0;
+
+  let edgeSwapDeletedLog = new Int32Array(opts.initialMaxEdges);
+  let edgeSwapMovedLog = new Int32Array(opts.initialMaxEdges);
+  let currentEdgeSwapCount = 0;
+
+  let scratchBuffer = new Int32Array(
+    Math.max(opts.initialMaxNodes, opts.initialMaxEdges)
+  );
+
+  function resizeNodes(newCapacity: number) {
+    nodes.resize(newCapacity);
+    nodeTree.resizeCapacity(newCapacity);
+
+    nodeSwapDeletedLog = new Int32Array(newCapacity);
+    nodeSwapMovedLog = new Int32Array(newCapacity);
+
+    const maxCap = Math.max(newCapacity, edges.capacity);
+    if (maxCap > scratchBuffer.length) {
+      scratchBuffer = new Int32Array(maxCap);
+    }
+  }
+
+  function resizeEdges(newCapacity: number) {
+    edges.resize(newCapacity);
+    edgeTree.resizeCapacity(newCapacity);
+
+    edgeSwapDeletedLog = new Int32Array(newCapacity);
+    edgeSwapMovedLog = new Int32Array(newCapacity);
+
+    const maxCap = Math.max(nodes.capacity, newCapacity);
+    if (maxCap > scratchBuffer.length) {
+      scratchBuffer = new Int32Array(maxCap);
+    }
+  }
+
+  let canvas!: HTMLCanvasElement;
+  let ctx!: CanvasRenderingContext2D;
 
   let cameraX = 0;
   let cameraY = 0;
@@ -61,119 +167,20 @@ export function createGraphRenderer(
   let halfWidth = 0;
   let halfHeight = 0;
   let isDirty = false;
-  let dpr = 1;
+  const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
 
-  const spatialGrid: Record<string, Set<number>> = {};
-  const selectedItems = new Set<number>();
-  let ghostEdge: { sourceId: number; x: number; y: number } | null = null;
+  const ghostEdge = {
+    source: -1, // -1 mean inactive, do not draw
+    tx: 0,
+    ty: 0
+  };
 
-  function pointToLineDistance(
-    px: number,
-    py: number,
-    x1: number,
-    y1: number,
-    x2: number,
-    y2: number
-  ) {
-    const A = px - x1;
-    const B = py - y1;
-    const C = x2 - x1;
-    const D = y2 - y1;
-    const dot = A * C + B * D;
-    const lenSq = C * C + D * D;
-    let param = -1;
-    if (lenSq !== 0) param = dot / lenSq;
-    let xx, yy;
-    if (param < 0) {
-      xx = x1;
-      yy = y1;
-    } else if (param > 1) {
-      xx = x2;
-      yy = y2;
-    } else {
-      xx = x1 + param * C;
-      yy = y1 + param * D;
-    }
-    const dx = px - xx;
-    const dy = py - yy;
-    return Math.hypot(dx, dy);
-  }
+  const shapes: GraphShape[] = [];
 
-  function getCellsForBounds(
-    left: number,
-    top: number,
-    right: number,
-    bottom: number
-  ) {
-    const cells: string[] = [];
-    const minX = Math.floor(left / opts.shgCellSize);
-    const maxX = Math.floor(right / opts.shgCellSize);
-    const minY = Math.floor(top / opts.shgCellSize);
-    const maxY = Math.floor(bottom / opts.shgCellSize);
-    for (let x = minX; x <= maxX; x++) {
-      for (let y = minY; y <= maxY; y++) {
-        cells.push(`${x},${y}`);
-      }
-    }
-    return cells;
-  }
-
-  function getCellsForLine(
-    x0: number,
-    y0: number,
-    x1: number,
-    y1: number,
-    thickness: number
-  ) {
-    const cells = new Set<string>();
-    const dx = x1 - x0;
-    const dy = y1 - y0;
-    const len = Math.sqrt(dx * dx + dy * dy);
-
-    if (len === 0) {
-      cells.add(
-        `${Math.floor(x0 / opts.shgCellSize)},${Math.floor(y0 / opts.shgCellSize)}`
-      );
-      return Array.from(cells);
-    }
-
-    // Step along the line in small increments to sample intersected cells.
-    // A step size of (cellSize / 4) guarantees we won't skip over any cell corners.
-    const step = opts.shgCellSize / 4;
-    const steps = Math.ceil(len / step);
-
-    for (let i = 0; i <= steps; i++) {
-      const t = i / steps;
-      const px = x0 + dx * t;
-      const py = y0 + dy * t;
-
-      const cx = Math.floor(px / opts.shgCellSize);
-      const cy = Math.floor(py / opts.shgCellSize);
-      cells.add(`${cx},${cy}`);
-
-      // Expand into adjacent cells if we are near the cell boundary
-      const localX = px - cx * opts.shgCellSize;
-      const localY = py - cy * opts.shgCellSize;
-
-      if (localX < thickness) cells.add(`${cx - 1},${cy}`);
-      if (localX > opts.shgCellSize - thickness) cells.add(`${cx + 1},${cy}`);
-      if (localY < thickness) cells.add(`${cx},${cy - 1}`);
-      if (localY > opts.shgCellSize - thickness) cells.add(`${cx},${cy + 1}`);
-
-      if (localX < thickness && localY < thickness)
-        cells.add(`${cx - 1},${cy - 1}`);
-      if (localX > opts.shgCellSize - thickness && localY < thickness)
-        cells.add(`${cx + 1},${cy - 1}`);
-      if (localX < thickness && localY > opts.shgCellSize - thickness)
-        cells.add(`${cx - 1},${cy + 1}`);
-      if (
-        localX > opts.shgCellSize - thickness &&
-        localY > opts.shgCellSize - thickness
-      )
-        cells.add(`${cx + 1},${cy + 1}`);
-    }
-
-    return Array.from(cells);
+  function registerShape(shape: GraphShape): number {
+    const id = shapes.length;
+    shapes.push(shape);
+    return id;
   }
 
   function getBoundaryIntersection(
@@ -193,7 +200,7 @@ export function createGraphRenderer(
     let end = e;
 
     // Temporarily reset matrix to identity to guarantee pure un-scaled raycast testing
-    ctx!.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
 
     while (start <= end) {
       const mid = ((start + end) / 2) | 0;
@@ -209,301 +216,20 @@ export function createGraphRenderer(
       }
     }
 
-    // Restore the base DPR matrix that exists outside of flush()
-    ctx!.setTransform(dpr, 0, 0, dpr, 0, 0);
+    applyCameraTransform();
 
     const finalT = start / e;
     return { x: cx + finalT * dx, y: cy + finalT * dy };
   }
 
-  function insertToGrid(id: number, cells: string[]) {
-    for (const cell of cells) {
-      if (!spatialGrid[cell]) spatialGrid[cell] = new Set();
-      spatialGrid[cell].add(id);
-    }
-  }
-
-  function removeFromGrid(id: number, cells: string[]) {
-    if (!cells) return;
-    for (const cell of cells) {
-      spatialGrid[cell]?.delete(id);
-      if (spatialGrid[cell]?.size === 0) delete spatialGrid[cell];
-    }
-  }
-
-  function insertNodeToGrid(node: GraphNode) {
-    const left = node.x - node.shape.w / 2;
-    const right = node.x + node.shape.w / 2;
-    const top = node.y - node.shape.h / 2;
-    const bottom = node.y + node.shape.h / 2;
-    node.cells = getCellsForBounds(left, top, right, bottom);
-    insertToGrid(node.id, node.cells);
-  }
-
-  function removeNodeFromGrid(node: GraphNode) {
-    removeFromGrid(node.id, node.cells);
-    node.cells = [];
-  }
-
-  function insertEdgeToGrid(edge: GraphEdge) {
-    edge.line.cells = getCellsForLine(
-      edge.line.sx,
-      edge.line.sy,
-      edge.line.tx,
-      edge.line.ty,
-      4
-    );
-    insertToGrid(edge.id, edge.line.cells);
-
-    const arrowMinX = edge.arrow.x - 10;
-    const arrowMaxX = edge.arrow.x + 10;
-    const arrowMinY = edge.arrow.y - 10;
-    const arrowMaxY = edge.arrow.y + 10;
-    edge.arrow.cells = getCellsForBounds(
-      arrowMinX,
-      arrowMinY,
-      arrowMaxX,
-      arrowMaxY
-    );
-    insertToGrid(edge.id, edge.arrow.cells);
-
-    if (edge.label) {
-      const labelMinX = edge.label.x - edge.label.shape.w / 2;
-      const labelMaxX = edge.label.x + edge.label.shape.w / 2;
-      const labelMinY = edge.label.y - edge.label.shape.h / 2;
-      const labelMaxY = edge.label.y + edge.label.shape.h / 2;
-      edge.label.cells = getCellsForBounds(
-        labelMinX,
-        labelMinY,
-        labelMaxX,
-        labelMaxY
-      );
-      insertToGrid(edge.id, edge.label.cells);
-    }
-  }
-
-  function removeEdgeFromGrid(edge: GraphEdge) {
-    removeFromGrid(edge.id, edge.line.cells);
-    removeFromGrid(edge.id, edge.arrow.cells);
-    if (edge.label) removeFromGrid(edge.id, edge.label.cells);
-
-    edge.line.cells = [];
-    edge.arrow.cells = [];
-    if (edge.label) edge.label.cells = [];
-  }
-
-  function updateEdgeGeometry(edgeId: number, skipGrid = false) {
-    const edge = edges[edgeId];
-    if (!edge) return;
-    const sourceNode = nodes[edge.source];
-    const targetNode = nodes[edge.target];
-    if (!sourceNode || !targetNode) return;
-
-    if (!skipGrid) removeEdgeFromGrid(edge);
-
-    const targetIntersection = getBoundaryIntersection(
-      targetNode.shape.path,
-      targetNode.x,
-      targetNode.y,
-      sourceNode.x,
-      sourceNode.y
-    );
-
-    const dx = targetIntersection.x - sourceNode.x;
-    const dy = targetIntersection.y - sourceNode.y;
-    const angle = Math.atan2(dy, dx);
-    const arrowSize = 10;
-
-    const lineEndX = targetIntersection.x - Math.cos(angle) * (arrowSize - 2);
-    const lineEndY = targetIntersection.y - Math.sin(angle) * (arrowSize - 2);
-
-    edge.line.sx = sourceNode.x;
-    edge.line.sy = sourceNode.y;
-    edge.line.tx = lineEndX;
-    edge.line.ty = lineEndY;
-
-    edge.arrow.x = targetIntersection.x;
-    edge.arrow.y = targetIntersection.y;
-    edge.arrow.angle = angle;
-
-    if (edge.label) {
-      // Use dead centers of nodes, shifted back by half the arrow height to remain centered
-      edge.label.x =
-        (sourceNode.x + targetNode.x) / 2 - Math.cos(angle) * (arrowSize / 2);
-      edge.label.y =
-        (sourceNode.y + targetNode.y) / 2 - Math.sin(angle) * (arrowSize / 2);
-    }
-
-    if (!skipGrid) insertEdgeToGrid(edge);
-  }
-
-  function drawNode(nodeId: number, offsetX: number, offsetY: number) {
-    if (!ctx) return;
-    const node = nodes[nodeId];
-    ctx.setTransform(
-      zoom * dpr,
-      0,
-      0,
-      zoom * dpr,
-      (node.x * zoom + offsetX) * dpr,
-      (node.y * zoom + offsetY) * dpr
-    );
-
-    if (selectedItems.has(node.id)) {
-      ctx.lineWidth = opts.selectedNodeLineWidth;
-      ctx.strokeStyle = opts.selectedNodeLineColor;
-    } else {
-      ctx.strokeStyle = opts.nodeLineColor;
-      ctx.lineWidth = opts.nodeLineWidth;
-    }
-
-    ctx.fillStyle = opts.nodeShapeColor;
-    node.shape.draw(ctx, node.shape.path, node.id, api);
-  }
-
-  function drawEdge(edgeId: number, offsetX: number, offsetY: number) {
-    if (!ctx) return;
-    const edge = edges[edgeId];
-    const isSelected = selectedItems.has(edgeId);
-
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.translate(halfWidth, halfHeight);
-    ctx.scale(zoom, zoom);
-    ctx.translate(-cameraX, -cameraY);
-
-    ctx.beginPath();
-    ctx.moveTo(edge.line.sx, edge.line.sy);
-    ctx.lineTo(edge.line.tx, edge.line.ty);
-    ctx.strokeStyle = isSelected
-      ? opts.selectedEdgeLineColor
-      : opts.edgeLineColor;
-    ctx.lineWidth = isSelected
-      ? opts.selectedEdgeLineWidth
-      : opts.edgeLineWidth;
-    ctx.stroke();
-
-    ctx.setTransform(
-      zoom * dpr,
-      0,
-      0,
-      zoom * dpr,
-      (edge.arrow.x * zoom + offsetX) * dpr,
-      (edge.arrow.y * zoom + offsetY) * dpr
-    );
-    ctx.rotate(edge.arrow.angle);
-    ctx.fillStyle = isSelected
-      ? opts.selectedEdgeLineColor
-      : opts.edgeLineColor;
-    ctx.fill(sharedArrowPath);
-
-    if (edge.label) {
-      ctx.setTransform(
-        zoom * dpr,
-        0,
-        0,
-        zoom * dpr,
-        (edge.label.x * zoom + offsetX) * dpr,
-        (edge.label.y * zoom + offsetY) * dpr
-      );
-
-      ctx.fillStyle = opts.edgeShapeColor;
-      ctx.strokeStyle = isSelected
-        ? opts.selectedEdgeLineColor
-        : opts.edgeLineColor;
-      ctx.lineWidth = isSelected
-        ? opts.selectedEdgeLineWidth
-        : opts.edgeLineWidth;
-      edge.label.shape.draw(ctx, edge.label.shape.path, edge.id, api);
-    }
-  }
-
-  function drawBackground(
-    left: number,
-    top: number,
-    right: number,
-    bottom: number
-  ) {
-    if (!ctx) return;
-    if (!opts.drawGrid) return;
-    const gridSize = opts.gridSize;
-    if (gridSize * zoom < 10) return;
-
-    const startX = Math.floor(left / gridSize) * gridSize;
-    const startY = Math.floor(top / gridSize) * gridSize;
-
-    ctx.beginPath();
-    if (opts.gridType === "dot") {
-      const radius = opts.gridDotRadius;
-      ctx.lineWidth = radius * 2;
-      ctx.lineCap = "round";
-      ctx.setLineDash([0, gridSize]);
-      ctx.strokeStyle = opts.gridLineColor;
-      for (let y = startY; y < bottom; y += gridSize) {
-        ctx.moveTo(startX, y);
-        ctx.lineTo(right, y);
-      }
-      ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.lineCap = "butt";
-    } else {
-      for (let x = startX; x < right; x += gridSize) {
-        ctx.moveTo(x, top);
-        ctx.lineTo(x, bottom);
-      }
-      for (let y = startY; y < bottom; y += gridSize) {
-        ctx.moveTo(left, y);
-        ctx.lineTo(right, y);
-      }
-      ctx.lineWidth = opts.gridLineWidth;
-      ctx.strokeStyle = opts.gridLineColor;
-      ctx.stroke();
-    }
-  }
-
-  function drawGhostEdge(offsetX: number, offsetY: number) {
-    if (!ctx) return;
-    if (!ghostEdge) return;
-    const sourceNode = nodes[ghostEdge.sourceId];
-    if (!sourceNode) return;
-
-    const dx = ghostEdge.x - sourceNode.x;
-    const dy = ghostEdge.y - sourceNode.y;
-    const angle = Math.atan2(dy, dx);
-    const arrowSize = 10;
-
-    const lineStartX = sourceNode.x;
-    const lineStartY = sourceNode.y;
-    const lineEndX = ghostEdge.x - Math.cos(angle) * (arrowSize - 2);
-    const lineEndY = ghostEdge.y - Math.sin(angle) * (arrowSize - 2);
-
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.translate(halfWidth, halfHeight);
-    ctx.scale(zoom, zoom);
-    ctx.translate(-cameraX, -cameraY);
-
-    ctx.beginPath();
-    ctx.moveTo(lineStartX, lineStartY);
-    ctx.lineTo(lineEndX, lineEndY);
-    ctx.strokeStyle = opts.selectedNodeLineColor;
-    ctx.lineWidth = opts.selectedEdgeLineWidth;
-    ctx.stroke();
-
-    ctx.setTransform(
-      zoom * dpr,
-      0,
-      0,
-      zoom * dpr,
-      (ghostEdge.x * zoom + offsetX) * dpr,
-      (ghostEdge.y * zoom + offsetY) * dpr
-    );
-    ctx.rotate(angle);
-    ctx.fillStyle = opts.selectedEdgeLineColor;
-    ctx.fill(sharedArrowPath);
+  function applyCameraTransform() {
+    const s = dpr * zoom;
+    const tx = (halfWidth - cameraX * zoom) * dpr;
+    const ty = (halfHeight - cameraY * zoom) * dpr;
+    ctx.setTransform(s, 0, 0, s, tx, ty);
   }
 
   function resize() {
-    if (!ctx || !canvas) return;
-    dpr = window.devicePixelRatio || 1;
     const rect = canvas.getBoundingClientRect();
     logicalWidth = rect.width;
     logicalHeight = rect.height;
@@ -525,264 +251,722 @@ export function createGraphRenderer(
 
   function mount(el: HTMLCanvasElement) {
     canvas = el;
-    ctx = canvas.getContext("2d");
-    if (ctx) {
-      resize();
-    }
+    const context = canvas.getContext("2d");
+
+    if (!context) throw new Error("Failed to get 2D context from canvas");
+
+    ctx = context;
+    resize();
   }
 
-  function addNode(x: number, y: number, shape: GraphShape): number {
-    const nodeId = generateId();
-    const node: GraphNode = {
-      id: nodeId,
-      x,
-      y,
-      shape,
-      cells: [],
-      incomingEdges: new Set(),
-      outgoingEdges: new Set()
-    };
-    nodes[nodeId] = node;
-    nodeCount++;
-    insertNodeToGrid(node);
-    return nodeId;
+  function setWorldSize(size: number) {
+    nodeTree.resizeBounds(size);
+    edgeTree.resizeBounds(size);
+  }
+
+  function addNode(x: number, y: number, shapeId: number): number {
+    if (nodes.count >= nodes.capacity) {
+      resizeNodes(nodes.capacity * 2);
+    }
+    const id = nodes.add(x, y, shapeId);
+    if (id !== -1) {
+      nodeTree.insert(id);
+    }
+    return id;
   }
 
   function addEdge(
     sourceId: number,
     targetId: number,
-    label?: GraphShape
+    shapeId: number = -1
   ): number {
-    if (sourceId === targetId) return -1;
-    const sourceNode = nodes[sourceId];
-    if (!sourceNode || !nodes[targetId]) return -1;
-
-    for (const edgeId of sourceNode.outgoingEdges) {
-      if (edges[edgeId]?.target === targetId) return -1;
+    if (edges.count >= edges.capacity) {
+      resizeEdges(edges.capacity * 2);
     }
-    for (const edgeId of sourceNode.incomingEdges) {
-      if (edges[edgeId]?.source === targetId) return -1;
+    const id = edges.add(sourceId, targetId, shapeId);
+    if (id === -1) return -1;
+
+    edges.tx[id] = NaN;
+    edges.ty[id] = NaN;
+
+    // Prepend to source's outgoing list
+    edges.nextOutgoingEdge[id] = nodes.outgoingEdge[sourceId];
+    nodes.outgoingEdge[sourceId] = id;
+
+    // Prepend to target's incoming list
+    edges.nextIncomingEdge[id] = nodes.incomingEdge[targetId];
+    nodes.incomingEdge[targetId] = id;
+
+    edgeTree.insert(id);
+    return id;
+  }
+
+  function drawEdge(id: number, selected: boolean) {
+    const sourceId = edges.source[id];
+    const targetId = edges.target[id];
+    const shapeId = edges.config[id] & 0xffff;
+
+    let tx = edges.tx[id];
+    let ty = edges.ty[id];
+
+    const sx = nodes.x[sourceId];
+    const sy = nodes.y[sourceId];
+
+    if (Number.isNaN(tx) || Number.isNaN(ty)) {
+      const targetShapeId = nodes.config[targetId] & 0xffff;
+      const targetShape = shapes[targetShapeId];
+      const rawTx = nodes.x[targetId];
+      const rawTy = nodes.y[targetId];
+
+      if (targetShape && targetShape.path) {
+        const intersection = getBoundaryIntersection(
+          targetShape.path,
+          rawTx,
+          rawTy,
+          sx,
+          sy
+        );
+        tx = intersection.x;
+        ty = intersection.y;
+      } else {
+        tx = rawTx;
+        ty = rawTy;
+      }
+
+      edges.tx[id] = tx;
+      edges.ty[id] = ty;
     }
 
-    const edgeId = generateId();
-    const edge: GraphEdge = {
-      id: edgeId,
-      source: sourceId,
-      target: targetId,
-      line: { sx: 0, sy: 0, tx: 0, ty: 0, cells: [] },
-      arrow: { x: 0, y: 0, angle: 0, cells: [] }
+    const angle = Math.atan2(ty - sy, tx - sx);
+    const lineEndX = tx - Math.cos(angle) * 8;
+    const lineEndY = ty - Math.sin(angle) * 8;
+
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(lineEndX, lineEndY);
+    ctx.lineWidth = selected ? opts.selectedEdgeLineWidth : opts.edgeLineWidth;
+    ctx.strokeStyle = selected
+      ? opts.selectedEdgeLineColor
+      : opts.edgeLineColor;
+    ctx.stroke();
+    ctx.translate(tx, ty);
+    ctx.rotate(angle);
+    ctx.fillStyle = selected ? opts.selectedEdgeLineColor : opts.edgeLineColor;
+    ctx.fill(getArrowPath());
+    ctx.rotate(-angle);
+    ctx.translate(-tx, -ty);
+
+    const shape = shapes[shapeId];
+    if (shape && shape.draw) {
+      const rawTx = nodes.x[targetId];
+      const rawTy = nodes.y[targetId];
+      const mx = (sx + rawTx) / 2 - Math.cos(angle) * 5;
+      const my = (sy + rawTy) / 2 - Math.sin(angle) * 5;
+
+      ctx.translate(mx, my);
+
+      ctx.fillStyle = opts.edgeShapeColor;
+      ctx.strokeStyle = selected
+        ? opts.selectedEdgeLineColor
+        : opts.edgeLineColor;
+      ctx.lineWidth = selected
+        ? opts.selectedEdgeLineWidth
+        : opts.edgeLineWidth;
+
+      shape.draw(ctx, shape.path, id, api);
+
+      ctx.translate(-mx, -my);
+    }
+  }
+
+  function drawGhostEdge() {
+    if (ghostEdge.source === -1) return;
+
+    const sx = nodes.x[ghostEdge.source];
+    const sy = nodes.y[ghostEdge.source];
+    const tx = ghostEdge.tx;
+    const ty = ghostEdge.ty;
+
+    const angle = Math.atan2(ty - sy, tx - sx);
+    const lineEndX = tx - Math.cos(angle) * 8;
+    const lineEndY = ty - Math.sin(angle) * 8;
+
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(lineEndX, lineEndY);
+    ctx.lineWidth = opts.edgeLineWidth;
+    ctx.strokeStyle = opts.edgeLineColor;
+    ctx.stroke();
+    ctx.translate(tx, ty);
+    ctx.rotate(angle);
+    ctx.fillStyle = opts.edgeLineColor;
+    ctx.fill(getArrowPath());
+    ctx.rotate(-angle);
+    ctx.translate(-tx, -ty);
+  }
+
+  function drawNode(id: number, selected: boolean) {
+    const x = nodes.x[id];
+    const y = nodes.y[id];
+    const shapeId = nodes.config[id] & 0xffff;
+
+    const shape = shapes[shapeId];
+    if (!shape) return;
+
+    ctx.translate(x, y);
+
+    ctx.fillStyle = opts.nodeShapeColor;
+    ctx.fill(shape.path);
+
+    ctx.lineWidth = selected ? opts.selectedNodeLineWidth : opts.nodeLineWidth;
+    ctx.strokeStyle = selected
+      ? opts.selectedNodeLineColor
+      : opts.nodeLineColor;
+    ctx.stroke(shape.path);
+
+    if (shape.draw) {
+      shape.draw(ctx, shape.path, id, api);
+    }
+
+    ctx.translate(-x, -y);
+  }
+
+  function drawBackground(
+    left: number,
+    top: number,
+    right: number,
+    bottom: number
+  ) {
+    if (!opts.drawGrid) return;
+    const gridSize = opts.gridSize;
+    if (gridSize * zoom < 10) return; // Hide grid when zoomed too far out
+
+    const startX = Math.floor(left / gridSize) * gridSize;
+    const startY = Math.floor(top / gridSize) * gridSize;
+
+    ctx.beginPath();
+    if (opts.gridType === "dot") {
+      const radius = opts.gridDotRadius;
+      ctx.lineWidth = radius * 2;
+      ctx.lineCap = "round";
+      ctx.setLineDash([0, gridSize]);
+      ctx.strokeStyle = opts.gridLineColor;
+      for (let y = startY; y < bottom + gridSize; y += gridSize) {
+        ctx.moveTo(startX, y);
+        ctx.lineTo(right + gridSize, y);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.lineCap = "butt";
+    } else {
+      for (let x = startX; x < right + gridSize; x += gridSize) {
+        ctx.moveTo(x, top);
+        ctx.lineTo(x, bottom);
+      }
+      for (let y = startY; y < bottom + gridSize; y += gridSize) {
+        ctx.moveTo(left, y);
+        ctx.lineTo(right, y);
+      }
+      ctx.strokeStyle = opts.gridLineColor;
+      ctx.lineWidth = opts.gridLineWidth;
+      ctx.stroke();
+    }
+  }
+
+  function draw() {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = opts.bgColor;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    applyCameraTransform();
+
+    const visibleMinX = cameraX - halfWidth / zoom;
+    const visibleMinY = cameraY - halfHeight / zoom;
+    const visibleMaxX = cameraX + halfWidth / zoom;
+    const visibleMaxY = cameraY + halfHeight / zoom;
+
+    drawBackground(visibleMinX, visibleMinY, visibleMaxX, visibleMaxY);
+
+    const visibleEdges = edgeTree.search(
+      visibleMinX,
+      visibleMinY,
+      visibleMaxX,
+      visibleMaxY
+    );
+    const visibleNodes = nodeTree.search(
+      visibleMinX,
+      visibleMinY,
+      visibleMaxX,
+      visibleMaxY
+    );
+
+    // Draw Edges (behind nodes)
+    ctx.font = opts.edgeFont;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    // Edges (Unselected)
+    for (let i = 0; i < visibleEdges.length; i++) {
+      const id = visibleEdges[i];
+      if (id >= edges.count) continue;
+      if ((edges.config[id] & (1 << 17)) !== 0) continue; // Skip dragging
+      const selected = (edges.config[id] & (1 << 16)) !== 0;
+      if (!selected) drawEdge(id, false);
+    }
+
+    // Edges (Selected)
+    for (let i = 0; i < visibleEdges.length; i++) {
+      const id = visibleEdges[i];
+      if (id >= edges.count) continue;
+      if ((edges.config[id] & (1 << 17)) !== 0) continue; // Skip dragging
+      const selected = (edges.config[id] & (1 << 16)) !== 0;
+      if (selected) drawEdge(id, true);
+    }
+
+    // Active Drag Edges
+    if (edges.activeDragCount > 0) {
+      for (let i = 0; i < edges.activeDragCount; i++) {
+        const id = edges.activeDrag[i];
+        const selected = (edges.config[id] & (1 << 16)) !== 0;
+        drawEdge(id, selected);
+      }
+    }
+
+    ctx.font = opts.nodeFont;
+    ctx.fillStyle = opts.nodeShapeColor;
+
+    // Nodes (Unselected)
+    for (let i = 0; i < visibleNodes.length; i++) {
+      const id = visibleNodes[i];
+      if (id >= nodes.count) continue;
+      if ((nodes.config[id] & (1 << 17)) !== 0) continue; // Skip dragging
+      const selected = (nodes.config[id] & (1 << 16)) !== 0;
+      if (!selected) drawNode(id, false);
+    }
+
+    if (ghostEdge.source !== -1) {
+      drawGhostEdge();
+    }
+
+    // Nodes (Selected)
+    for (let i = 0; i < visibleNodes.length; i++) {
+      const id = visibleNodes[i];
+      if (id >= nodes.count) continue;
+      if ((nodes.config[id] & (1 << 17)) !== 0) continue; // Skip dragging
+      const selected = (nodes.config[id] & (1 << 16)) !== 0;
+      if (selected) drawNode(id, true);
+    }
+
+    // Active Drag Nodes
+    if (nodes.activeDragCount > 0) {
+      for (let i = 0; i < nodes.activeDragCount; i++) {
+        const id = nodes.activeDrag[i];
+        const selected = (nodes.config[id] & (1 << 16)) !== 0;
+        drawNode(id, selected);
+      }
+    }
+  }
+
+  function flush() {
+    if (isDirty) return;
+    isDirty = true;
+
+    requestAnimationFrame(() => {
+      isDirty = false;
+      draw();
+    });
+  }
+
+  function removeEdge(id: number): number {
+    if (id < 0 || id >= edges.count) return -1;
+    edgeTree.remove(id);
+
+    const sourceId = edges.source[id];
+    const targetId = edges.target[id];
+
+    // Detach from source outgoing list
+    let prevOut = -1;
+    let currOut = nodes.outgoingEdge[sourceId];
+    while (currOut !== -1) {
+      if (currOut === id) {
+        const nextOut = edges.nextOutgoingEdge[currOut];
+        if (prevOut === -1) nodes.outgoingEdge[sourceId] = nextOut;
+        else edges.nextOutgoingEdge[prevOut] = nextOut;
+        break;
+      }
+      prevOut = currOut;
+      currOut = edges.nextOutgoingEdge[currOut];
+    }
+
+    // Detach from target incoming list
+    let prevIn = -1;
+    let currIn = nodes.incomingEdge[targetId];
+    while (currIn !== -1) {
+      if (currIn === id) {
+        const nextIn = edges.nextIncomingEdge[currIn];
+        if (prevIn === -1) nodes.incomingEdge[targetId] = nextIn;
+        else edges.nextIncomingEdge[prevIn] = nextIn;
+        break;
+      }
+      prevIn = currIn;
+      currIn = edges.nextIncomingEdge[currIn];
+    }
+
+    // Swap-and-Pop
+    const movedEdgeId = edges.remove(id);
+
+    if (movedEdgeId !== -1 && id !== movedEdgeId) {
+      edgeTree.remove(movedEdgeId);
+
+      const newSourceId = edges.source[id];
+      const newTargetId = edges.target[id];
+
+      // Fixup source list
+      let pOut = -1;
+      let cOut = nodes.outgoingEdge[newSourceId];
+      while (cOut !== -1) {
+        if (cOut === movedEdgeId) {
+          if (pOut === -1) nodes.outgoingEdge[newSourceId] = id;
+          else edges.nextOutgoingEdge[pOut] = id;
+          break;
+        }
+        pOut = cOut;
+        cOut = edges.nextOutgoingEdge[cOut];
+      }
+
+      // Fixup target list
+      let pIn = -1;
+      let cIn = nodes.incomingEdge[newTargetId];
+      while (cIn !== -1) {
+        if (cIn === movedEdgeId) {
+          if (pIn === -1) nodes.incomingEdge[newTargetId] = id;
+          else edges.nextIncomingEdge[pIn] = id;
+          break;
+        }
+        pIn = cIn;
+        cIn = edges.nextIncomingEdge[cIn];
+      }
+
+      edgeTree.insert(id);
+    }
+    if (currentEdgeSwapCount < edges.capacity) {
+      edgeSwapDeletedLog[currentEdgeSwapCount] = id;
+      edgeSwapMovedLog[currentEdgeSwapCount] = movedEdgeId;
+      currentEdgeSwapCount++;
+    }
+    return movedEdgeId;
+  }
+
+  function removeNode(id: number): number {
+    if (id < 0 || id >= nodes.count) return -1;
+    nodeTree.remove(id);
+
+    // 1. Delete all edges connected to this node by popping heads
+    while (nodes.incomingEdge[id] !== -1) {
+      removeEdge(nodes.incomingEdge[id]);
+    }
+    while (nodes.outgoingEdge[id] !== -1) {
+      removeEdge(nodes.outgoingEdge[id]);
+    }
+
+    // 2. Swap-and-Pop
+    const movedNodeId = nodes.remove(id);
+    if (movedNodeId !== -1 && id !== movedNodeId) {
+      nodeTree.remove(movedNodeId);
+
+      // FIXUP: Update all edges that were connected to movedNodeId to point to id
+      let cIn = nodes.incomingEdge[id];
+      while (cIn !== -1) {
+        edges.target[cIn] = id; // update edge target
+        cIn = edges.nextIncomingEdge[cIn];
+      }
+
+      let cOut = nodes.outgoingEdge[id];
+      while (cOut !== -1) {
+        edges.source[cOut] = id; // update edge source
+        cOut = edges.nextOutgoingEdge[cOut];
+      }
+
+      nodeTree.insert(id);
+    }
+    if (currentNodeSwapCount < nodes.capacity) {
+      nodeSwapDeletedLog[currentNodeSwapCount] = id;
+      nodeSwapMovedLog[currentNodeSwapCount] = movedNodeId;
+      currentNodeSwapCount++;
+    }
+    return movedNodeId;
+  }
+
+  const sortDescending = (a: number, b: number) => b - a;
+
+  function removeItems(nodeIds: ArrayLike<number>, edgeIds: ArrayLike<number>) {
+    currentNodeSwapCount = 0;
+    currentEdgeSwapCount = 0;
+
+    const numEdges = edgeIds.length;
+    for (let i = 0; i < numEdges; i++) scratchBuffer[i] = edgeIds[i];
+    const edgeView = scratchBuffer.subarray(0, numEdges);
+    edgeView.sort(sortDescending);
+
+    for (let i = 0; i < numEdges; i++) {
+      removeEdge(edgeView[i]);
+    }
+
+    const numNodes = nodeIds.length;
+    for (let i = 0; i < numNodes; i++) scratchBuffer[i] = nodeIds[i];
+    const nodeView = scratchBuffer.subarray(0, numNodes);
+    nodeView.sort(sortDescending);
+
+    for (let i = 0; i < numNodes; i++) {
+      removeNode(nodeView[i]);
+    }
+
+    return {
+      nodeSwapDeletedLog: nodeSwapDeletedLog.subarray(0, currentNodeSwapCount),
+      nodeSwapMovedLog: nodeSwapMovedLog.subarray(0, currentNodeSwapCount),
+      edgeSwapDeletedLog: edgeSwapDeletedLog.subarray(0, currentEdgeSwapCount),
+      edgeSwapMovedLog: edgeSwapMovedLog.subarray(0, currentEdgeSwapCount)
     };
+  }
 
-    if (label) {
-      edge.label = {
-        shape: label,
-        x: 0,
-        y: 0,
-        cells: []
-      };
+  function moveNodeTo(id: number, x: number, y: number) {
+    if (id < 0 || id >= nodes.count) return;
+    nodes.x[id] = x;
+    nodes.y[id] = y;
+
+    // Invalidate connected edges
+    let edgeId = nodes.incomingEdge[id];
+    while (edgeId !== -1) {
+      edges.tx[edgeId] = NaN;
+      edges.ty[edgeId] = NaN;
+      edgeTree.update(edgeId);
+      edgeId = edges.nextIncomingEdge[edgeId];
+    }
+    edgeId = nodes.outgoingEdge[id];
+    while (edgeId !== -1) {
+      edges.tx[edgeId] = NaN;
+      edges.ty[edgeId] = NaN;
+      edgeTree.update(edgeId);
+      edgeId = edges.nextOutgoingEdge[edgeId]; // next outgoing
     }
 
-    edges[edgeId] = edge;
-    edgeCount++;
-
-    if (nodes[sourceId]) nodes[sourceId].outgoingEdges.add(edgeId);
-    if (nodes[targetId]) nodes[targetId].incomingEdges.add(edgeId);
-
-    updateEdgeGeometry(edgeId);
-
-    return edgeId;
+    nodeTree.update(id);
   }
 
-  function moveNodeTo(id: number, x: number, y: number, skipGrid = false) {
-    const node = nodes[id];
-    if (!node) return;
-    if (!skipGrid) removeNodeFromGrid(node);
-    node.x = x;
-    node.y = y;
-    if (!skipGrid) insertNodeToGrid(node);
-
-    for (const edgeId of node.incomingEdges)
-      updateEdgeGeometry(edgeId, skipGrid);
-    for (const edgeId of node.outgoingEdges)
-      updateEdgeGeometry(edgeId, skipGrid);
+  function moveNodeBy(id: number, dx: number, dy: number) {
+    if (id < 0 || id >= nodes.count) return;
+    moveNodeTo(id, nodes.x[id] + dx, nodes.y[id] + dy);
   }
-  function moveNodeBy(id: number, dx: number, dy: number, skipGrid = false) {
-    const node = nodes[id];
-    if (!node) return;
-    if (!skipGrid) removeNodeFromGrid(node);
-    node.x += dx;
-    node.y += dy;
-    if (!skipGrid) insertNodeToGrid(node);
 
-    for (const edgeId of node.incomingEdges)
-      updateEdgeGeometry(edgeId, skipGrid);
-    for (const edgeId of node.outgoingEdges)
-      updateEdgeGeometry(edgeId, skipGrid);
+  function beginDrag(nodeIds: ArrayLike<number>) {
+    nodes.clearDragging();
+    edges.clearDragging();
+
+    for (let i = 0; i < nodeIds.length; i++) {
+      const id = nodeIds[i];
+      if (id < 0 || id >= nodes.count) continue;
+      nodes.setDragging(id);
+
+      let edgeId = nodes.incomingEdge[id];
+      while (edgeId !== -1) {
+        edges.setDragging(edgeId);
+        edgeId = edges.nextIncomingEdge[edgeId];
+      }
+
+      edgeId = nodes.outgoingEdge[id];
+      while (edgeId !== -1) {
+        edges.setDragging(edgeId);
+        edgeId = edges.nextOutgoingEdge[edgeId];
+      }
+    }
   }
-  function updateNodeGrid(id: number) {
-    const node = nodes[id];
-    if (!node) return;
-    removeNodeFromGrid(node);
-    insertNodeToGrid(node);
 
-    for (const edgeId of node.incomingEdges) updateEdgeGrid(edgeId);
-    for (const edgeId of node.outgoingEdges) updateEdgeGrid(edgeId);
-  }
-  function updateEdgeGrid(edgeId: number) {
-    const edge = edges[edgeId];
-    if (!edge) return;
-    removeEdgeFromGrid(edge);
-    insertEdgeToGrid(edge);
-  }
-  function removeItem(id: number) {
-    if (nodes[id]) removeNode(id);
-    else if (edges[id]) removeEdge(id);
-  }
-  function removeNode(id: number) {
-    const node = nodes[id];
-    if (!node) return;
-    // Copy sets to array to avoid mutation issues during iteration
-    const incoming = Array.from(node.incomingEdges);
-    for (const edgeId of incoming) removeEdge(edgeId);
-    const outgoing = Array.from(node.outgoingEdges);
-    for (const edgeId of outgoing) removeEdge(edgeId);
-
-    removeNodeFromGrid(node);
-    delete nodes[id];
-    nodeCount--;
-    selectedItems.delete(id);
-  }
-  function removeEdge(id: number) {
-    const edge = edges[id];
-    if (!edge) return;
-
-    removeFromGrid(edge.id, edge.line.cells);
-    removeFromGrid(edge.id, edge.arrow.cells);
-    if (edge.label) removeFromGrid(edge.id, edge.label.cells);
-
-    const sourceNode = nodes[edge.source];
-    if (sourceNode) sourceNode.outgoingEdges.delete(id);
-
-    const targetNode = nodes[edge.target];
-    if (targetNode) targetNode.incomingEdges.delete(id);
-
-    removeEdgeFromGrid(edge);
-    delete edges[id];
-    edgeCount--;
-    selectedItems.delete(id);
+  function endDrag() {
+    nodes.clearDragging();
+    edges.clearDragging();
   }
 
   function clear() {
-    nextId = 1;
-
-    for (const key of Object.keys(nodes)) delete nodes[Number(key)];
-    for (const key of Object.keys(edges)) delete edges[Number(key)];
-    for (const key of Object.keys(spatialGrid)) delete spatialGrid[key];
-    selectedItems.clear();
-    nodeCount = 0;
-    edgeCount = 0;
+    nodes.count = 0;
+    edges.count = 0;
+    nodeTree.clear();
+    edgeTree.clear();
   }
-
-  function unselect(ids?: number[]) {
-    if (ids) {
-      for (const id of ids) selectedItems.delete(id);
-    } else {
-      selectedItems.clear();
-    }
+  function unselectAll() {
+    nodes.unselect();
+    edges.unselect();
   }
-  function select(ids: number[]) {
-    for (const id of ids) selectedItems.add(id);
+  function unselectNode(id?: number) {
+    nodes.unselect(id);
   }
-  function getSelectedItems() {
-    return selectedItems;
+  function unselectEdge(id?: number) {
+    edges.unselect(id);
   }
-  function getItemAt(x: number, y: number): number | null {
-    if (!ctx) return null;
-    const cells = getCellsForBounds(x - 5, y - 5, x + 5, y + 5);
-    const candidates = new Set<number>();
-    const selectedCandidates = new Set<number>();
-
-    for (const cell of cells) {
-      const items = spatialGrid[cell];
-      if (items) {
-        for (const id of items) {
-          if (selectedItems.has(id)) selectedCandidates.add(id);
-          else candidates.add(id);
-        }
-      }
-    }
-
-    // Append selected candidates at the end so they are evaluated last (on top)
-    for (const id of selectedCandidates) {
-      candidates.add(id);
-    }
+  function selectNode(id: number) {
+    nodes.select(id);
+  }
+  function selectEdge(id: number) {
+    edges.select(id);
+  }
+  function getNodeAt(x: number, y: number): number {
+    const searchRadius = 1;
+    const candidates = nodeTree.search(
+      x - searchRadius,
+      y - searchRadius,
+      x + searchRadius,
+      y + searchRadius
+    );
+    if (candidates.length === 0) return -1;
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-    let matchedNode: number | null = null;
-    let matchedEdge: number | null = null;
+    let matchedNode = -1;
+    let matchedZ = -1;
+    let isMatchedSelected = false;
 
-    for (const id of candidates) {
-      const node = nodes[id];
-      if (node) {
-        if (ctx.isPointInPath(node.shape.path, x - node.x, y - node.y)) {
-          matchedNode = id;
-        }
-        continue;
-      }
+    for (let i = 0; i < candidates.length; i++) {
+      const id = candidates[i];
+      if (id >= nodes.count) continue;
+      const nx = nodes.x[id];
+      const ny = nodes.y[id];
+      const shapeId = nodes.config[id] & 0xffff;
+      const selected = (nodes.config[id] & (1 << 16)) !== 0;
 
-      const edge = edges[id];
-      if (edge) {
-        if (
-          edge.label &&
-          ctx.isPointInPath(
-            edge.label.shape.path,
-            x - edge.label.x,
-            y - edge.label.y
-          )
-        ) {
-          matchedEdge = id;
-          continue;
-        }
-
-        const cos = Math.cos(-edge.arrow.angle);
-        const sin = Math.sin(-edge.arrow.angle);
-        const dx = x - edge.arrow.x;
-        const dy = y - edge.arrow.y;
-        const rx = dx * cos - dy * sin;
-        const ry = dx * sin + dy * cos;
-        if (ctx.isPointInPath(sharedArrowPath, rx, ry)) {
-          matchedEdge = id;
-          continue;
-        }
-
-        const dist = pointToLineDistance(
-          x,
-          y,
-          edge.line.sx,
-          edge.line.sy,
-          edge.line.tx,
-          edge.line.ty
-        );
-        if (dist < 8) {
-          matchedEdge = id;
+      const shape = shapes[shapeId];
+      if (shape && shape.path) {
+        if (ctx.isPointInPath(shape.path, x - nx, y - ny)) {
+          if (selected && !isMatchedSelected) {
+            matchedNode = id;
+            matchedZ = id;
+            isMatchedSelected = true;
+          } else if (selected && isMatchedSelected) {
+            if (id > matchedZ) {
+              matchedNode = id;
+              matchedZ = id;
+            }
+          } else if (!selected && !isMatchedSelected) {
+            if (id > matchedZ) {
+              matchedNode = id;
+              matchedZ = id;
+            }
+          }
         }
       }
     }
 
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return matchedNode;
+  }
+  function getEdgeAt(x: number, y: number): number {
+    const searchRadius = 8;
+    const candidates = edgeTree.search(
+      x - searchRadius,
+      y - searchRadius,
+      x + searchRadius,
+      y + searchRadius
+    );
+    if (candidates.length === 0) return -1;
 
-    if (matchedNode !== null) return matchedNode;
-    if (matchedEdge !== null) return matchedEdge;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-    return null;
+    let matchedEdge = -1;
+    let matchedZ = -1;
+    let isMatchedSelected = false;
+
+    for (let i = 0; i < candidates.length; i++) {
+      const id = candidates[i];
+      if (id >= edges.count) continue;
+      const sourceId = edges.source[id];
+      const targetId = edges.target[id];
+      const shapeId = edges.config[id] & 0xffff;
+      const selected = (edges.config[id] & (1 << 16)) !== 0;
+
+      const sx = nodes.x[sourceId];
+      const sy = nodes.y[sourceId];
+      const tx = edges.tx[id];
+      const ty = edges.ty[id];
+
+      if (Number.isNaN(tx) || Number.isNaN(ty)) continue;
+
+      const A = x - sx;
+      const B = y - sy;
+      const C = tx - sx;
+      const D = ty - sy;
+
+      const dot = A * C + B * D;
+      const len_sq = C * C + D * D;
+      let param = -1;
+      if (len_sq != 0) param = dot / len_sq;
+
+      let xx, yy;
+      if (param < 0) {
+        xx = sx;
+        yy = sy;
+      } else if (param > 1) {
+        xx = tx;
+        yy = ty;
+      } else {
+        xx = sx + param * C;
+        yy = sy + param * D;
+      }
+
+      const dx2 = x - xx;
+      const dy2 = y - yy;
+      const dist = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+
+      if (dist > searchRadius + 15) continue;
+
+      let hit = false;
+      if (dist <= searchRadius + 2) hit = true;
+
+      const angle = Math.atan2(ty - sy, tx - sx);
+
+      const shape = shapes[shapeId];
+      if (!hit && shape && shape.path) {
+        const rawTx = nodes.x[targetId];
+        const rawTy = nodes.y[targetId];
+        const mx = (sx + rawTx) / 2 - Math.cos(angle) * 5;
+        const my = (sy + rawTy) / 2 - Math.sin(angle) * 5;
+
+        if (ctx.isPointInPath(shape.path, x - mx, y - my)) {
+          hit = true;
+        }
+      }
+
+      if (!hit) {
+        const cos = Math.cos(-angle);
+        const sin = Math.sin(-angle);
+        const dx = x - tx;
+        const dy = y - ty;
+        const rx = dx * cos - dy * sin;
+        const ry = dx * sin + dy * cos;
+        if (ctx.isPointInPath(getArrowPath(), rx, ry)) {
+          hit = true;
+        }
+      }
+
+      if (hit) {
+        if (selected && !isMatchedSelected) {
+          matchedEdge = id;
+          matchedZ = id;
+          isMatchedSelected = true;
+        } else if (selected && isMatchedSelected) {
+          if (id > matchedZ) {
+            matchedEdge = id;
+            matchedZ = id;
+          }
+        } else if (!selected && !isMatchedSelected) {
+          if (id > matchedZ) {
+            matchedEdge = id;
+            matchedZ = id;
+          }
+        }
+      }
+    }
+
+    return matchedEdge;
   }
   function zoomTo(value: number, targetX?: number, targetY?: number) {
-    if (!canvas) return;
-    const minZoom = opts.minZoom;
-    const maxZoom = opts.maxZoom;
-
-    const newZoom = Math.max(minZoom, Math.min(maxZoom, value));
+    const newZoom = Math.max(opts.minZoom, Math.min(opts.maxZoom, value));
     if (newZoom === zoom) return;
 
     const cx = targetX ?? halfWidth;
@@ -796,8 +980,8 @@ export function createGraphRenderer(
     cameraX = gx - (cx - halfWidth) / zoom;
     cameraY = gy - (cy - halfHeight) / zoom;
   }
-  function zoomBy(dv: number, targetX?: number, targetY?: number) {
-    zoomTo(zoom + dv, targetX, targetY);
+  function zoomBy(factor: number, targetX?: number, targetY?: number) {
+    zoomTo(zoom * factor, targetX, targetY);
   }
   function panTo(x: number, y: number) {
     cameraX = x;
@@ -807,31 +991,26 @@ export function createGraphRenderer(
     cameraX -= dx / zoom;
     cameraY -= dy / zoom;
   }
-
   function centerView() {
-    const nodeKeys = Object.keys(nodes);
-    if (nodeKeys.length === 0 || !canvas) return;
-
+    if (nodes.count === 0) return;
     let minX = Infinity;
     let minY = Infinity;
     let maxX = -Infinity;
     let maxY = -Infinity;
 
-    for (const key of nodeKeys) {
-      const n = nodes[Number(key)];
-      minX = Math.min(minX, n.x - n.shape.w / 2);
-      minY = Math.min(minY, n.y - n.shape.h / 2);
-      maxX = Math.max(maxX, n.x + n.shape.w / 2);
-      maxY = Math.max(maxY, n.y + n.shape.h / 2);
+    for (let i = 0; i < nodes.count; i++) {
+      getNodeBBox(i, tmpBBox);
+      if (tmpBBox[0] < minX) minX = tmpBBox[0];
+      if (tmpBBox[1] < minY) minY = tmpBBox[1];
+      if (tmpBBox[2] > maxX) maxX = tmpBBox[2];
+      if (tmpBBox[3] > maxY) maxY = tmpBBox[3];
     }
 
     const centerX = (minX + maxX) / 2;
     const centerY = (minY + maxY) / 2;
-
     const graphWidth = Math.max(1, maxX - minX);
     const graphHeight = Math.max(1, maxY - minY);
 
-    // 100px padding total (50px each side) in logical screen space
     const usableWidth = Math.max(10, logicalWidth - 100);
     const usableHeight = Math.max(10, logicalHeight - 100);
 
@@ -844,139 +1023,72 @@ export function createGraphRenderer(
     panTo(centerX, centerY);
     zoomTo(newZoom);
   }
-
-  function screenToGraph(x: number, y: number): Pos {
-    return {
-      x: (x - halfWidth) / zoom + cameraX,
-      y: (y - halfHeight) / zoom + cameraY
-    };
+  function screenToGraph(x: number, y: number, out: [number, number]) {
+    out[0] = (x - halfWidth) / zoom + cameraX;
+    out[1] = (y - halfHeight) / zoom + cameraY;
   }
-  function graphToScreen(x: number, y: number): Pos {
-    return {
-      x: (x - cameraX) * zoom + halfWidth,
-      y: (y - cameraY) * zoom + halfHeight
-    };
+  function graphToScreen(x: number, y: number, out: [number, number]) {
+    out[0] = (x - cameraX) * zoom + halfWidth;
+    out[1] = (y - cameraY) * zoom + halfHeight;
   }
-
-  function setGhostEdge(sourceId: number | null, x?: number, y?: number) {
-    if (sourceId === null || x === undefined || y === undefined) {
-      ghostEdge = null;
-    } else {
-      ghostEdge = { sourceId, x, y };
+  function setGhostEdge(sourceId: number, tx?: number, ty?: number) {
+    ghostEdge.source = sourceId;
+    if (tx !== undefined && ty !== undefined) {
+      ghostEdge.tx = tx;
+      ghostEdge.ty = ty;
     }
   }
 
-  function flush() {
-    if (isDirty) return;
-    isDirty = true;
-
-    requestAnimationFrame(() => {
-      isDirty = false;
-      if (!ctx || !canvas) return;
-
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.fillStyle = opts.bgColor;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.translate(halfWidth, halfHeight);
-      ctx.scale(zoom, zoom);
-      ctx.translate(-cameraX, -cameraY);
-
-      const left = -halfWidth / zoom + cameraX;
-      const top = -halfHeight / zoom + cameraY;
-      const right = halfWidth / zoom + cameraX;
-      const bottom = halfHeight / zoom + cameraY;
-      drawBackground(left, top, right, bottom);
-
-      // Collect visible entities from the SHG,
-      // arrange them into selected and unselected sets,
-      // and draw them in the correct order.
-      const visibleCells = getCellsForBounds(left, top, right, bottom);
-      const visibleNodes = new Set<number>();
-      const visibleEdges = new Set<number>();
-      const visibleSelectedNodes = new Set<number>();
-      const visibleSelectedEdges = new Set<number>();
-
-      for (const cell of visibleCells) {
-        if (spatialGrid[cell]) {
-          for (const id of spatialGrid[cell]) {
-            if (nodes[id]) {
-              if (selectedItems.has(id)) visibleSelectedNodes.add(id);
-              else visibleNodes.add(id);
-            } else if (edges[id]) {
-              if (selectedItems.has(id)) visibleSelectedEdges.add(id);
-              else visibleEdges.add(id);
-            }
-          }
-        }
-      }
-
-      for (const id of visibleSelectedNodes) visibleNodes.add(id);
-      for (const id of visibleSelectedEdges) visibleEdges.add(id);
-
-      // Calculate global transform offset
-      const offsetX = halfWidth - cameraX * zoom;
-      const offsetY = halfHeight - cameraY * zoom;
-
-      // Draw Edges (behind nodes)
-      ctx.font = opts.edgeFont;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-
-      // Unselected Edges
-      for (const edgeId of visibleEdges) {
-        drawEdge(edgeId, offsetX, offsetY);
-      }
-
-      ctx.font = opts.nodeFont;
-      ctx.fillStyle = opts.nodeShapeColor;
-      // Unselected Nodes (EXCEPT ghost edge source node)
-      for (const nodeId of visibleNodes) {
-        if (ghostEdge && nodeId === ghostEdge.sourceId) continue;
-        drawNode(nodeId, offsetX, offsetY);
-      }
-
-      // Draw ghost edge
-      drawGhostEdge(offsetX, offsetY);
-
-      // Draw the ghost edge source node on top
-      if (ghostEdge && visibleNodes.has(ghostEdge.sourceId)) {
-        ctx.fillStyle = opts.nodeShapeColor;
-        drawNode(ghostEdge.sourceId, offsetX, offsetY);
-      }
-
-      // Reset to base transform so any outside context usage is unaffected
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    });
-  }
-
-  const api: GraphRenderer = {
-    nodes,
-    edges,
+  const api = {
+    get nodes() {
+      return nodes;
+    },
+    get edges() {
+      return edges;
+    },
     get nodeCount() {
-      return nodeCount;
+      return nodes.count;
     },
     get edgeCount() {
-      return edgeCount;
+      return edges.count;
     },
+    get selectedNodes() {
+      return nodes.selected.subarray(0, nodes.selectedCount);
+    },
+    get selectedEdges() {
+      return edges.selected.subarray(0, edges.selectedCount);
+    },
+    get zoom() {
+      return zoom;
+    },
+    get cameraX() {
+      return cameraX;
+    },
+    get cameraY() {
+      return cameraY;
+    },
+    registerShape,
     resize,
     mount,
-    getZoom: () => zoom,
     addNode,
     addEdge,
     moveNodeTo,
     moveNodeBy,
-    updateNodeGrid,
-    updateEdgeGrid,
-    removeItem,
+    flush,
     removeNode,
     removeEdge,
+    removeItems,
+    beginDrag,
+    endDrag,
     clear,
-    unselect,
-    select,
-    getSelectedItems,
-    getItemAt,
+    setWorldSize,
+    unselectAll,
+    unselectNode,
+    unselectEdge,
+    selectNode,
+    selectEdge,
+    getNodeAt,
+    getEdgeAt,
     zoomTo,
     zoomBy,
     panTo,
@@ -984,31 +1096,44 @@ export function createGraphRenderer(
     centerView,
     screenToGraph,
     graphToScreen,
-    setGhostEdge,
-    flush
+    setGhostEdge
   };
+
   return api;
 }
 
-const sharedArrowPath = new Path2D();
-sharedArrowPath.moveTo(0, 0);
-sharedArrowPath.lineTo(-10, -5);
-sharedArrowPath.lineTo(-10, 5);
-sharedArrowPath.closePath();
+let sharedArrowPath: Path2D;
+function getArrowPath() {
+  if (!sharedArrowPath) {
+    sharedArrowPath = new Path2D();
+    sharedArrowPath.moveTo(0, 0);
+    sharedArrowPath.lineTo(-10, -5);
+    sharedArrowPath.lineTo(-10, 5);
+    sharedArrowPath.closePath();
+  }
+  return sharedArrowPath;
+}
 
-const defaultPath = new Path2D();
-defaultPath.roundRect(-50, -25, 100, 50, 8);
+let defaultPath: Path2D;
+function getDefaultPath() {
+  if (!defaultPath) {
+    defaultPath = new Path2D();
+    defaultPath.roundRect(-50, -25, 100, 50, 8);
+  }
+  return defaultPath;
+}
 
-export const defaultShape: GraphShape = {
+const defaultShape: GraphShape = {
   w: 50,
   h: 50,
-  path: defaultPath,
+  get path() {
+    return getDefaultPath();
+  },
   draw: (ctx, path, id) => {
     ctx.fill(path);
     ctx.stroke(path);
-
     ctx.fillStyle = "#475569";
-    ctx.fillText(`${id}`, 0, 0);
+    ctx.fillText(String(id), 0, 0);
   }
 };
 

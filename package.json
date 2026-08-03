@@ -7,6 +7,7 @@
     "build": "pnpm -r build",
     "build:lib": "pnpm --filter web-digraph build",
     "build:site": "pnpm --filter site build",
+    "test:lib": "pnpm --filter web-digraph test",
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "pnpm -r test"
