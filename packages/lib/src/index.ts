@@ -129,6 +129,16 @@ export function createGraphRenderer(
   let activeDragNodeCount = 0;
   let activeDragEdgeCount = 0;
 
+  const nodeSwapDeletedLog = new Int32Array(opts.maxNodes);
+  const nodeSwapMovedLog = new Int32Array(opts.maxNodes);
+  let currentNodeSwapCount = 0;
+
+  const edgeSwapDeletedLog = new Int32Array(opts.maxEdges);
+  const edgeSwapMovedLog = new Int32Array(opts.maxEdges);
+  let currentEdgeSwapCount = 0;
+
+  const scratchBuffer = new Int32Array(Math.max(opts.maxNodes, opts.maxEdges));
+
   let canvas!: HTMLCanvasElement;
   let ctx!: CanvasRenderingContext2D;
 
@@ -616,6 +626,11 @@ export function createGraphRenderer(
 
       edgeTree.insert(id);
     }
+    if (currentEdgeSwapCount < opts.maxEdges) {
+      edgeSwapDeletedLog[currentEdgeSwapCount] = id;
+      edgeSwapMovedLog[currentEdgeSwapCount] = movedEdgeId;
+      currentEdgeSwapCount++;
+    }
     return movedEdgeId;
   }
 
@@ -651,7 +666,47 @@ export function createGraphRenderer(
 
       nodeTree.insert(id);
     }
+    if (currentNodeSwapCount < opts.maxNodes) {
+      nodeSwapDeletedLog[currentNodeSwapCount] = id;
+      nodeSwapMovedLog[currentNodeSwapCount] = movedNodeId;
+      currentNodeSwapCount++;
+    }
     return movedNodeId;
+  }
+
+  const sortDescending = (a: number, b: number) => b - a;
+
+  function removeItems(
+    nodeIds: ArrayLike<number>,
+    edgeIds: ArrayLike<number>
+  ) {
+    currentNodeSwapCount = 0;
+    currentEdgeSwapCount = 0;
+
+    const numEdges = edgeIds.length;
+    for (let i = 0; i < numEdges; i++) scratchBuffer[i] = edgeIds[i];
+    const edgeView = scratchBuffer.subarray(0, numEdges);
+    edgeView.sort(sortDescending);
+
+    for (let i = 0; i < numEdges; i++) {
+      removeEdge(edgeView[i]);
+    }
+
+    const numNodes = nodeIds.length;
+    for (let i = 0; i < numNodes; i++) scratchBuffer[i] = nodeIds[i];
+    const nodeView = scratchBuffer.subarray(0, numNodes);
+    nodeView.sort(sortDescending);
+
+    for (let i = 0; i < numNodes; i++) {
+      removeNode(nodeView[i]);
+    }
+
+    return {
+      nodeSwapDeletedLog: nodeSwapDeletedLog.subarray(0, currentNodeSwapCount),
+      nodeSwapMovedLog: nodeSwapMovedLog.subarray(0, currentNodeSwapCount),
+      edgeSwapDeletedLog: edgeSwapDeletedLog.subarray(0, currentEdgeSwapCount),
+      edgeSwapMovedLog: edgeSwapMovedLog.subarray(0, currentEdgeSwapCount)
+    };
   }
 
   function moveNodeTo(id: number, x: number, y: number) {
@@ -1061,6 +1116,7 @@ export function createGraphRenderer(
     flush,
     removeNode,
     removeEdge,
+    removeItems,
     beginDrag,
     endDrag,
     clear,

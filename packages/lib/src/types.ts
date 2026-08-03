@@ -80,6 +80,15 @@ export type GraphRenderer = {
   flush: () => void;
   removeNode: (id: number) => number;
   removeEdge: (id: number) => number;
+  removeItems: (
+    nodeIds: ArrayLike<number>,
+    edgeIds: ArrayLike<number>
+  ) => {
+    nodeSwapDeletedLog: Int32Array;
+    nodeSwapMovedLog: Int32Array;
+    edgeSwapDeletedLog: Int32Array;
+    edgeSwapMovedLog: Int32Array;
+  };
   clear: () => void;
   unselectAll: () => void;
   unselectNode: (id?: number) => void;
