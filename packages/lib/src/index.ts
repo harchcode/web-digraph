@@ -42,9 +42,6 @@ export function createGraphRenderer(
   const nodes = createNodeStore(opts.initialMaxNodes);
   const edges = createEdgeStore(opts.initialMaxEdges);
 
-  let selectedNodes = new Int32Array(opts.initialMaxNodes);
-  let selectedEdges = new Int32Array(opts.initialMaxEdges);
-
   // Forward declare for the quad tree callbacks
   const tmpBBox = new Float32Array(4);
 
@@ -121,14 +118,6 @@ export function createGraphRenderer(
     50
   );
 
-  let selectedNodeCount = 0;
-  let selectedEdgeCount = 0;
-
-  let activeDragNodes = new Int32Array(opts.initialMaxNodes);
-  let activeDragEdges = new Int32Array(opts.initialMaxEdges);
-  let activeDragNodeCount = 0;
-  let activeDragEdgeCount = 0;
-
   let nodeSwapDeletedLog = new Int32Array(opts.initialMaxNodes);
   let nodeSwapMovedLog = new Int32Array(opts.initialMaxNodes);
   let currentNodeSwapCount = 0;
@@ -145,14 +134,6 @@ export function createGraphRenderer(
     nodes.resize(newCapacity);
     nodeTree.resizeCapacity(newCapacity);
 
-    const newSelectedNodes = new Int32Array(newCapacity);
-    newSelectedNodes.set(selectedNodes);
-    selectedNodes = newSelectedNodes;
-
-    const newActiveDragNodes = new Int32Array(newCapacity);
-    newActiveDragNodes.set(activeDragNodes);
-    activeDragNodes = newActiveDragNodes;
-
     nodeSwapDeletedLog = new Int32Array(newCapacity);
     nodeSwapMovedLog = new Int32Array(newCapacity);
 
@@ -165,14 +146,6 @@ export function createGraphRenderer(
   function resizeEdges(newCapacity: number) {
     edges.resize(newCapacity);
     edgeTree.resizeCapacity(newCapacity);
-
-    const newSelectedEdges = new Int32Array(newCapacity);
-    newSelectedEdges.set(selectedEdges);
-    selectedEdges = newSelectedEdges;
-
-    const newActiveDragEdges = new Int32Array(newCapacity);
-    newActiveDragEdges.set(activeDragEdges);
-    activeDragEdges = newActiveDragEdges;
 
     edgeSwapDeletedLog = new Int32Array(newCapacity);
     edgeSwapMovedLog = new Int32Array(newCapacity);
@@ -551,9 +524,9 @@ export function createGraphRenderer(
     }
 
     // Active Drag Edges
-    if (activeDragEdgeCount > 0) {
-      for (let i = 0; i < activeDragEdgeCount; i++) {
-        const id = activeDragEdges[i];
+    if (edges.activeDragCount > 0) {
+      for (let i = 0; i < edges.activeDragCount; i++) {
+        const id = edges.activeDrag[i];
         const selected = (edges.config[id] & (1 << 16)) !== 0;
         drawEdge(id, selected);
       }
@@ -585,9 +558,9 @@ export function createGraphRenderer(
     }
 
     // Active Drag Nodes
-    if (activeDragNodeCount > 0) {
-      for (let i = 0; i < activeDragNodeCount; i++) {
-        const id = activeDragNodes[i];
+    if (nodes.activeDragCount > 0) {
+      for (let i = 0; i < nodes.activeDragCount; i++) {
+        const id = nodes.activeDrag[i];
         const selected = (nodes.config[id] & (1 << 16)) !== 0;
         drawNode(id, selected);
       }
@@ -786,46 +759,31 @@ export function createGraphRenderer(
   }
 
   function beginDrag(nodeIds: ArrayLike<number>) {
-    activeDragNodeCount = 0;
-    activeDragEdgeCount = 0;
+    nodes.clearDragging();
+    edges.clearDragging();
 
     for (let i = 0; i < nodeIds.length; i++) {
       const id = nodeIds[i];
       if (id < 0 || id >= nodes.count) continue;
-      nodes.config[id] |= 1 << 17; // Set isDragging bit
-      activeDragNodes[activeDragNodeCount++] = id;
+      nodes.setDragging(id);
 
       let edgeId = nodes.incomingEdge[id];
       while (edgeId !== -1) {
-        if ((edges.config[edgeId] & (1 << 17)) === 0) {
-          edges.config[edgeId] |= 1 << 17;
-          activeDragEdges[activeDragEdgeCount++] = edgeId;
-        }
+        edges.setDragging(edgeId);
         edgeId = edges.nextIncomingEdge[edgeId];
       }
 
       edgeId = nodes.outgoingEdge[id];
       while (edgeId !== -1) {
-        if ((edges.config[edgeId] & (1 << 17)) === 0) {
-          edges.config[edgeId] |= 1 << 17;
-          activeDragEdges[activeDragEdgeCount++] = edgeId;
-        }
+        edges.setDragging(edgeId);
         edgeId = edges.nextOutgoingEdge[edgeId];
       }
     }
   }
 
   function endDrag() {
-    for (let i = 0; i < activeDragNodeCount; i++) {
-      const id = activeDragNodes[i];
-      nodes.config[id] &= ~(1 << 17); // Clear isDragging bit
-    }
-    for (let i = 0; i < activeDragEdgeCount; i++) {
-      const id = activeDragEdges[i];
-      edges.config[id] &= ~(1 << 17);
-    }
-    activeDragNodeCount = 0;
-    activeDragEdgeCount = 0;
+    nodes.clearDragging();
+    edges.clearDragging();
   }
 
   function clear() {
@@ -835,64 +793,20 @@ export function createGraphRenderer(
     edgeTree.clear();
   }
   function unselectAll() {
-    for (let i = 0; i < selectedNodeCount; i++) {
-      const id = selectedNodes[i];
-      nodes.config[id] &= ~(1 << 16);
-    }
-    for (let i = 0; i < selectedEdgeCount; i++) {
-      const id = selectedEdges[i];
-      edges.config[id] &= ~(1 << 16);
-    }
-    selectedNodeCount = 0;
-    selectedEdgeCount = 0;
+    nodes.unselect();
+    edges.unselect();
   }
   function unselectNode(id?: number) {
-    if (id === undefined) {
-      for (let i = 0; i < selectedNodeCount; i++) {
-        const nid = selectedNodes[i];
-        nodes.config[nid] &= ~(1 << 16);
-      }
-      selectedNodeCount = 0;
-    } else {
-      if ((nodes.config[id] & (1 << 16)) === 0) return;
-      nodes.config[id] &= ~(1 << 16);
-      for (let i = 0; i < selectedNodeCount; i++) {
-        if (selectedNodes[i] === id) {
-          selectedNodes[i] = selectedNodes[selectedNodeCount - 1];
-          selectedNodeCount--;
-          break;
-        }
-      }
-    }
+    nodes.unselect(id);
   }
   function unselectEdge(id?: number) {
-    if (id === undefined) {
-      for (let i = 0; i < selectedEdgeCount; i++) {
-        const eid = selectedEdges[i];
-        edges.config[eid] &= ~(1 << 16);
-      }
-      selectedEdgeCount = 0;
-    } else {
-      if ((edges.config[id] & (1 << 16)) === 0) return;
-      edges.config[id] &= ~(1 << 16);
-      for (let i = 0; i < selectedEdgeCount; i++) {
-        if (selectedEdges[i] === id) {
-          selectedEdges[i] = selectedEdges[selectedEdgeCount - 1];
-          selectedEdgeCount--;
-          break;
-        }
-      }
-    }
+    edges.unselect(id);
   }
   function selectNode(id: number) {
-    if ((nodes.config[id] & (1 << 16)) !== 0) return;
-    nodes.config[id] |= 1 << 16;
-    selectedNodes[selectedNodeCount++] = id;
+    nodes.select(id);
   }
   function selectEdge(id: number) {
-    if ((edges.config[id] & (1 << 16)) !== 0) return;
-    edges.config[id] |= 1 << 16;
-    selectedEdges[selectedEdgeCount++] = id;
+    edges.select(id);
   }
   function getNodeAt(x: number, y: number): number {
     const searchRadius = 1;
@@ -1139,10 +1053,10 @@ export function createGraphRenderer(
       return edges.count;
     },
     get selectedNodes() {
-      return selectedNodes.subarray(0, selectedNodeCount);
+      return nodes.selected.subarray(0, nodes.selectedCount);
     },
     get selectedEdges() {
-      return selectedEdges.subarray(0, selectedEdgeCount);
+      return edges.selected.subarray(0, edges.selectedCount);
     },
     get zoom() {
       return zoom;

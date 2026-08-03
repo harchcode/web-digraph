@@ -9,6 +9,61 @@ export function createEdgeStore(initialMaxEdges: number) {
     ty: new Float32Array(initialMaxEdges),
     nextIncomingEdge: new Int32Array(initialMaxEdges).fill(-1),
     nextOutgoingEdge: new Int32Array(initialMaxEdges).fill(-1),
+    
+    selected: new Int32Array(initialMaxEdges),
+    selectedCount: 0,
+    activeDrag: new Int32Array(initialMaxEdges),
+    activeDragCount: 0,
+    
+    select(id: number) {
+      if ((this.config[id] & (1 << 16)) !== 0) return;
+      this.config[id] |= 1 << 16;
+      this.selected[this.selectedCount++] = id;
+    },
+
+    unselect(id?: number) {
+      if (id === undefined) {
+        for (let i = 0; i < this.selectedCount; i++) {
+          this.config[this.selected[i]] &= ~(1 << 16);
+        }
+        this.selectedCount = 0;
+      } else {
+        if ((this.config[id] & (1 << 16)) === 0) return;
+        this.config[id] &= ~(1 << 16);
+        for (let i = 0; i < this.selectedCount; i++) {
+          if (this.selected[i] === id) {
+            this.selected[i] = this.selected[this.selectedCount - 1];
+            this.selectedCount--;
+            break;
+          }
+        }
+      }
+    },
+
+    setDragging(id: number) {
+      if ((this.config[id] & (1 << 17)) !== 0) return;
+      this.config[id] |= 1 << 17;
+      this.activeDrag[this.activeDragCount++] = id;
+    },
+
+    clearDragging(id?: number) {
+      if (id === undefined) {
+        for (let i = 0; i < this.activeDragCount; i++) {
+          this.config[this.activeDrag[i]] &= ~(1 << 17);
+        }
+        this.activeDragCount = 0;
+      } else {
+        if ((this.config[id] & (1 << 17)) === 0) return;
+        this.config[id] &= ~(1 << 17);
+        for (let i = 0; i < this.activeDragCount; i++) {
+          if (this.activeDrag[i] === id) {
+            this.activeDrag[i] = this.activeDrag[this.activeDragCount - 1];
+            this.activeDragCount--;
+            break;
+          }
+        }
+      }
+    },
 
     add(sourceId: number, targetId: number, shapeId: number) {
       if (this.count >= this.capacity) return -1;
@@ -25,6 +80,10 @@ export function createEdgeStore(initialMaxEdges: number) {
 
     remove(id: number) {
       if (id < 0 || id >= this.count) return -1;
+      
+      this.unselect(id);
+      this.clearDragging(id);
+
       const lastId = this.count - 1;
       if (id !== lastId) {
         // Swap last item into the deleted slot
@@ -35,6 +94,25 @@ export function createEdgeStore(initialMaxEdges: number) {
         this.ty[id] = this.ty[lastId];
         this.nextIncomingEdge[id] = this.nextIncomingEdge[lastId];
         this.nextOutgoingEdge[id] = this.nextOutgoingEdge[lastId];
+
+        // Update selected tracking
+        if ((this.config[lastId] & (1 << 16)) !== 0) {
+          for (let i = 0; i < this.selectedCount; i++) {
+            if (this.selected[i] === lastId) {
+              this.selected[i] = id;
+              break;
+            }
+          }
+        }
+        // Update drag tracking
+        if ((this.config[lastId] & (1 << 17)) !== 0) {
+          for (let i = 0; i < this.activeDragCount; i++) {
+            if (this.activeDrag[i] === lastId) {
+              this.activeDrag[i] = id;
+              break;
+            }
+          }
+        }
       }
       this.count--;
       return lastId; // return the id of the edge that got moved to 'id', so we can fix up pointers
@@ -70,6 +148,14 @@ export function createEdgeStore(initialMaxEdges: number) {
       const newNextOutgoingEdge = new Int32Array(newCapacity).fill(-1);
       newNextOutgoingEdge.set(this.nextOutgoingEdge);
       this.nextOutgoingEdge = newNextOutgoingEdge;
+
+      const newSelected = new Int32Array(newCapacity);
+      newSelected.set(this.selected);
+      this.selected = newSelected;
+
+      const newActiveDrag = new Int32Array(newCapacity);
+      newActiveDrag.set(this.activeDrag);
+      this.activeDrag = newActiveDrag;
 
       this.capacity = newCapacity;
     }
