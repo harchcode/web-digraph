@@ -1,11 +1,17 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { createQuadTree } from '../quad-tree.js';
+import { describe, it, expect, beforeEach } from "vitest";
+import { createQuadTree } from "../quad-tree.js";
 
-describe('createQuadTree', () => {
+describe("createQuadTree", () => {
   let tree: ReturnType<typeof createQuadTree>;
   const bboxes = new Float32Array(1000 * 4); // 1000 items max for test
 
-  const setBBox = (id: number, minX: number, minY: number, maxX: number, maxY: number) => {
+  const setBBox = (
+    id: number,
+    minX: number,
+    minY: number,
+    maxX: number,
+    maxY: number
+  ) => {
     bboxes[id * 4 + 0] = minX;
     bboxes[id * 4 + 1] = minY;
     bboxes[id * 4 + 2] = maxX;
@@ -24,7 +30,7 @@ describe('createQuadTree', () => {
     tree = createQuadTree(1000, getBBox, 100, 16, 5);
   });
 
-  it('should be able to insert and search a single node', () => {
+  it("should be able to insert and search a single node", () => {
     setBBox(0, -10, -10, 10, 10);
     tree.insert(0);
 
@@ -33,7 +39,7 @@ describe('createQuadTree', () => {
     expect(res[0]).toBe(0);
   });
 
-  it('should not find nodes outside the search area', () => {
+  it("should not find nodes outside the search area", () => {
     setBBox(0, -10, -10, 10, 10);
     tree.insert(0);
 
@@ -41,7 +47,7 @@ describe('createQuadTree', () => {
     expect(res.length).toBe(0);
   });
 
-  it('should correctly remove a node', () => {
+  it("should correctly remove a node", () => {
     setBBox(0, -10, -10, 10, 10);
     tree.insert(0);
     tree.remove(0);
@@ -50,7 +56,7 @@ describe('createQuadTree', () => {
     expect(res.length).toBe(0);
   });
 
-  it('should correctly update a node position', () => {
+  it("should correctly update a node position", () => {
     setBBox(0, -10, -10, 10, 10);
     tree.insert(0);
 
@@ -67,9 +73,9 @@ describe('createQuadTree', () => {
     expect(tree.search(40, 40, 80, 80).length).toBe(1);
   });
 
-  it('should auto-expand when inserting out-of-bounds nodes', () => {
+  it("should auto-expand when inserting out-of-bounds nodes", () => {
     // Initial bounds are [-100, -100, 100, 100]
-    
+
     // Insert node well within bounds
     setBBox(0, 0, 0, 10, 10);
     tree.insert(0);
@@ -91,7 +97,7 @@ describe('createQuadTree', () => {
     expect(Array.from(all).sort()).toEqual([0, 1]);
   });
 
-  it('should properly split cells when exceeding capacity', () => {
+  it("should properly split cells when exceeding capacity", () => {
     // Capacity is 5. Insert 6 items tightly packed in Quadrant 1 (top-right).
     // Root bounds: [-100, -100, 100, 100]
     for (let i = 0; i < 6; i++) {
@@ -104,7 +110,7 @@ describe('createQuadTree', () => {
     expect(res.length).toBe(6);
   });
 
-  it('should handle many nodes exactly at the same coordinate without infinite recursion', () => {
+  it("should handle many nodes exactly at the same coordinate without infinite recursion", () => {
     // Capacity is 5. We insert 10 nodes EXACTLY at [0, 0]
     // They will straddle the boundaries, but even if they didn't, maxDepth handles it.
     for (let i = 0; i < 10; i++) {
@@ -116,28 +122,28 @@ describe('createQuadTree', () => {
     expect(res.length).toBe(10);
   });
 
-  it('should clear the tree properly', () => {
+  it("should clear the tree properly", () => {
     setBBox(0, 0, 0, 10, 10);
     tree.insert(0);
     tree.clear();
-    
+
     const res = tree.search(-20, -20, 20, 20);
     expect(res.length).toBe(0);
   });
 
-  it('should support manual resize()', () => {
+  it("should support manual resize()", () => {
     setBBox(0, 0, 0, 10, 10);
     tree.insert(0);
 
     // Expand to 200 manually
-    tree.resize(200);
+    tree.resizeBounds(200);
 
     // Should still find the node
     const res = tree.search(-20, -20, 20, 20);
     expect(res.length).toBe(1);
   });
 
-  it('should not break when removing a non-existent or uninserted item', () => {
+  it("should not break when removing a non-existent or uninserted item", () => {
     setBBox(0, -10, -10, 10, 10);
     // don't insert
     tree.remove(0); // Should safely do nothing
