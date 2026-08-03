@@ -1,4 +1,4 @@
-import { createShape, type GraphRenderer } from "web-digraph";
+import { type GraphRenderer, type GraphShape } from "web-digraph";
 
 export const nodeLabels: string[] = [];
 export const edgeLabels: string[] = [];
@@ -50,7 +50,7 @@ function drawEdgeId(ctx: CanvasRenderingContext2D, id: number) {
 // Node Shapes
 // ------------------------------------------------------------------
 
-export const squareShape = createShape({
+export const squareShape: GraphShape = {
   w: 80,
   h: 80,
   path: new Path2D("M -40 -40 L 40 -40 L 40 40 L -40 40 Z"),
@@ -59,11 +59,11 @@ export const squareShape = createShape({
     ctx.stroke(path);
     drawNodeId(ctx, id);
   }
-});
+};
 
 const circlePath = new Path2D();
 circlePath.arc(0, 0, 40, 0, Math.PI * 2);
-export const circleShape = createShape({
+export const circleShape: GraphShape = {
   w: 80,
   h: 80,
   path: circlePath,
@@ -72,9 +72,9 @@ export const circleShape = createShape({
     ctx.stroke(path);
     drawNodeId(ctx, id);
   }
-});
+};
 
-export const diamondShape = createShape({
+export const diamondShape: GraphShape = {
   w: 100,
   h: 100,
   path: new Path2D("M 0 -50 L 50 0 L 0 50 L -50 0 Z"),
@@ -83,7 +83,7 @@ export const diamondShape = createShape({
     ctx.stroke(path);
     drawNodeId(ctx, id);
   }
-});
+};
 
 const hexPath = new Path2D();
 for (let i = 0; i < 6; i++) {
@@ -95,7 +95,7 @@ for (let i = 0; i < 6; i++) {
 }
 hexPath.closePath();
 
-export const hexagonShape = createShape({
+export const hexagonShape: GraphShape = {
   w: 100,
   h: 100,
   path: hexPath,
@@ -104,7 +104,7 @@ export const hexagonShape = createShape({
     ctx.stroke(path);
     drawNodeId(ctx, id);
   }
-});
+};
 
 const starPath = new Path2D();
 const outerRadius = 60;
@@ -125,7 +125,7 @@ for (let i = 0; i < 10; i++) {
 }
 starPath.closePath();
 
-export const starShape = createShape({
+export const starShape: GraphShape = {
   w: outerRadius * 2,
   h: outerRadius * 2,
   path: starPath,
@@ -134,9 +134,9 @@ export const starShape = createShape({
     ctx.stroke(path);
     drawNodeId(ctx, id);
   }
-});
+};
 
-export const crossShape = createShape({
+export const crossShape: GraphShape = {
   w: 100,
   h: 100,
   path: new Path2D(
@@ -147,12 +147,12 @@ export const crossShape = createShape({
     ctx.stroke(path);
     drawNodeId(ctx, id);
   }
-});
+};
 
 const blobPath = new Path2D(
   "M 0 -40 C 30 -50 60 -20 40 10 C 20 40 -10 50 -30 30 C -50 10 -40 -20 0 -40 Z"
 );
-export const blobShape = createShape({
+export const blobShape: GraphShape = {
   w: 100,
   h: 100,
   path: blobPath,
@@ -161,7 +161,7 @@ export const blobShape = createShape({
     ctx.stroke(path);
     drawNodeId(ctx, id);
   }
-});
+};
 
 // ------------------------------------------------------------------
 // Edge Shapes
@@ -169,7 +169,7 @@ export const blobShape = createShape({
 
 const smallCirclePath = new Path2D();
 smallCirclePath.arc(0, 0, 16, 0, Math.PI * 2);
-export const smallCircleShape = createShape({
+export const smallCircleShape: GraphShape = {
   w: 32,
   h: 32,
   path: smallCirclePath,
@@ -178,9 +178,9 @@ export const smallCircleShape = createShape({
     ctx.stroke(path);
     drawEdgeId(ctx, id);
   }
-});
+};
 
-export const smallSquareShape = createShape({
+export const smallSquareShape: GraphShape = {
   w: 32,
   h: 32,
   path: new Path2D("M -16 -16 L 16 -16 L 16 16 L -16 16 Z"),
@@ -189,9 +189,9 @@ export const smallSquareShape = createShape({
     ctx.stroke(path);
     drawEdgeId(ctx, id);
   }
-});
+};
 
-export const smallDiamondShape = createShape({
+export const smallDiamondShape: GraphShape = {
   w: 40,
   h: 40,
   path: new Path2D("M 0 -20 L 20 0 L 0 20 L -20 0 Z"),
@@ -200,7 +200,7 @@ export const smallDiamondShape = createShape({
     ctx.stroke(path);
     drawEdgeId(ctx, id);
   }
-});
+};
 
 const nodeShapes = [
   squareShape,

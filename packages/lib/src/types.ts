@@ -40,25 +40,29 @@ export type GraphShape = {
   ) => void;
 };
 
+export type GraphNodeStore = {
+  count: number;
+  x: Float32Array;
+  y: Float32Array;
+  config: Int32Array;
+  incomingEdge: Int32Array;
+  outgoingEdge: Int32Array;
+};
+
+export type GraphEdgeStore = {
+  count: number;
+  source: Int32Array;
+  target: Int32Array;
+  config: Int32Array;
+  tx: Float32Array;
+  ty: Float32Array;
+  nextIncomingEdge: Int32Array;
+  nextOutgoingEdge: Int32Array;
+};
+
 export type GraphRenderer = {
-  readonly nodes: {
-    readonly count: number;
-    readonly x: Float32Array;
-    readonly y: Float32Array;
-    readonly config: Int32Array;
-    readonly incomingEdge: Int32Array;
-    readonly outgoingEdge: Int32Array;
-  };
-  readonly edges: {
-    readonly count: number;
-    readonly source: Int32Array;
-    readonly target: Int32Array;
-    readonly config: Int32Array;
-    readonly tx: Float32Array;
-    readonly ty: Float32Array;
-    readonly nextIncomingEdge: Int32Array;
-    readonly nextOutgoingEdge: Int32Array;
-  };
+  readonly nodes: GraphNodeStore;
+  readonly edges: GraphEdgeStore;
   readonly nodeCount: number;
   readonly edgeCount: number;
   readonly selectedNodes: Int32Array;
