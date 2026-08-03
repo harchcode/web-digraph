@@ -62,14 +62,15 @@ const interactions = createGraphInteractions(canvas, renderer, {
     updateStats();
   },
   onDeleteSelectedItems: (nodeIds, edgeIds) => {
-    for (const id of nodeIds) {
-      const moved = renderer.removeNode(id);
-      handleNodeDeleted(id, moved);
+    const stats = renderer.removeItems(nodeIds, edgeIds);
+
+    for (let i = 0; i < stats.nodeSwapDeletedLog.length; i++) {
+      handleNodeDeleted(stats.nodeSwapDeletedLog[i], stats.nodeSwapMovedLog[i]);
     }
-    for (const id of edgeIds) {
-      const moved = renderer.removeEdge(id);
-      handleEdgeDeleted(id, moved);
+    for (let i = 0; i < stats.edgeSwapDeletedLog.length; i++) {
+      handleEdgeDeleted(stats.edgeSwapDeletedLog[i], stats.edgeSwapMovedLog[i]);
     }
+
     updateStats();
   },
   onZoom: zoom => {
