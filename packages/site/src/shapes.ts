@@ -3,15 +3,14 @@ import { createShape, type GraphRenderer } from "web-digraph";
 export const nodeLabels: string[] = [];
 export const edgeLabels: string[] = [];
 
-let nextNodeIdCounter = 1;
-let nextEdgeIdCounter = 1;
+let nextIdCounter = 1;
 
 export function addNodeLabel(id: number) {
-  nodeLabels[id] = (nextNodeIdCounter++).toString();
+  nodeLabels[id] = (nextIdCounter++).toString();
 }
 
 export function addEdgeLabel(id: number) {
-  edgeLabels[id] = (nextEdgeIdCounter++).toString();
+  edgeLabels[id] = (nextIdCounter++).toString();
 }
 
 export function handleNodeDeleted(id: number, movedId: number) {
@@ -31,8 +30,7 @@ export function handleEdgeDeleted(id: number, movedId: number) {
 export function resetLabels() {
   nodeLabels.length = 0;
   edgeLabels.length = 0;
-  nextNodeIdCounter = 1;
-  nextEdgeIdCounter = 1;
+  nextIdCounter = 1;
 }
 
 // Helper to draw text
