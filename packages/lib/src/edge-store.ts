@@ -65,7 +65,7 @@ export function createEdgeStore(initialMaxEdges: number) {
       }
     },
 
-    add(sourceId: number, targetId: number, shapeId: number) {
+    add(sourceId: number, targetId: number, shapeId: number = -1) {
       if (this.count >= this.capacity) return -1;
       const id = this.count++;
       this.source[id] = sourceId;

@@ -278,7 +278,7 @@ export function createGraphRenderer(
   function addEdge(
     sourceId: number,
     targetId: number,
-    shapeId: number
+    shapeId: number = -1
   ): number {
     if (edges.count >= edges.capacity) {
       resizeEdges(edges.capacity * 2);
