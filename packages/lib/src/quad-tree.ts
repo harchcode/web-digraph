@@ -1,4 +1,4 @@
-export function createQuadTree2(
+export function createQuadTree(
   maxItems: number,
   getBBox: (id: number, out: Float32Array) => void,
   initialBounds: number,

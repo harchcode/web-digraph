@@ -1,4 +1,4 @@
-import { createQuadTree2 } from "./quad-tree-2.js";
+import { createQuadTree } from "./quad-tree.js";
 import { GraphOptions, GraphShape, GraphRenderer } from "./types.js";
 
 export * from "./types.js";
@@ -125,14 +125,14 @@ export function createGraphRenderer(
     out[3] = maxY;
   }
 
-  const nodeTree = createQuadTree2(
+  const nodeTree = createQuadTree(
     opts.maxNodes,
     getNodeBBox,
     opts.initialWorldSize,
     16,
     50
   );
-  const edgeTree = createQuadTree2(
+  const edgeTree = createQuadTree(
     opts.maxEdges,
     getEdgeBBox,
     opts.initialWorldSize,

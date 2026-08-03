@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createQuadTree2 } from '../quad-tree-2.js';
+import { createQuadTree } from '../quad-tree.js';
 
-describe('createQuadTree2', () => {
-  let tree: ReturnType<typeof createQuadTree2>;
+describe('createQuadTree', () => {
+  let tree: ReturnType<typeof createQuadTree>;
   const bboxes = new Float32Array(1000 * 4); // 1000 items max for test
 
   const setBBox = (id: number, minX: number, minY: number, maxX: number, maxY: number) => {
@@ -21,7 +21,7 @@ describe('createQuadTree2', () => {
 
   beforeEach(() => {
     // maxItems: 1000, getBBox, initialBounds: 100, maxDepth: 16, capacity: 5
-    tree = createQuadTree2(1000, getBBox, 100, 16, 5);
+    tree = createQuadTree(1000, getBBox, 100, 16, 5);
   });
 
   it('should be able to insert and search a single node', () => {
