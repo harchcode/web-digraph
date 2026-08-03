@@ -55,8 +55,8 @@ describe("createGraphRenderer - DOD Mutations", () => {
 
     const e0 = renderer.addEdge(n0, n1, 5); // 0 -> 1
     const e1 = renderer.addEdge(n0, n2, 6); // 0 -> 2
-    const e2 = renderer.addEdge(n2, n1, 7); // 2 -> 1
-    const e3 = renderer.addEdge(n1, n2, 8); // 1 -> 2
+    renderer.addEdge(n2, n1, 7); // 2 -> 1
+    renderer.addEdge(n1, n2, 8); // 1 -> 2
 
     // We will remove e1.
     // This will swap e3 (the last edge) into e1's slot.

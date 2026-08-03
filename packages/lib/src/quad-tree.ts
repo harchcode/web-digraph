@@ -19,7 +19,12 @@ export function createQuadTree(
 
   let cellCount = 0;
 
-  function allocCell(minX: number, minY: number, maxX: number, maxY: number): number {
+  function allocCell(
+    minX: number,
+    minY: number,
+    maxX: number,
+    maxY: number
+  ): number {
     if (cellCount >= MAX_CELLS) return -1; // Out of memory
     const id = cellCount++;
     cellBounds[id * 4 + 0] = minX;
@@ -103,7 +108,7 @@ export function createQuadTree(
 
         while (curr !== -1) {
           const next = nextNodeId[curr];
-          
+
           const iMinX = bboxCache[curr * 4 + 0];
           const iMinY = bboxCache[curr * 4 + 1];
           const iMaxX = bboxCache[curr * 4 + 2];
@@ -148,7 +153,7 @@ export function createQuadTree(
   function insert(itemId: number) {
     getBBox(itemId, sharedView);
     if (Number.isNaN(sharedView[0])) return;
-    
+
     let currentSize = cellBounds[2];
     let needsExpand = false;
     while (
@@ -230,12 +235,17 @@ export function createQuadTree(
 
   function resizeBounds(newBounds: number) {
     if (newBounds <= cellBounds[2]) return;
-    const allItems = search(cellBounds[0], cellBounds[1], cellBounds[2], cellBounds[3]);
+    const allItems = search(
+      cellBounds[0],
+      cellBounds[1],
+      cellBounds[2],
+      cellBounds[3]
+    );
     const activeItems = new Uint32Array(allItems);
-    
+
     cellCount = 0;
     allocCell(-newBounds, -newBounds, newBounds, newBounds);
-    
+
     for (let i = 0; i < activeItems.length; i++) {
       _insert(0, activeItems[i], 0);
     }
@@ -243,38 +253,38 @@ export function createQuadTree(
 
   function resizeCapacity(newMaxItems: number) {
     if (newMaxItems <= maxItems) return;
-    
+
     const newNextNodeId = new Int32Array(newMaxItems);
     newNextNodeId.set(nextNodeId);
     nextNodeId = newNextNodeId;
-    
+
     const newBboxCache = new Float32Array(newMaxItems * 4);
     newBboxCache.set(bboxCache);
     bboxCache = newBboxCache;
-    
+
     searchResult = new Uint32Array(newMaxItems);
-    
+
     const newMaxCells = Math.max(100000, newMaxItems * 2);
     if (newMaxCells > MAX_CELLS) {
       const newCellBounds = new Float32Array(newMaxCells * 4);
       newCellBounds.set(cellBounds);
       cellBounds = newCellBounds;
-      
+
       const newCellHeads = new Int32Array(newMaxCells);
       newCellHeads.set(cellHeads);
       cellHeads = newCellHeads;
-      
+
       const newCellCounts = new Int32Array(newMaxCells);
       newCellCounts.set(cellCounts);
       cellCounts = newCellCounts;
-      
+
       const newCellFirstChild = new Int32Array(newMaxCells);
       newCellFirstChild.set(cellFirstChild);
       cellFirstChild = newCellFirstChild;
-      
+
       MAX_CELLS = newMaxCells;
     }
-    
+
     maxItems = newMaxItems;
   }
 

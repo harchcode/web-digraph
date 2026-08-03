@@ -54,7 +54,11 @@ export async function generateGrid(
       nodeIds.push(id);
 
       if (i > 0) {
-        const edgeId = renderer.addEdge(nodeIds[i - 1], id, getRandomEdgeShapeId());
+        const edgeId = renderer.addEdge(
+          nodeIds[i - 1],
+          id,
+          getRandomEdgeShapeId()
+        );
         addEdgeLabel(edgeId);
       }
       i++;
@@ -114,7 +118,11 @@ export function generateGridImmediate(renderer: GraphRenderer) {
     nodeIds[i] = id;
 
     if (i > 0) {
-      const edgeId = renderer.addEdge(nodeIds[i - 1], id, getRandomEdgeShapeId());
+      const edgeId = renderer.addEdge(
+        nodeIds[i - 1],
+        id,
+        getRandomEdgeShapeId()
+      );
       addEdgeLabel(edgeId);
     }
   }

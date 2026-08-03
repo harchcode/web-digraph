@@ -9,12 +9,12 @@ export function createEdgeStore(initialMaxEdges: number) {
     ty: new Float32Array(initialMaxEdges),
     nextIncomingEdge: new Int32Array(initialMaxEdges).fill(-1),
     nextOutgoingEdge: new Int32Array(initialMaxEdges).fill(-1),
-    
+
     selected: new Int32Array(initialMaxEdges),
     selectedCount: 0,
     activeDrag: new Int32Array(initialMaxEdges),
     activeDragCount: 0,
-    
+
     select(id: number) {
       if ((this.config[id] & (1 << 16)) !== 0) return;
       this.config[id] |= 1 << 16;
@@ -80,7 +80,7 @@ export function createEdgeStore(initialMaxEdges: number) {
 
     remove(id: number) {
       if (id < 0 || id >= this.count) return -1;
-      
+
       this.unselect(id);
       this.clearDragging(id);
 

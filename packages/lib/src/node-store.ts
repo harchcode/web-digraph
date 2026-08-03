@@ -7,12 +7,12 @@ export function createNodeStore(initialMaxNodes: number) {
     config: new Int32Array(initialMaxNodes), // bit 0-15: shapeId, bit 16: selected, bit 17: dragging
     incomingEdge: new Int32Array(initialMaxNodes).fill(-1),
     outgoingEdge: new Int32Array(initialMaxNodes).fill(-1),
-    
+
     selected: new Int32Array(initialMaxNodes),
     selectedCount: 0,
     activeDrag: new Int32Array(initialMaxNodes),
     activeDragCount: 0,
-    
+
     select(id: number) {
       if ((this.config[id] & (1 << 16)) !== 0) return;
       this.config[id] |= 1 << 16;
@@ -75,7 +75,7 @@ export function createNodeStore(initialMaxNodes: number) {
 
     remove(id: number) {
       if (id < 0 || id >= this.count) return -1;
-      
+
       this.unselect(id);
       this.clearDragging(id);
 
