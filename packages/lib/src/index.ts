@@ -125,8 +125,20 @@ export function createGraphRenderer(
     out[3] = maxY;
   }
 
-  const nodeTree = createQuadTree2(opts.maxNodes, getNodeBBox, opts.initialWorldSize, 16, 50);
-  const edgeTree = createQuadTree2(opts.maxEdges, getEdgeBBox, opts.initialWorldSize, 16, 50);
+  const nodeTree = createQuadTree2(
+    opts.maxNodes,
+    getNodeBBox,
+    opts.initialWorldSize,
+    16,
+    50
+  );
+  const edgeTree = createQuadTree2(
+    opts.maxEdges,
+    getEdgeBBox,
+    opts.initialWorldSize,
+    16,
+    50
+  );
 
   let nodeCount = 0;
   let edgeCount = 0;
@@ -240,7 +252,7 @@ export function createGraphRenderer(
     ctx = context;
     resize();
   }
-  
+
   function setWorldSize(size: number) {
     nodeTree.resize(size);
     edgeTree.resize(size);
@@ -343,7 +355,7 @@ export function createGraphRenderer(
     ctx.translate(tx, ty);
     ctx.rotate(angle);
     ctx.fillStyle = selected ? opts.selectedEdgeLineColor : opts.edgeLineColor;
-    ctx.fill(sharedArrowPath);
+    ctx.fill(getArrowPath());
     ctx.rotate(-angle);
     ctx.translate(-tx, -ty);
 
@@ -391,7 +403,7 @@ export function createGraphRenderer(
     ctx.translate(tx, ty);
     ctx.rotate(angle);
     ctx.fillStyle = opts.edgeLineColor;
-    ctx.fill(sharedArrowPath);
+    ctx.fill(getArrowPath());
     ctx.rotate(-angle);
     ctx.translate(-tx, -ty);
   }
@@ -960,7 +972,7 @@ export function createGraphRenderer(
         const dy = y - ty;
         const rx = dx * cos - dy * sin;
         const ry = dx * sin + dy * cos;
-        if (ctx.isPointInPath(sharedArrowPath, rx, ry)) {
+        if (ctx.isPointInPath(getArrowPath(), rx, ry)) {
           hit = true;
         }
       }
@@ -1122,25 +1134,38 @@ export function createGraphRenderer(
   return api;
 }
 
-const sharedArrowPath = new Path2D();
-sharedArrowPath.moveTo(0, 0);
-sharedArrowPath.lineTo(-10, -5);
-sharedArrowPath.lineTo(-10, 5);
-sharedArrowPath.closePath();
+let sharedArrowPath: Path2D;
+function getArrowPath() {
+  if (!sharedArrowPath) {
+    sharedArrowPath = new Path2D();
+    sharedArrowPath.moveTo(0, 0);
+    sharedArrowPath.lineTo(-10, -5);
+    sharedArrowPath.lineTo(-10, 5);
+    sharedArrowPath.closePath();
+  }
+  return sharedArrowPath;
+}
 
-const defaultPath = new Path2D();
-defaultPath.roundRect(-50, -25, 100, 50, 8);
+let defaultPath: Path2D;
+function getDefaultPath() {
+  if (!defaultPath) {
+    defaultPath = new Path2D();
+    defaultPath.roundRect(-50, -25, 100, 50, 8);
+  }
+  return defaultPath;
+}
 
-export const defaultShape: GraphShape = {
+const defaultShape: GraphShape = {
   w: 50,
   h: 50,
-  path: defaultPath,
+  get path() {
+    return getDefaultPath();
+  },
   draw: (ctx, path, id) => {
     ctx.fill(path);
     ctx.stroke(path);
-
     ctx.fillStyle = "#475569";
-    ctx.fillText(`${id}`, 0, 0);
+    ctx.fillText(String(id), 0, 0);
   }
 };
 
