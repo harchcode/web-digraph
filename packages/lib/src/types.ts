@@ -78,8 +78,8 @@ export type GraphRenderer = {
   beginDrag: (nodeIds: ArrayLike<number>) => void;
   endDrag: () => void;
   flush: () => void;
-  removeNode: (id: number) => void;
-  removeEdge: (id: number) => void;
+  removeNode: (id: number) => number;
+  removeEdge: (id: number) => number;
   clear: () => void;
   unselectAll: () => void;
   unselectNode: (id?: number) => void;
@@ -105,6 +105,7 @@ export type GraphInteractions = {
   getMode: () => InteractionMode;
   setMultiSelect: (active: boolean) => void;
   getMultiSelect: () => boolean;
+  triggerDeleteSelectedItems: () => void;
   dispose: () => void;
 };
 
@@ -112,7 +113,6 @@ export type InteractionOptions = {
   bindDefaultKeyboardHandlers?: boolean;
   onAddNode?: (x: number, y: number) => void;
   onAddEdge?: (source: number, target: number) => void;
-  onDeleteNodes?: (nodeIds: number[]) => void;
-  onDeleteEdges?: (edgeIds: number[]) => void;
+  onDeleteSelectedItems?: (nodeIds: number[], edgeIds: number[]) => void;
   onZoom?: (zoom: number) => void;
 };

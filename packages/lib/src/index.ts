@@ -1,9 +1,5 @@
 import { createQuadTree } from "./quad-tree.js";
-import type {
-  GraphOptions,
-  GraphShape,
-  GraphRenderer
-} from "./types.js";
+import type { GraphOptions, GraphShape, GraphRenderer } from "./types.js";
 import { createNodeStore } from "./node-store.js";
 import { createEdgeStore } from "./edge-store.js";
 
@@ -548,8 +544,8 @@ export function createGraphRenderer(
     });
   }
 
-  function removeEdge(id: number) {
-    if (id < 0 || id >= edges.count) return;
+  function removeEdge(id: number): number {
+    if (id < 0 || id >= edges.count) return -1;
     edgeTree.remove(id);
 
     const sourceId = edges.source[id];
@@ -585,10 +581,10 @@ export function createGraphRenderer(
 
     // Swap-and-Pop
     const movedEdgeId = edges.remove(id);
-    
+
     if (movedEdgeId !== -1 && id !== movedEdgeId) {
       edgeTree.remove(movedEdgeId);
-      
+
       const newSourceId = edges.source[id];
       const newTargetId = edges.target[id];
 
@@ -620,10 +616,11 @@ export function createGraphRenderer(
 
       edgeTree.insert(id);
     }
+    return movedEdgeId;
   }
 
-  function removeNode(id: number) {
-    if (id < 0 || id >= nodes.count) return;
+  function removeNode(id: number): number {
+    if (id < 0 || id >= nodes.count) return -1;
     nodeTree.remove(id);
 
     // 1. Delete all edges connected to this node by popping heads
@@ -654,6 +651,7 @@ export function createGraphRenderer(
 
       nodeTree.insert(id);
     }
+    return movedNodeId;
   }
 
   function moveNodeTo(id: number, x: number, y: number) {

@@ -257,34 +257,33 @@ export function createGraphInteractions(
     renderer.flush();
   };
 
+  const triggerDeleteSelectedItems = () => {
+    const selectedNodes = Array.from(renderer.selectedNodes).sort(
+      (a, b) => b - a
+    );
+    const selectedEdges = Array.from(renderer.selectedEdges).sort(
+      (a, b) => b - a
+    );
+    if (selectedNodes.length === 0 && selectedEdges.length === 0) return;
+
+    if (options?.onDeleteSelectedItems) {
+      options.onDeleteSelectedItems(selectedNodes, selectedEdges);
+    } else {
+      for (const id of selectedNodes) renderer.removeNode(id);
+      for (const id of selectedEdges) renderer.removeEdge(id);
+    }
+
+    renderer.unselectAll();
+    renderer.flush();
+  };
+
   const onKeyDown = (e: KeyboardEvent) => {
     if (e.key === "Shift") {
       multiSelect = true;
       mode = "create";
     }
     if (e.key === "Backspace" || e.key === "Delete") {
-      const nodeIds: number[] = [];
-      for (let i = 0; i < renderer.nodeCount; i++) {
-        if (isNodeSelected(i)) nodeIds.push(i);
-      }
-
-      const edgeIds: number[] = [];
-      for (let i = 0; i < renderer.edgeCount; i++) {
-        if (isEdgeSelected(i)) edgeIds.push(i);
-      }
-
-      if (nodeIds.length > 0 || edgeIds.length > 0) {
-        if (options?.onDeleteNodes && nodeIds.length > 0)
-          options.onDeleteNodes(nodeIds);
-        else for (const id of nodeIds) renderer.removeNode(id);
-
-        if (options?.onDeleteEdges && edgeIds.length > 0)
-          options.onDeleteEdges(edgeIds);
-        else for (const id of edgeIds) renderer.removeEdge(id);
-
-        renderer.unselectAll();
-        renderer.flush();
-      }
+      triggerDeleteSelectedItems();
     }
   };
 
@@ -312,6 +311,7 @@ export function createGraphInteractions(
     getMode: () => mode,
     setMultiSelect: (active: boolean) => (multiSelect = active),
     getMultiSelect: () => multiSelect,
+    triggerDeleteSelectedItems,
     dispose: () => {
       canvas.removeEventListener("pointerdown", onPointerDown);
       canvas.removeEventListener("pointermove", onPointerMove);

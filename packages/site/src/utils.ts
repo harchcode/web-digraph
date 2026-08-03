@@ -1,5 +1,11 @@
 import type { GraphRenderer } from "web-digraph";
-import { getRandomEdgeShapeId, getRandomNodeShapeId } from "./shapes";
+import {
+  getRandomEdgeShapeId,
+  getRandomNodeShapeId,
+  addNodeLabel,
+  addEdgeLabel,
+  resetLabels
+} from "./shapes";
 
 let isGenerating = false;
 
@@ -19,6 +25,7 @@ export async function generateGrid(
   btn.disabled = true;
 
   renderer.clear();
+  resetLabels();
   renderer.flush(); // Clear screen immediately
 
   const cols = Math.ceil(Math.sqrt(count));
@@ -43,10 +50,12 @@ export async function generateGrid(
       const y = startY + row * spacing;
 
       const id = renderer.addNode(x, y, getRandomNodeShapeId());
+      addNodeLabel(id);
       nodeIds.push(id);
 
       if (i > 0) {
-        renderer.addEdge(nodeIds[i - 1], id, getRandomEdgeShapeId());
+        const edgeId = renderer.addEdge(nodeIds[i - 1], id, getRandomEdgeShapeId());
+        addEdgeLabel(edgeId);
       }
       i++;
     }
@@ -83,6 +92,7 @@ export function generateGridImmediate(renderer: GraphRenderer) {
   btn.disabled = true;
 
   renderer.clear();
+  resetLabels();
 
   const cols = Math.ceil(Math.sqrt(count));
   const rows = Math.ceil(count / cols);
@@ -100,10 +110,12 @@ export function generateGridImmediate(renderer: GraphRenderer) {
     const y = startY + row * spacing;
 
     const id = renderer.addNode(x, y, getRandomNodeShapeId());
+    addNodeLabel(id);
     nodeIds[i] = id;
 
     if (i > 0) {
-      renderer.addEdge(nodeIds[i - 1], id, getRandomEdgeShapeId());
+      const edgeId = renderer.addEdge(nodeIds[i - 1], id, getRandomEdgeShapeId());
+      addEdgeLabel(edgeId);
     }
   }
 

@@ -1,17 +1,51 @@
 import { createShape, type GraphRenderer } from "web-digraph";
 
-// Helper to draw text
-function drawNodeId(ctx: CanvasRenderingContext2D, id: number | string) {
-  ctx.fillStyle = "#475569";
-  ctx.fillText(`Node ${id}`, 0, 0);
+export const nodeLabels: string[] = [];
+export const edgeLabels: string[] = [];
+
+let nextNodeIdCounter = 1;
+let nextEdgeIdCounter = 1;
+
+export function addNodeLabel(id: number) {
+  nodeLabels[id] = (nextNodeIdCounter++).toString();
 }
 
-function drawEdgeId(ctx: CanvasRenderingContext2D, id: number | string) {
+export function addEdgeLabel(id: number) {
+  edgeLabels[id] = (nextEdgeIdCounter++).toString();
+}
+
+export function handleNodeDeleted(id: number, movedId: number) {
+  if (movedId !== -1) {
+    nodeLabels[id] = nodeLabels[movedId];
+  }
+  nodeLabels.pop();
+}
+
+export function handleEdgeDeleted(id: number, movedId: number) {
+  if (movedId !== -1) {
+    edgeLabels[id] = edgeLabels[movedId];
+  }
+  edgeLabels.pop();
+}
+
+export function resetLabels() {
+  nodeLabels.length = 0;
+  edgeLabels.length = 0;
+  nextNodeIdCounter = 1;
+  nextEdgeIdCounter = 1;
+}
+
+// Helper to draw text
+function drawNodeId(ctx: CanvasRenderingContext2D, id: number) {
   ctx.fillStyle = "#475569";
-  const oldFont = ctx.font;
-  ctx.font = "10px sans-serif";
-  ctx.fillText(id.toString(), 0, 0);
-  ctx.font = oldFont;
+  const label = nodeLabels[id] ?? id;
+  ctx.fillText(`Node ${label}`, 0, 0);
+}
+
+function drawEdgeId(ctx: CanvasRenderingContext2D, id: number) {
+  ctx.fillStyle = "#475569";
+  const label = edgeLabels[id] ?? id;
+  ctx.fillText(label.toString(), 0, 0);
 }
 
 // ------------------------------------------------------------------

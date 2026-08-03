@@ -2,7 +2,11 @@ import { createGraphRenderer, createGraphInteractions } from "web-digraph";
 import {
   registerAllShapes,
   getRandomNodeShapeId,
-  getRandomEdgeShapeId
+  getRandomEdgeShapeId,
+  addNodeLabel,
+  addEdgeLabel,
+  handleNodeDeleted,
+  handleEdgeDeleted
 } from "./shapes";
 import "./zoomSlider";
 import type { ZoomSlider } from "./zoomSlider";
@@ -48,19 +52,24 @@ function updateStats() {
 const interactions = createGraphInteractions(canvas, renderer, {
   bindDefaultKeyboardHandlers: true,
   onAddNode: (x, y) => {
-    renderer.addNode(x, y, getRandomNodeShapeId());
+    const id = renderer.addNode(x, y, getRandomNodeShapeId());
+    addNodeLabel(id);
     updateStats();
   },
   onAddEdge: (source, target) => {
-    renderer.addEdge(source, target, getRandomEdgeShapeId());
+    const id = renderer.addEdge(source, target, getRandomEdgeShapeId());
+    addEdgeLabel(id);
     updateStats();
   },
-  onDeleteNodes: nodeIds => {
-    for (const id of nodeIds) renderer.removeNode(id);
-    updateStats();
-  },
-  onDeleteEdges: edgeIds => {
-    for (const id of edgeIds) renderer.removeEdge(id);
+  onDeleteSelectedItems: (nodeIds, edgeIds) => {
+    for (const id of nodeIds) {
+      const moved = renderer.removeNode(id);
+      handleNodeDeleted(id, moved);
+    }
+    for (const id of edgeIds) {
+      const moved = renderer.removeEdge(id);
+      handleEdgeDeleted(id, moved);
+    }
     updateStats();
   },
   onZoom: zoom => {
@@ -141,15 +150,7 @@ document.getElementById("btn-fit")?.addEventListener("click", () => {
 
 // Bind delete button
 document.getElementById("btn-delete")?.addEventListener("click", () => {
-  for (let i = 0; i < renderer.selectedNodes.length; i++) {
-    renderer.removeNode(renderer.selectedNodes[i]);
-  }
-  for (let i = 0; i < renderer.selectedEdges.length; i++) {
-    renderer.removeEdge(renderer.selectedEdges[i]);
-  }
-  renderer.unselectAll();
-  renderer.flush();
-  updateStats();
+  interactions.triggerDeleteSelectedItems();
 });
 
 // Help Dialog
