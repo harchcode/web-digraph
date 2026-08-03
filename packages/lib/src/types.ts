@@ -25,6 +25,7 @@ export type GraphOptions = {
   selectedEdgeLineWidth: number;
   selectedEdgeLineColor: string;
   edgeFont: string;
+  initialWorldSize: number;
 };
 
 export type GraphShape = {
@@ -39,49 +40,6 @@ export type GraphShape = {
   ) => void;
 };
 
-export type GraphNode = {
-  id: number;
-  x: number;
-  y: number;
-  shape: GraphShape;
-  cells: string[];
-  incomingEdges: Set<number>;
-  outgoingEdges: Set<number>;
-};
-
-export type GraphEdgeLabel = {
-  shape: GraphShape;
-  x: number;
-  y: number;
-  cells: string[];
-};
-
-export type GraphEdgeLine = {
-  sx: number;
-  sy: number;
-  tx: number;
-  ty: number;
-  cells: string[];
-};
-
-export type GraphEdgeArrow = {
-  x: number;
-  y: number;
-  angle: number;
-  cells: string[];
-};
-
-export type GraphEdge = {
-  id: number;
-  source: number;
-  target: number;
-  label?: GraphEdgeLabel;
-  line: GraphEdgeLine;
-  arrow: GraphEdgeArrow;
-};
-
-export type GraphItem = GraphNode | GraphEdge;
-
 export type GraphRenderer = {
   readonly nodeBuffer: ArrayBuffer;
   readonly edgeBuffer: ArrayBuffer;
@@ -95,6 +53,7 @@ export type GraphRenderer = {
 
   registerShape: (shape: GraphShape) => number;
   resize: () => void;
+  setWorldSize: (size: number) => void;
   mount: (el: HTMLCanvasElement) => void;
   addNode: (x: number, y: number, shapeId: number) => number;
   addEdge: (sourceId: number, targetId: number, shapeId: number) => number;

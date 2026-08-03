@@ -28,7 +28,8 @@ export const defaultGraphOptions: GraphOptions = {
   edgeShapeColor: "#ffffff",
   selectedEdgeLineWidth: 3,
   selectedEdgeLineColor: "#0066ff",
-  edgeFont: "500 12px Inter, sans-serif"
+  edgeFont: "500 12px Inter, sans-serif",
+  initialWorldSize: 10000
 };
 
 // x: float32, y: float32, config: int32, incomingEdge: int32, outgoingEdge: int32
@@ -124,8 +125,8 @@ export function createGraphRenderer(
     out[3] = maxY;
   }
 
-  const nodeTree = createQuadTree2(opts.maxNodes, getNodeBBox, 16, 50);
-  const edgeTree = createQuadTree2(opts.maxEdges, getEdgeBBox, 16, 50);
+  const nodeTree = createQuadTree2(opts.maxNodes, getNodeBBox, opts.initialWorldSize, 16, 50);
+  const edgeTree = createQuadTree2(opts.maxEdges, getEdgeBBox, opts.initialWorldSize, 16, 50);
 
   let nodeCount = 0;
   let edgeCount = 0;
@@ -238,6 +239,11 @@ export function createGraphRenderer(
 
     ctx = context;
     resize();
+  }
+  
+  function setWorldSize(size: number) {
+    nodeTree.resize(size);
+    edgeTree.resize(size);
   }
 
   function addNode(x: number, y: number, shapeId: number): number {
@@ -1095,6 +1101,7 @@ export function createGraphRenderer(
     beginDrag,
     endDrag,
     clear,
+    setWorldSize,
     unselectAll,
     unselectNode,
     unselectEdge,

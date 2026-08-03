@@ -1,6 +1,7 @@
 export function createQuadTree2(
   maxItems: number,
   getBBox: (id: number, out: Float32Array) => void,
+  initialBounds: number,
   maxDepth = 16,
   capacity = 50
 ) {
@@ -33,7 +34,7 @@ export function createQuadTree2(
   }
 
   // Initialize root
-  allocCell(-1000000, -1000000, 1000000, 1000000);
+  allocCell(-initialBounds, -initialBounds, initialBounds, initialBounds);
 
   function _insert(cellIdx: number, itemId: number, depth: number) {
     if (cellIdx === -1) return;
@@ -147,6 +148,23 @@ export function createQuadTree2(
   function insert(itemId: number) {
     getBBox(itemId, sharedView);
     if (Number.isNaN(sharedView[0])) return;
+    
+    let currentSize = cellBounds[2];
+    let needsExpand = false;
+    while (
+      sharedView[0] < -currentSize ||
+      sharedView[1] < -currentSize ||
+      sharedView[2] > currentSize ||
+      sharedView[3] > currentSize
+    ) {
+      currentSize *= 2;
+      needsExpand = true;
+    }
+
+    if (needsExpand) {
+      resize(currentSize);
+    }
+
     const offset = itemId * 4;
     bboxCache[offset + 0] = sharedView[0];
     bboxCache[offset + 1] = sharedView[1];
@@ -210,9 +228,22 @@ export function createQuadTree2(
     insert(itemId);
   }
 
+  function resize(newBounds: number) {
+    if (newBounds <= cellBounds[2]) return;
+    const allItems = search(cellBounds[0], cellBounds[1], cellBounds[2], cellBounds[3]);
+    const activeItems = new Uint32Array(allItems);
+    
+    cellCount = 0;
+    allocCell(-newBounds, -newBounds, newBounds, newBounds);
+    
+    for (let i = 0; i < activeItems.length; i++) {
+      _insert(0, activeItems[i], 0);
+    }
+  }
+
   function clear() {
     cellCount = 0;
-    allocCell(-1000000, -1000000, 1000000, 1000000);
+    allocCell(-initialBounds, -initialBounds, initialBounds, initialBounds);
   }
 
   let searchCount = 0;
@@ -272,6 +303,7 @@ export function createQuadTree2(
     remove,
     update,
     clear,
+    resize,
     search
   };
 }
