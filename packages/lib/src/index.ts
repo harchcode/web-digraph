@@ -479,6 +479,7 @@ export function createGraphRenderer(
     // Edges (Unselected)
     for (let i = 0; i < visibleEdges.length; i++) {
       const id = visibleEdges[i];
+      if (id >= edges.count) continue;
       if ((edges.config[id] & (1 << 17)) !== 0) continue; // Skip dragging
       const selected = (edges.config[id] & (1 << 16)) !== 0;
       if (!selected) drawEdge(id, false);
@@ -487,6 +488,7 @@ export function createGraphRenderer(
     // Edges (Selected)
     for (let i = 0; i < visibleEdges.length; i++) {
       const id = visibleEdges[i];
+      if (id >= edges.count) continue;
       if ((edges.config[id] & (1 << 17)) !== 0) continue; // Skip dragging
       const selected = (edges.config[id] & (1 << 16)) !== 0;
       if (selected) drawEdge(id, true);
@@ -507,6 +509,7 @@ export function createGraphRenderer(
     // Nodes (Unselected)
     for (let i = 0; i < visibleNodes.length; i++) {
       const id = visibleNodes[i];
+      if (id >= nodes.count) continue;
       if ((nodes.config[id] & (1 << 17)) !== 0) continue; // Skip dragging
       const selected = (nodes.config[id] & (1 << 16)) !== 0;
       if (!selected) drawNode(id, false);
@@ -519,6 +522,7 @@ export function createGraphRenderer(
     // Nodes (Selected)
     for (let i = 0; i < visibleNodes.length; i++) {
       const id = visibleNodes[i];
+      if (id >= nodes.count) continue;
       if ((nodes.config[id] & (1 << 17)) !== 0) continue; // Skip dragging
       const selected = (nodes.config[id] & (1 << 16)) !== 0;
       if (selected) drawNode(id, true);
@@ -582,7 +586,7 @@ export function createGraphRenderer(
     // Swap-and-Pop
     const movedEdgeId = edges.remove(id);
     
-    if (movedEdgeId !== -1) {
+    if (movedEdgeId !== -1 && id !== movedEdgeId) {
       edgeTree.remove(movedEdgeId);
       
       const newSourceId = edges.source[id];
@@ -632,7 +636,7 @@ export function createGraphRenderer(
 
     // 2. Swap-and-Pop
     const movedNodeId = nodes.remove(id);
-    if (movedNodeId !== -1) {
+    if (movedNodeId !== -1 && id !== movedNodeId) {
       nodeTree.remove(movedNodeId);
 
       // FIXUP: Update all edges that were connected to movedNodeId to point to id
@@ -808,6 +812,7 @@ export function createGraphRenderer(
 
     for (let i = 0; i < candidates.length; i++) {
       const id = candidates[i];
+      if (id >= nodes.count) continue;
       const nx = nodes.x[id];
       const ny = nodes.y[id];
       const shapeId = nodes.config[id] & 0xffff;
@@ -855,6 +860,7 @@ export function createGraphRenderer(
 
     for (let i = 0; i < candidates.length; i++) {
       const id = candidates[i];
+      if (id >= edges.count) continue;
       const sourceId = edges.source[id];
       const targetId = edges.target[id];
       const shapeId = edges.config[id] & 0xffff;
