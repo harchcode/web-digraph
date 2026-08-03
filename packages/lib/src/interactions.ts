@@ -195,8 +195,7 @@ export function createGraphInteractions(
           const isSelected =
             hitType === "node" ? isNodeSelected(hitId) : isEdgeSelected(hitId);
           if (isSelected) {
-            const wasAlreadySelected =
-              hitType === "node" ? pointerDownHitWasSelected : true;
+            const wasAlreadySelected = pointerDownHitWasSelected;
             if (wasAlreadySelected) {
               if (hitType === "node") renderer.unselectNode(hitId);
               else renderer.unselectEdge(hitId);
